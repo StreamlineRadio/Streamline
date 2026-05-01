@@ -109,13 +109,13 @@ importers:
         version: 7.11.1
       '@electron-forge/plugin-fuses':
         specifier: ^7.11.1
-        version: 7.11.1(@electron/fuses@1.8.0)
+        version: 7.11.1(@electron/fuses@2.1.1)
       '@electron-forge/plugin-vite':
         specifier: ^7.11.1
         version: 7.11.1
       '@electron/fuses':
-        specifier: ^1.0.0
-        version: 1.8.0
+        specifier: ^2.1.1
+        version: 2.1.1
       '@eslint/js':
         specifier: ^10.0.1
         version: 10.0.1(eslint@10.2.1(jiti@2.6.1))
@@ -280,8 +280,9 @@ packages:
     engines: {node: '>=10.12.0'}
     hasBin: true
 
-  '@electron/fuses@1.8.0':
-    resolution: {integrity: sha512-zx0EIq78WlY/lBb1uXlziZmDZI4ubcCXIMJ4uGjXzZW0nS19TjSPeXPAjzzTmKQlJUZm0SbmZhPKP7tuQ1SsEw==}
+  '@electron/fuses@2.1.1':
+    resolution: {integrity: sha512-38ho27/mtUV/LpsZ1LCDJUomKBBSUZDk/qBH4FNNtoN5fmnkmWDcIp5pm1Kv3InqhRjKZKs7Jzx+wWZNMArHrA==}
+    engines: {node: '>=22.12.0'}
     hasBin: true
 
   '@electron/get@2.0.3':
@@ -1980,8 +1981,8 @@ packages:
     resolution: {integrity: sha512-6xwYfHbajpoF0xLW+iwLkhwgvLoZDfjYfoFNu8ftMoXINzwuymNLd9u/KmwtdT2GbR+/Cz66otEGEVVUHX9QLQ==}
     engines: {node: '>=10.13.0'}
 
-  ip-address@10.1.1:
-    resolution: {integrity: sha512-1FMu8/N15Ck1BL551Jf42NYIoin2unWjLQ2Fze/DXryJRl5twqtwNHlO39qERGbIOcKYWHdgRryhOC+NG4eaLw==}
+  ip-address@10.2.0:
+    resolution: {integrity: sha512-/+S6j4E9AHvW9SWMSEY9Xfy66O5PWvVEJ08O0y5JGyEKQpojb0K0GKpz/v5HJ/G0vi3D2sjGK78119oXZeE0qA==}
     engines: {node: '>= 12'}
 
   is-arrayish@0.2.1:
@@ -3480,11 +3481,11 @@ snapshots:
       - bluebird
       - supports-color
 
-  '@electron-forge/plugin-fuses@7.11.1(@electron/fuses@1.8.0)':
+  '@electron-forge/plugin-fuses@7.11.1(@electron/fuses@2.1.1)':
     dependencies:
       '@electron-forge/plugin-base': 7.11.1
       '@electron-forge/shared-types': 7.11.1
-      '@electron/fuses': 1.8.0
+      '@electron/fuses': 2.1.1
     transitivePeerDependencies:
       - bluebird
       - supports-color
@@ -3583,11 +3584,7 @@ snapshots:
       glob: 7.2.3
       minimatch: 3.1.5
 
-  '@electron/fuses@1.8.0':
-    dependencies:
-      chalk: 4.1.2
-      fs-extra: 9.1.0
-      minimist: 1.2.8
+  '@electron/fuses@2.1.1': {}
 
   '@electron/get@2.0.3':
     dependencies:
@@ -5478,7 +5475,7 @@ snapshots:
 
   interpret@3.1.1: {}
 
-  ip-address@10.1.1: {}
+  ip-address@10.2.0: {}
 
   is-arrayish@0.2.1: {}
 
@@ -6244,7 +6241,7 @@ snapshots:
 
   socks@2.8.8:
     dependencies:
-      ip-address: 10.1.1
+      ip-address: 10.2.0
       smart-buffer: 4.2.0
 
   source-map-js@1.2.1: {}

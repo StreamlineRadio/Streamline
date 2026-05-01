@@ -1,0 +1,21 @@
+{
+	"name": "streamline",
+	"version": "0.0.1",
+	"private": true,
+	"scripts": {
+		"dev": "pnpm --filter streamline dev",
+		"package": "pnpm --filter streamline make",
+		"check": "pnpm -r --parallel --if-present check",
+		"lint": "pnpm -r --parallel --if-present lint",
+		"lint:fix": "pnpm -r --parallel --if-present lint:fix",
+		"test": "pnpm -r --parallel --if-present test"
+	},
+	"packageManager": "pnpm@10.4.1",
+	"pnpm": {
+		"onlyBuiltDependencies": [
+			"electron",
+			"electron-winstaller",
+			"esbuild"
+		]
+	}
+}

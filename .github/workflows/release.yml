@@ -48,7 +48,7 @@ jobs:
       - run: pnpm package
 
       - name: Upload artifacts to release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.release-please.outputs.tag_name }}
           files: packages/electron/out/make/**/*

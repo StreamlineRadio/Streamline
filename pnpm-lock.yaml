@@ -135,8 +135,8 @@ importers:
         specifier: ^4.2.2
         version: 4.2.4(vite@5.4.21(@types/node@22.19.17)(lightningcss@1.32.0)(terser@5.46.2))
       '@types/electron-window-state':
-        specifier: ^2.0.0
-        version: 2.0.34
+        specifier: ^5.0.2
+        version: 5.0.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.19.17
@@ -913,8 +913,9 @@ packages:
   '@types/cacheable-request@6.0.3':
     resolution: {integrity: sha512-IQ3EbTzGxIigb1I3qPZc1rWJnH0BmSKv5QYTalEwweFvyBDLSAe24zP0le/hyi7ecGfZVlIVAg4BZqb8WBwKqw==}
 
-  '@types/electron-window-state@2.0.34':
-    resolution: {integrity: sha512-pOJfzi9uoBF9kJa47EXQCizR8g/7gnKs9jLJMMHAWv+oVYVM6Nmgt8/I85z+cdahc9Nn4/f+mHZ7m0sWg0Prbw==}
+  '@types/electron-window-state@5.0.2':
+    resolution: {integrity: sha512-7+aVlr272+whGu3vYMo0tt0HGYRS2GfLs+0dl6zTurot0wh3fb58BUc4p4ezoNiQbS+dDmDndCle8HKePfgW+g==}
+    deprecated: This is a stub types definition. electron-window-state provides its own type definitions, so you do not need this installed.
 
   '@types/eslint-scope@3.7.7':
     resolution: {integrity: sha512-MzMFlSLBqNF2gcHWO0G1vP/YQyfvrxZ0bF+u7mzUdZ1/xK4A4sru+nraZz5i3iEIk1l1uyicaDVTB4QbbEkAYg==}
@@ -1980,8 +1981,8 @@ packages:
     resolution: {integrity: sha512-6xwYfHbajpoF0xLW+iwLkhwgvLoZDfjYfoFNu8ftMoXINzwuymNLd9u/KmwtdT2GbR+/Cz66otEGEVVUHX9QLQ==}
     engines: {node: '>=10.13.0'}
 
-  ip-address@10.1.1:
-    resolution: {integrity: sha512-1FMu8/N15Ck1BL551Jf42NYIoin2unWjLQ2Fze/DXryJRl5twqtwNHlO39qERGbIOcKYWHdgRryhOC+NG4eaLw==}
+  ip-address@10.2.0:
+    resolution: {integrity: sha512-/+S6j4E9AHvW9SWMSEY9Xfy66O5PWvVEJ08O0y5JGyEKQpojb0K0GKpz/v5HJ/G0vi3D2sjGK78119oXZeE0qA==}
     engines: {node: '>= 12'}
 
   is-arrayish@0.2.1:
@@ -4214,11 +4215,9 @@ snapshots:
       '@types/node': 22.19.17
       '@types/responselike': 1.0.3
 
-  '@types/electron-window-state@2.0.34':
+  '@types/electron-window-state@5.0.2':
     dependencies:
-      electron: 41.3.0
-    transitivePeerDependencies:
-      - supports-color
+      electron-window-state: 5.0.3
 
   '@types/eslint-scope@3.7.7':
     dependencies:
@@ -5478,7 +5477,7 @@ snapshots:
 
   interpret@3.1.1: {}
 
-  ip-address@10.1.1: {}
+  ip-address@10.2.0: {}
 
   is-arrayish@0.2.1: {}
 
@@ -6244,7 +6243,7 @@ snapshots:
 
   socks@2.8.8:
     dependencies:
-      ip-address: 10.1.1
+      ip-address: 10.2.0
       smart-buffer: 4.2.0
 
   source-map-js@1.2.1: {}

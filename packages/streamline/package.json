@@ -1,0 +1,62 @@
+{
+	"name": "streamline",
+	"productName": "Streamline",
+	"version": "0.0.1",
+	"description": "Streamline - the free open-source radio broadcasting application",
+	"main": ".vite/build/main.js",
+	"private": true,
+	"scripts": {
+		"dev": "electron-forge start",
+		"start": "electron-forge start",
+		"make": "electron-forge make",
+		"check": "svelte-check --tsconfig ./renderer/tsconfig.json",
+		"test": "vitest run",
+		"lint": "prettier --check . && eslint --quiet .",
+		"lint:fix": "prettier --write . && eslint --fix .",
+		"format": "prettier --write ."
+	},
+	"keywords": [],
+	"author": {
+		"name": "Robbin \"Roboroads\" Schepers",
+		"email": "robbin+streamline@deschepers.nl"
+	},
+	"license": "AGPL-3.0-only",
+	"dependencies": {
+		"electron-window-state": "^5.0.3"
+	},
+	"devDependencies": {
+		"@electron-forge/cli": "^7.11.1",
+		"@electron-forge/maker-deb": "^7.11.1",
+		"@electron-forge/maker-dmg": "^7.11.1",
+		"@electron-forge/maker-rpm": "^7.11.1",
+		"@electron-forge/maker-squirrel": "^7.11.1",
+		"@electron-forge/maker-zip": "^7.11.1",
+		"@electron-forge/plugin-auto-unpack-natives": "^7.11.1",
+		"@electron-forge/plugin-fuses": "^7.11.1",
+		"@electron-forge/plugin-vite": "^7.11.1",
+		"@electron/fuses": "^1.0.0",
+		"@eslint/js": "^10.0.1",
+		"@reforged/maker-appimage": "^5.2.0",
+		"@sveltejs/vite-plugin-svelte": "^4.0.0",
+		"@tailwindcss/forms": "^0.5.11",
+		"@tailwindcss/typography": "^0.5.19",
+		"@tailwindcss/vite": "^4.2.2",
+		"@types/electron-window-state": "^2.0.0",
+		"@types/node": "^22.0.0",
+		"electron": "41.3.0",
+		"eslint": "^10.2.0",
+		"eslint-config-prettier": "^10.1.8",
+		"eslint-plugin-svelte": "^3.17.0",
+		"globals": "^17.4.0",
+		"prettier": "^3.8.1",
+		"prettier-plugin-svelte": "^3.5.1",
+		"prettier-plugin-tailwindcss": "^0.7.2",
+		"svelte": "^5.0.0",
+		"svelte-check": "^4.4.6",
+		"tailwindcss": "^4.2.2",
+		"typescript": "^5.8.0",
+		"typescript-eslint": "^8.58.1",
+		"vite": "^5.4.21",
+		"vitest": "^2.0.0"
+	}
+}

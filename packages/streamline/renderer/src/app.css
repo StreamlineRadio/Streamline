@@ -1,0 +1,83 @@
+@import 'tailwindcss';
+@plugin '@tailwindcss/forms';
+@plugin '@tailwindcss/typography';
+
+@theme {
+	/* Primary - deep teal */
+	--color-primary-50: #f3f7f9;
+	--color-primary-100: #e1ebef;
+	--color-primary-200: #c6d8df;
+	--color-primary-300: #9dbac6;
+	--color-primary-400: #6d95a6;
+	--color-primary-500: #3e6b7e;
+	--color-primary-600: #355c6c;
+	--color-primary-700: #2d4d5a;
+	--color-primary-800: #28414c;
+	--color-primary-900: #243741;
+	--color-primary-950: #14222a;
+
+	/* Secondary - terracotta (complement) */
+	--color-secondary-50: #fbf6f3;
+	--color-secondary-100: #f5ebe4;
+	--color-secondary-200: #ead4c6;
+	--color-secondary-300: #dcb59f;
+	--color-secondary-400: #c9947a;
+	--color-secondary-500: #b87a5c;
+	--color-secondary-600: #a4654a;
+	--color-secondary-700: #88513e;
+	--color-secondary-800: #704437;
+	--color-secondary-900: #5d3a30;
+	--color-secondary-950: #321d18;
+
+	/* Success - sage green */
+	--color-success-50: #f3f9f6;
+	--color-success-100: #e2f0e9;
+	--color-success-200: #c5e0d3;
+	--color-success-300: #9bc8b1;
+	--color-success-400: #75ad92;
+	--color-success-500: #5a9b7e;
+	--color-success-600: #467c64;
+	--color-success-700: #3a6452;
+	--color-success-800: #305144;
+	--color-success-900: #294339;
+	--color-success-950: #15251f;
+
+	/* Danger - brick red */
+	--color-danger-50: #fcf5f4;
+	--color-danger-100: #f9e8e7;
+	--color-danger-200: #f3d2d0;
+	--color-danger-300: #e8aaa6;
+	--color-danger-400: #d57b76;
+	--color-danger-500: #b85450;
+	--color-danger-600: #a14340;
+	--color-danger-700: #863836;
+	--color-danger-800: #6f3130;
+	--color-danger-900: #5e2c2c;
+	--color-danger-950: #331413;
+
+	/* Warning - amber */
+	--color-warning-50: #fcf7ef;
+	--color-warning-100: #f7ebd6;
+	--color-warning-200: #efd4ad;
+	--color-warning-300: #e5b87c;
+	--color-warning-400: #dca455;
+	--color-warning-500: #d4923b;
+	--color-warning-600: #b8762d;
+	--color-warning-700: #985d27;
+	--color-warning-800: #7c4b25;
+	--color-warning-900: #663f22;
+	--color-warning-950: #391f10;
+
+	/* Info - sky blue */
+	--color-info-50: #f4f7fa;
+	--color-info-100: #e6edf4;
+	--color-info-200: #c9d8e7;
+	--color-info-300: #9bb8d2;
+	--color-info-400: #7ba2c1;
+	--color-info-500: #5b8fb5;
+	--color-info-600: #47749a;
+	--color-info-700: #3b5f7e;
+	--color-info-800: #34516a;
+	--color-info-900: #2f4459;
+	--color-info-950: #1c2a39;
+}

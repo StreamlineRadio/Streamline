@@ -8,17 +8,21 @@ export type EncoderStatus =
   | { status: 'error'; error: string }
   | { status: 'stopped' }
 
-export interface EncoderConfig {
+interface EncoderConfigBase {
   id: string
   name: string
-  type: EncoderType
   format: EncoderFormat
   bitrateKbps: number
   sampleRate: EncoderSampleRate
   channels: 1 | 2
-  host?: string
-  port?: number
-  mount?: string
+  autoStart?: boolean
+}
+
+export interface NetworkEncoderConfig extends EncoderConfigBase {
+  type: 'icecast' | 'shoutcast'
+  host: string
+  port: number
+  mount: string
   username?: string
   passwordRef?: string
   publicListing?: boolean
@@ -26,7 +30,12 @@ export interface EncoderConfig {
   description?: string
   genre?: string
   url?: string
-  pathTemplate?: string
-  rotateEveryMinutes?: number
-  autoStart?: boolean
 }
+
+export interface FileEncoderConfig extends EncoderConfigBase {
+  type: 'file'
+  pathTemplate: string
+  rotateEveryMinutes?: number
+}
+
+export type EncoderConfig = NetworkEncoderConfig | FileEncoderConfig

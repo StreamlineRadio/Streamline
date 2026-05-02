@@ -22,7 +22,17 @@
 	},
 	"license": "AGPL-3.0-only",
 	"dependencies": {
-		"electron-window-state": "^5.0.3"
+		"@streamline/modules": "workspace:*",
+		"@streamline/shared": "workspace:*",
+		"better-sqlite3": "^12.9.0",
+		"chokidar": "^5.0.0",
+		"drizzle-orm": "^0.45.2",
+		"electron-log": "^5.4.3",
+		"electron-window-state": "^5.0.3",
+		"ffmpeg-static": "^5.3.0",
+		"interactjs": "^1.10.27",
+		"music-metadata": "^11.12.3",
+		"wavesurfer.js": "^7.12.6"
 	},
 	"devDependencies": {
 		"@electron-forge/cli": "^7.11.1",
@@ -41,8 +51,10 @@
 		"@tailwindcss/forms": "^0.5.11",
 		"@tailwindcss/typography": "^0.5.19",
 		"@tailwindcss/vite": "^4.2.2",
+		"@types/better-sqlite3": "^7.6.13",
 		"@types/electron-window-state": "^2.0.0",
 		"@types/node": "^22.0.0",
+		"drizzle-kit": "^0.31.10",
 		"electron": "41.3.0",
 		"eslint": "^10.2.0",
 		"eslint-config-prettier": "^10.1.8",

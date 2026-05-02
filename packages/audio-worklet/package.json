@@ -10,6 +10,9 @@
 		"lint:fix": "prettier --write . && eslint --fix .",
 		"format": "prettier --write ."
 	},
+	"dependencies": {
+		"@streamline/shared": "workspace:*"
+	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",
 		"eslint": "^10.2.0",

@@ -8,6 +8,7 @@ declare const MAIN_WINDOW_VITE_NAME: string;
 
 const DEV_SERVER_URL = MAIN_WINDOW_VITE_DEV_SERVER_URL;
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 if (process.platform === 'win32' && require('electron-squirrel-startup')) app.quit();
 app.setAppUserModelId('com.squirrel.Streamline.Streamline');
 Menu.setApplicationMenu(null);
@@ -23,6 +24,7 @@ const createWindow = () => {
 		y: windowState.y,
 		width: windowState.width,
 		height: windowState.height,
+		icon: path.join(app.getAppPath(), 'build/icon.png'),
 		webPreferences: {
 			preload: path.join(__dirname, 'preload.js'),
 			contextIsolation: true,

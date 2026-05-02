@@ -13,16 +13,18 @@ const config: ForgeConfig = {
 		asar: true,
 		name: 'Streamline',
 		executableName: 'streamline',
-		appBundleId: 'com.streamlineradio.Streamline'
+		appBundleId: 'com.streamlineradio.Streamline',
+		icon: 'assets/icon'
 	},
 	rebuildConfig: {},
 	makers: [
-		new MakerSquirrel({ name: 'Streamline' }, ['win32']),
-		new MakerDMG({}, ['darwin']),
+		new MakerSquirrel({ name: 'Streamline', setupIcon: 'assets/icon.ico' }, ['win32']),
+		new MakerDMG({ icon: 'assets/icon.icns' }, ['darwin']),
 		new MakerAppImage(
 			{
 				options: {
-					categories: ['Audio']
+					categories: ['Audio'],
+					icon: 'assets/icon.svg'
 				}
 			},
 			['linux']
@@ -30,7 +32,8 @@ const config: ForgeConfig = {
 		new MakerDeb(
 			{
 				options: {
-					categories: ['Audio']
+					categories: ['Audio'],
+					icon: 'assets/icon.png'
 				}
 			},
 			['linux']
@@ -38,7 +41,8 @@ const config: ForgeConfig = {
 		new MakerRpm(
 			{
 				options: {
-					categories: ['Audio']
+					categories: ['Audio'],
+					icon: 'assets/icon.png'
 				}
 			},
 			['linux']

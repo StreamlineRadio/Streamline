@@ -10,7 +10,7 @@
 		"package:appimage": "pnpm --filter streamline make --targets @reforged/maker-appimage",
 		"package:win": "pnpm --filter streamline make --targets @electron-forge/maker-squirrel",
 		"package:mac": "pnpm --filter streamline make --targets @electron-forge/maker-dmg",
-		"package:linux": "pnpm --filter streamline make --targets @electron-forge/maker-deb, @electron-forge/maker-rpm,@reforged/maker-appimage",
+		"package:linux": "pnpm --filter streamline make --targets @electron-forge/maker-deb,@electron-forge/maker-rpm,@reforged/maker-appimage",
 		"check": "pnpm -r --parallel --if-present check",
 		"lint": "pnpm -r --parallel --if-present lint",
 		"lint:fix": "pnpm -r --parallel --if-present lint:fix",

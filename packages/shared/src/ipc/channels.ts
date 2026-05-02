@@ -33,14 +33,15 @@ export const IPC = {
 	SYSTEM_OPEN_LOG_FOLDER: 'system:openLogFolder',
 	SYSTEM_GET_APP_VERSION: 'system:getAppVersion',
 	SYSTEM_GET_CPU_USAGE: 'system:getCpuUsage',
-	SYSTEM_READ_AUDIO_FILE: 'system:readAudioFile',
-	SYSTEM_SAVE_WAVEFORM: 'system:saveWaveform',
-	SYSTEM_LOAD_WAVEFORM: 'system:loadWaveform',
 	SYSTEM_SELECT_FILE: 'system:selectFile',
 	SYSTEM_SELECT_FOLDER: 'system:selectFolder',
 	// Settings
 	SETTINGS_GET: 'settings:get',
 	SETTINGS_SET: 'settings:set',
+	// Hotkeys
+	HOTKEY_LIST: 'hotkey:list',
+	HOTKEY_SAVE: 'hotkey:save',
+	HOTKEY_DELETE: 'hotkey:delete',
 	// Audio port
 	AUDIO_PORT: 'audio:port'
 } as const;

@@ -20,14 +20,13 @@ describe('EncoderConfig', () => {
 		expectTypeOf(config).toMatchTypeOf<EncoderConfig>();
 	});
 
-	it('EncoderStatus union covers all states', () => {
-		const statuses: EncoderStatus['status'][] = [
-			'idle',
-			'connecting',
-			'streaming',
-			'error',
-			'stopped'
-		];
-		expect(statuses).toHaveLength(5);
+	it('EncoderStatus is exhaustive over known status values', () => {
+		type UnhandledStatuses = Exclude<
+			EncoderStatus['status'],
+			'idle' | 'connecting' | 'streaming' | 'error' | 'stopped'
+		>
+		type AssertNever = [UnhandledStatuses] extends [never] ? true : false
+		const _check: AssertNever = true
+		expect(_check).toBe(true)
 	});
 });

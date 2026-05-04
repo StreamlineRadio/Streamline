@@ -6,6 +6,7 @@ import { initLogging, log } from './logging';
 import { openDb, closeDb } from './db';
 import { runMigrations } from './db/migrate';
 import { registerAllHandlers } from './ipc/register';
+import { createAudioPort } from './audio/port';
 
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string;
 declare const MAIN_WINDOW_VITE_NAME: string;
@@ -19,7 +20,7 @@ Menu.setApplicationMenu(null);
 initLogging();
 log.info('Streamline starting', { version: app.getVersion() });
 
-const createWindow = () => {
+const createWindow = (): BrowserWindow => {
 	const windowState = windowStateKeeper({
 		defaultWidth: 1280,
 		defaultHeight: 800
@@ -51,6 +52,8 @@ const createWindow = () => {
 	} else {
 		mainWindow.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));
 	}
+
+	return mainWindow;
 };
 
 app.whenReady().then(async () => {
@@ -58,12 +61,11 @@ app.whenReady().then(async () => {
 	runMigrations();
 	registerAllHandlers();
 	checkForUpdates();
-	createWindow();
+	const win = createWindow();
+	createAudioPort(win);
 
 	app.on('activate', () => {
-		if (BrowserWindow.getAllWindows().length === 0) {
-			createWindow();
-		}
+		if (BrowserWindow.getAllWindows().length === 0) createWindow();
 	});
 });
 

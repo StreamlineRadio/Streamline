@@ -14,7 +14,8 @@
 		"check": "pnpm -r --parallel --if-present check",
 		"lint": "pnpm -r --parallel --if-present lint",
 		"lint:fix": "pnpm -r --parallel --if-present lint:fix",
-		"test": "pnpm -r --parallel --if-present test"
+		"test": "pnpm -r --parallel --if-present test",
+		"prepare": "husky"
 	},
 	"packageManager": "pnpm@10.4.1",
 	"pnpm": {
@@ -23,5 +24,11 @@
 			"electron-winstaller",
 			"esbuild"
 		]
+	},
+	"devDependencies": {
+		"@commitlint/cli": "^20.5.3",
+		"@commitlint/config-conventional": "^20.5.3",
+		"husky": "^9.1.7",
+		"lint-staged": "^16.4.0"
 	}
 }

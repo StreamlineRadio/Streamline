@@ -1,0 +1,41 @@
+#!/bin/sh
+
+LINT_STAGED="./node_modules/.bin/lint-staged"
+PACKAGES="packages/streamline packages/shared packages/modules packages/audio-worklet"
+
+LINT_FAILED=0
+for pkg in $PACKAGES; do
+  "$LINT_STAGED" --cwd "$pkg" || LINT_FAILED=1
+done
+
+if [ $LINT_FAILED -ne 0 ]; then
+  echo ""
+  echo "┌─────────────────────────────────────────────────────────────┐"
+  echo "│                   Linting failed!                           │"
+  echo "└─────────────────────────────────────────────────────────────┘"
+  echo ""
+  echo "  ESLint found issues that could not be fixed automatically."
+  echo "  See the errors above for details."
+  echo ""
+  echo "  Try auto-fixing what's possible:"
+  echo ""
+  echo "    pnpm lint:fix"
+  echo ""
+  echo "  Then fix any remaining errors manually, stage, and commit."
+  echo ""
+  exit 1
+fi
+
+if ! pnpm check; then
+  echo ""
+  echo "┌─────────────────────────────────────────────────────────────┐"
+  echo "│                  Type check failed!                         │"
+  echo "└─────────────────────────────────────────────────────────────┘"
+  echo ""
+  echo "  svelte-check or tsc found type errors. See above for details."
+  echo ""
+  echo "  There is no auto-fix for type errors — resolve them manually,"
+  echo "  then stage and commit again."
+  echo ""
+  exit 1
+fi

@@ -4,6 +4,13 @@
 	"private": true,
 	"type": "module",
 	"main": "src/index.ts",
+	"lint-staged": {
+		"*.{ts,js,mjs,cjs}": [
+			"prettier --write",
+			"eslint --fix --quiet"
+		],
+		"*.{json,css,html,md,yaml,yml}": "prettier --write"
+	},
 	"scripts": {
 		"check": "tsc --noEmit",
 		"lint": "prettier --check . && eslint --quiet .",

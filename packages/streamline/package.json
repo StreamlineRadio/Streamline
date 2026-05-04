@@ -9,11 +9,18 @@
 		"dev": "electron-forge start",
 		"start": "electron-forge start",
 		"make": "electron-forge make",
-		"check": "svelte-check --tsconfig ./renderer/tsconfig.json",
+		"check": "svelte-check --tsconfig ./renderer/tsconfig.json && tsc --noEmit",
 		"test": "vitest run",
 		"lint": "prettier --check . && eslint --quiet .",
 		"lint:fix": "prettier --write . && eslint --fix .",
 		"format": "prettier --write ."
+	},
+	"lint-staged": {
+		"*.{ts,js,mjs,cjs,svelte}": [
+			"prettier --write",
+			"eslint --fix --quiet"
+		],
+		"*.{json,css,html,md,yaml,yml}": "prettier --write"
 	},
 	"keywords": [],
 	"author": {

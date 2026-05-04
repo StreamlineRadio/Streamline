@@ -10,5 +10,6 @@
 		"outDir": ".vite/build",
 		"rootDir": "."
 	},
-	"include": ["src/**/*", "*.config.ts", "*.d.ts"]
+	"include": ["src/**/*", "*.config.ts", "*.d.ts"],
+	"exclude": ["vite.*.config.ts"]
 }

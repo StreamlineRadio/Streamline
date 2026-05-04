@@ -61,21 +61,21 @@ export const encoderConfigs = sqliteTable('encoder_configs', {
   mount: text('mount'),
   username: text('username'),
   passwordRef: text('password_ref'),
-  publicListing: integer('public_listing', { mode: 'boolean' }).default(false),
+  publicListing: integer('public_listing', { mode: 'boolean' }).notNull().default(false),
   streamName: text('stream_name'),
   description: text('description'),
   genre: text('genre'),
   url: text('url'),
   pathTemplate: text('path_template'),
   rotateEveryMinutes: integer('rotate_every_minutes'),
-  autoStart: integer('auto_start', { mode: 'boolean' }).default(false),
+  autoStart: integer('auto_start', { mode: 'boolean' }).notNull().default(false),
   lastStartedAt: integer('last_started_at')
 })
 
 export const queueItems = sqliteTable('queue_items', {
   id: text('id').primaryKey(),
   queueInstanceId: text('queue_instance_id').notNull(),
-  songId: text('song_id').notNull().references(() => songs.id),
+  songId: text('song_id').notNull().references(() => songs.id, { onDelete: 'cascade' }),
   position: integer('position').notNull()
 })
 

@@ -1,4 +1,10 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
+	import { initAudioPort } from './audio/port';
+
+	onMount(() => {
+		initAudioPort();
+	});
 </script>
 
 <main class="flex h-screen items-center justify-center bg-primary-950 text-primary-100">

@@ -1,7 +1,7 @@
 import type { PcmMessage } from '@streamline/shared';
 
 const consumers = new Map<string, (buffer: ArrayBuffer) => void>();
-const dropoutCount = 0;
+let dropoutCount = 0;
 
 export function handlePcmMessage(msg: PcmMessage): void {
 	if (!msg.buffer || msg.frames === 0) return;
@@ -12,6 +12,8 @@ export function handlePcmMessage(msg: PcmMessage): void {
 		const write = consumers.get(id);
 		if (write) {
 			write(msg.buffer.slice(0));
+		} else {
+			dropoutCount++;
 		}
 	}
 }

@@ -29,6 +29,7 @@
 	},
 	"license": "AGPL-3.0-only",
 	"dependencies": {
+		"@streamline/audio-worklet": "workspace:*",
 		"@streamline/modules": "workspace:*",
 		"@streamline/shared": "workspace:*",
 		"better-sqlite3": "^12.9.0",

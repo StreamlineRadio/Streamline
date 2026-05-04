@@ -30,6 +30,9 @@ importers:
       '@eslint/js':
         specifier: ^10.0.1
         version: 10.0.1(eslint@10.2.1(jiti@2.6.1))
+      '@types/audioworklet':
+        specifier: ^0.0.100
+        version: 0.0.100
       eslint:
         specifier: ^10.2.0
         version: 10.2.1(jiti@2.6.1)
@@ -48,6 +51,9 @@ importers:
       typescript-eslint:
         specifier: ^8.58.1
         version: 8.59.1(eslint@10.2.1(jiti@2.6.1))(typescript@5.9.3)
+      vitest:
+        specifier: ^2.0.0
+        version: 2.1.9(@types/node@24.12.2)(lightningcss@1.32.0)(terser@5.46.2)
 
   packages/modules:
     dependencies:
@@ -106,6 +112,9 @@ importers:
 
   packages/streamline:
     dependencies:
+      '@streamline/audio-worklet':
+        specifier: workspace:*
+        version: link:../audio-worklet
       '@streamline/modules':
         specifier: workspace:*
         version: link:../modules
@@ -1544,6 +1553,9 @@ packages:
 
   '@types/appdmg@0.5.5':
     resolution: {integrity: sha512-G+n6DgZTZFOteITE30LnWj+HRVIGr7wMlAiLWOO02uJFWVEitaPU9JVXm9wJokkgshBawb2O1OykdcsmkkZfgg==}
+
+  '@types/audioworklet@0.0.100':
+    resolution: {integrity: sha512-mWt4Z5CWi0CupDnSYWJgx6dw61XUk9JSRGrM9F/YNrpOoY/0XG+sxP+8rAjQq80H4febOe8PrzGmmN/X3w8LsQ==}
 
   '@types/better-sqlite3@7.6.13':
     resolution: {integrity: sha512-NMv9ASNARoKksWtsq/SHakpYAYnhBrQgGD8zkLYk/jaK8jUGn08CfEdTRgYhMypUQAfzSP8W6gNLe0q19/t4VA==}
@@ -5725,6 +5737,8 @@ snapshots:
     dependencies:
       '@types/node': 22.19.17
     optional: true
+
+  '@types/audioworklet@0.0.100': {}
 
   '@types/better-sqlite3@7.6.13':
     dependencies:

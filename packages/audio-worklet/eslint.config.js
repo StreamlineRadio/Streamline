@@ -7,6 +7,7 @@ import globals from 'globals';
 export default defineConfig(js.configs.recommended, ts.configs.recommended, prettier, {
 	languageOptions: { globals: { ...globals.browser, ...globals.node } },
 	rules: {
-		'no-undef': 'off'
+		'no-undef': 'off',
+		'@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }]
 	}
 });

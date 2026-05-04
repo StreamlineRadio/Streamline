@@ -24,9 +24,9 @@ describe('EncoderConfig', () => {
 		type UnhandledStatuses = Exclude<
 			EncoderStatus['status'],
 			'idle' | 'connecting' | 'streaming' | 'error' | 'stopped'
-		>
-		type AssertNever = [UnhandledStatuses] extends [never] ? true : false
-		const _check: AssertNever = true
-		expect(_check).toBe(true)
+		>;
+		type AssertNever = [UnhandledStatuses] extends [never] ? true : false;
+		const _check: AssertNever = true;
+		expect(_check).toBe(true);
 	});
 });

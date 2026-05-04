@@ -2,6 +2,8 @@ import { app, BrowserWindow, Menu } from 'electron';
 import path from 'node:path';
 import windowStateKeeper from 'electron-window-state';
 import { checkForUpdates } from './update-check';
+import { initLogging, log } from './logging';
+import { closeDb } from './db';
 
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string;
 declare const MAIN_WINDOW_VITE_NAME: string;
@@ -12,6 +14,8 @@ const DEV_SERVER_URL = MAIN_WINDOW_VITE_DEV_SERVER_URL;
 if (process.platform === 'win32' && require('electron-squirrel-startup')) app.quit();
 app.setAppUserModelId('com.squirrel.Streamline.Streamline');
 Menu.setApplicationMenu(null);
+initLogging();
+log.info('Streamline starting', { version: app.getVersion() });
 
 const createWindow = () => {
 	const windowState = windowStateKeeper({
@@ -57,6 +61,8 @@ app.whenReady().then(() => {
 		}
 	});
 });
+
+app.on('will-quit', () => closeDb());
 
 app.on('window-all-closed', () => {
 	app.quit();

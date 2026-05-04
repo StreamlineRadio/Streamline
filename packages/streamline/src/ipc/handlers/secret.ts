@@ -31,5 +31,5 @@ export function registerSecretHandlers(): void {
 export function getSecret(ref: string): string | null {
 	const row = getDb().select().from(schema.secrets).where(eq(schema.secrets.ref, ref)).get();
 	if (!row) return null;
-	return safeStorage.decryptString(Buffer.from(row.encryptedBlob));
+	return safeStorage.decryptString(Buffer.from(row.encryptedBlob as Buffer));
 }

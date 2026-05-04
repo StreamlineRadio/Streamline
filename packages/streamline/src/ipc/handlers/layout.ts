@@ -24,8 +24,8 @@ export function registerLayoutHandlers(): void {
 
 	ipcMain.handle(IPC.LAYOUT_SAVE, (_e, layout: Layout) => {
 		const db = getDb();
-		db.transaction(() => {
-			db.insert(schema.layouts)
+		db.transaction((tx) => {
+			tx.insert(schema.layouts)
 				.values({
 					id: layout.id,
 					name: layout.name,
@@ -39,11 +39,11 @@ export function registerLayoutHandlers(): void {
 				})
 				.run();
 
-			db.delete(schema.moduleInstances).where(eq(schema.moduleInstances.layoutId, layout.id)).run();
+			tx.delete(schema.moduleInstances).where(eq(schema.moduleInstances.layoutId, layout.id)).run();
 			for (const inst of layout.instances) {
-				db.insert(schema.moduleInstances).values(inst).run();
+				tx.insert(schema.moduleInstances).values(inst).run();
 			}
-		})();
+		});
 	});
 
 	ipcMain.handle(IPC.LAYOUT_EXPORT, (_e, id: string): string => {

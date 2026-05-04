@@ -4,7 +4,13 @@ import { IPC } from '@streamline/shared';
 
 export function registerSystemHandlers(): void {
 	ipcMain.handle(IPC.SYSTEM_GET_APP_VERSION, () => app.getVersion());
-	ipcMain.handle(IPC.SYSTEM_OPEN_EXTERNAL, (_e, url: string) => shell.openExternal(url));
+	ipcMain.handle(IPC.SYSTEM_OPEN_EXTERNAL, (_e, url: string) => {
+		const parsed = new URL(url);
+		if (!['https:', 'http:'].includes(parsed.protocol)) {
+			throw new Error(`Blocked openExternal for protocol: ${parsed.protocol}`);
+		}
+		return shell.openExternal(url);
+	});
 	ipcMain.handle(IPC.SYSTEM_SHOW_ITEM_IN_FOLDER, (_e, path: string) =>
 		shell.showItemInFolder(path)
 	);
@@ -25,11 +31,13 @@ export function registerSystemHandlers(): void {
 		const result = await dialog.showOpenDialog({ properties: ['openDirectory'] });
 		return result.canceled ? null : result.filePaths[0];
 	});
+	// Path is user-selected (via dialog or library scan) — renderer is sandboxed, not untrusted code
 	ipcMain.handle(IPC.LIBRARY_READ_AUDIO_FILE, async (_e, path: string) => {
 		const { readFile } = await import('fs/promises');
 		return readFile(path);
 	});
 	ipcMain.handle(IPC.LIBRARY_SAVE_WAVEFORM, async (_e, hash: string, peaks: number[]) => {
+		if (!/^[a-f0-9]{32,128}$/.test(hash)) throw new Error('Invalid waveform hash format');
 		const { writeFile, mkdir } = await import('fs/promises');
 		const dir = join(app.getPath('userData'), 'waveforms');
 		await mkdir(dir, { recursive: true });

@@ -70,5 +70,5 @@ app.whenReady().then(async () => {
 app.on('will-quit', () => closeDb());
 
 app.on('window-all-closed', () => {
-	app.quit();
+	if (process.platform !== 'darwin') app.quit();
 });

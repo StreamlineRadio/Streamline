@@ -12,5 +12,6 @@
 			}
 		}
 	],
-	"tailwindStylesheet": "./renderer/src/app.css"
+	"tailwindStylesheet": "./renderer/src/app.css",
+	"semi": true
 }

@@ -3,7 +3,9 @@ import path from 'node:path';
 import windowStateKeeper from 'electron-window-state';
 import { checkForUpdates } from './update-check';
 import { initLogging, log } from './logging';
-import { closeDb } from './db';
+import { openDb, closeDb } from './db';
+import { runMigrations } from './db/migrate';
+import { registerAllHandlers } from './ipc/register';
 
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string;
 declare const MAIN_WINDOW_VITE_NAME: string;
@@ -51,7 +53,10 @@ const createWindow = () => {
 	}
 };
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+	openDb();
+	runMigrations();
+	registerAllHandlers();
 	checkForUpdates();
 	createWindow();
 

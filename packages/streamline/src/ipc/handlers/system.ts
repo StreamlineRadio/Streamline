@@ -44,6 +44,7 @@ export function registerSystemHandlers(): void {
 		await writeFile(join(dir, `${hash}.json`), JSON.stringify(peaks));
 	});
 	ipcMain.handle(IPC.LIBRARY_LOAD_WAVEFORM, async (_e, hash: string) => {
+		if (!/^[a-f0-9]{32,128}$/.test(hash)) throw new Error('Invalid waveform hash format');
 		const { readFile } = await import('fs/promises');
 		try {
 			const data = await readFile(

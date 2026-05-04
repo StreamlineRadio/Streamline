@@ -38,11 +38,12 @@ class TapProcessor extends AudioWorkletProcessor {
 
 				// Slice once — use the same object in both the message and the transfer list
 				const slice = toSend.buffer.slice(0);
+				// Shape must match PcmMessage in @streamline/shared/src/audio/pcm-message.ts
 				this.port.postMessage(
 					{
 						buffer: slice,
 						frames: BATCH_FRAMES,
-						sampleRate: 48000,
+						sampleRate: sampleRate,
 						channels: 2,
 						encoderTargets: []
 					},

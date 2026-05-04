@@ -1,9 +1,7 @@
 let _port: MessagePort | null = null;
 
 export function initAudioPort(): void {
-	(
-		window as unknown as { streamline: { onAudioPort: (cb: (port: MessagePort) => void) => void } }
-	).streamline.onAudioPort((port) => {
+	window.streamline.onAudioPort((port) => {
 		_port = port;
 	});
 }

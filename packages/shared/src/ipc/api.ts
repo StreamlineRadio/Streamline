@@ -3,6 +3,14 @@ import type { EncoderConfig, EncoderStatus } from '../types/encoder';
 import type { Layout } from '../types/layout';
 import type { HotkeyBinding } from '../types/hotkey';
 
+export interface StreamlineWindowApi {
+	platform: string;
+	api: TypedIpcApi;
+	onAudioPort(cb: (port: MessagePort) => void): void;
+	onEncoderStatus(cb: (id: string, status: unknown) => void): void;
+	onScanProgress(cb: (progress: unknown) => void): void;
+}
+
 export interface TypedIpcApi {
 	library: {
 		scanFolder(path: string): Promise<void>;

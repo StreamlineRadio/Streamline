@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { TypedIpcApi } from '@streamline/shared';
+import type { StreamlineWindowApi, TypedIpcApi } from '@streamline/shared';
 import { IPC } from '@streamline/shared';
 
 const api: TypedIpcApi = {
@@ -53,7 +53,7 @@ const api: TypedIpcApi = {
 	}
 };
 
-contextBridge.exposeInMainWorld('streamline', {
+const streamline: StreamlineWindowApi = {
 	platform: process.platform,
 	api,
 	onAudioPort: (cb: (port: MessagePort) => void) =>
@@ -64,4 +64,6 @@ contextBridge.exposeInMainWorld('streamline', {
 		ipcRenderer.on(IPC.ENCODER_STATUS_PUSH, (_e, id, status) => cb(id, status)),
 	onScanProgress: (cb: (progress: unknown) => void) =>
 		ipcRenderer.on(IPC.LIBRARY_SCAN_PROGRESS, (_e, progress) => cb(progress))
-});
+};
+
+contextBridge.exposeInMainWorld('streamline', streamline);

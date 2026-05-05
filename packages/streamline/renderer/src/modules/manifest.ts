@@ -13,7 +13,7 @@ export interface ModuleManifest {
 	exposes: Record<string, MethodSpec>;
 	publishes: Record<string, StateSpec>;
 	subscribes: string[];
-	ui?: Component;
+	ui?: Component<{ instanceId: string }>;
 	settingsUi?: Component;
 	defaultWidth?: number;
 	defaultHeight?: number;

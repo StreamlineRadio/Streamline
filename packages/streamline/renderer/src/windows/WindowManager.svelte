@@ -5,7 +5,6 @@
 	import { startLayoutPersistence } from '../layout/persistence.svelte';
 	import { getModule } from '../modules/registry';
 	import WindowWrapper from './WindowWrapper.svelte';
-	import type { Layout } from '@streamline/shared';
 
 	// Must be at top-level for $effect to work
 	startLayoutPersistence();
@@ -14,8 +13,8 @@
 		const layouts = await window.streamline.api.layout.list();
 		const active = layouts.find((l) => l.isActive);
 		if (active) {
-			layoutStore.set(active as Layout);
-			for (const inst of (active as Layout).instances) {
+			layoutStore.set(active);
+			for (const inst of active.instances) {
 				instanceStore.add(inst);
 			}
 		}

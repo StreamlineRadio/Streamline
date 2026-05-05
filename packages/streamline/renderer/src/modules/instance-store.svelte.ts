@@ -1,5 +1,6 @@
 import type { ModuleInstanceRecord } from '@streamline/shared';
 import type { ModuleContext } from '@streamline/shared';
+import { SvelteMap } from 'svelte/reactivity';
 import { createModuleContext } from './context';
 
 export interface ActiveInstance {
@@ -7,7 +8,7 @@ export interface ActiveInstance {
 	context: ModuleContext;
 }
 
-const instances = $state<Map<string, ActiveInstance>>(new Map());
+const instances = new SvelteMap<string, ActiveInstance>();
 
 export const instanceStore = {
 	get all() {

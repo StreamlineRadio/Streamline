@@ -1,0 +1,66 @@
+import { getAudioContext } from './context';
+import { TAP_PROCESSOR_NAME } from '@streamline/audio-worklet';
+import { sendPcm } from './port';
+
+let masterBus: GainNode | null = null;
+let softClipper: WaveShaperNode | null = null;
+let tapNode: AudioWorkletNode | null = null;
+let softClipEnabled = true;
+
+export function getMasterBus(): GainNode {
+	if (!masterBus) throw new Error('Mixer not initialized — call initMixer() first');
+	return masterBus;
+}
+
+export function connectToMaster(source: AudioNode): void {
+	source.connect(getMasterBus());
+}
+
+export async function initMixer(): Promise<void> {
+	const ctx = getAudioContext();
+	masterBus = ctx.createGain();
+	masterBus.gain.value = 1.0;
+
+	// Soft clipper (tanh curve, 256-point WaveShaper)
+	softClipper = ctx.createWaveShaper();
+	const curve = new Float32Array(256);
+	for (let i = 0; i < 256; i++) {
+		const x = (i * 2) / (256 - 1) - 1;
+		curve[i] = Math.tanh(x * 2);
+	}
+	softClipper.curve = curve;
+	softClipper.oversample = '4x';
+
+	// Load tap worklet and wire up PCM forwarding
+	await ctx.audioWorklet.addModule(new URL('/worklets/tap-processor.js', window.location.href));
+	tapNode = new AudioWorkletNode(ctx, TAP_PROCESSOR_NAME);
+	tapNode.port.onmessage = (e: MessageEvent) => {
+		sendPcm(e.data.buffer, e.data.frames, e.data.encoderTargets);
+	};
+
+	// Chain: masterBus → softClipper → tapNode → destination
+	masterBus.connect(softClipper);
+	softClipper.connect(tapNode);
+	tapNode.connect(ctx.destination);
+}
+
+export function getSoftClipEnabled(): boolean {
+	return softClipEnabled;
+}
+
+export function setSoftClipEnabled(enabled: boolean): void {
+	softClipEnabled = enabled;
+	if (!masterBus || !softClipper || !tapNode) return;
+	masterBus.disconnect();
+	if (enabled) {
+		masterBus.connect(softClipper);
+		softClipper.connect(tapNode);
+	} else {
+		masterBus.connect(tapNode);
+	}
+	tapNode.connect(getAudioContext().destination);
+}
+
+export function setMasterVolume(value: number): void {
+	if (masterBus) masterBus.gain.value = Math.max(0, Math.min(1, value));
+}

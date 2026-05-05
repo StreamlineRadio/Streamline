@@ -6,11 +6,16 @@ export const eventBus = {
 		listeners.get(channel)?.forEach((h) => h(payload));
 	},
 	on(channel: string, handler: Handler): () => void {
-		if (!listeners.has(channel)) listeners.set(channel, new Set());
-		listeners.get(channel)!.add(handler);
+		let set = listeners.get(channel);
+		if (!set) {
+			set = new Set();
+			listeners.set(channel, set);
+		}
+		set.add(handler);
 		return () => listeners.get(channel)?.delete(handler);
-	},
-	off(channel: string, handler: Handler): void {
-		listeners.get(channel)?.delete(handler);
 	}
 };
+
+export function _clearEventBusForTesting(): void {
+	listeners.clear();
+}

@@ -5,7 +5,6 @@ import { sendPcm } from './port';
 let masterBus: GainNode | null = null;
 let softClipper: WaveShaperNode | null = null;
 let tapNode: AudioWorkletNode | null = null;
-let softClipEnabled = true;
 
 export function getMasterBus(): GainNode {
 	if (!masterBus) throw new Error('Mixer not initialized — call initMixer() first');
@@ -44,12 +43,7 @@ export async function initMixer(): Promise<void> {
 	tapNode.connect(ctx.destination);
 }
 
-export function getSoftClipEnabled(): boolean {
-	return softClipEnabled;
-}
-
 export function setSoftClipEnabled(enabled: boolean): void {
-	softClipEnabled = enabled;
 	if (!masterBus || !softClipper || !tapNode) return;
 	masterBus.disconnect();
 	if (enabled) {

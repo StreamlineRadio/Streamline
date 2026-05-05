@@ -1,0 +1,34 @@
+<script lang="ts">
+	import { onMount } from 'svelte';
+	import { instanceStore } from '../modules/instance-store.svelte';
+	import { layoutStore } from '../layout/store.svelte';
+	import { startLayoutPersistence } from '../layout/persistence.svelte';
+	import { getModule } from '../modules/registry';
+	import WindowWrapper from './WindowWrapper.svelte';
+	import type { Layout } from '@streamline/shared';
+
+	// Must be at top-level for $effect to work
+	startLayoutPersistence();
+
+	onMount(async () => {
+		const layouts = await window.streamline.api.layout.list();
+		const active = layouts.find((l) => l.isActive);
+		if (active) {
+			layoutStore.set(active as Layout);
+			for (const inst of (active as Layout).instances) {
+				instanceStore.add(inst);
+			}
+		}
+	});
+</script>
+
+<div class="absolute inset-0 overflow-hidden">
+	{#each [...instanceStore.all.values()] as { record } (record.id)}
+		{@const manifest = getModule(record.moduleId)}
+		{#if manifest?.kind === 'window' && manifest.ui}
+			<WindowWrapper instanceId={record.id} moduleDisplayName={manifest.displayName}>
+				<manifest.ui instanceId={record.id} />
+			</WindowWrapper>
+		{/if}
+	{/each}
+</div>

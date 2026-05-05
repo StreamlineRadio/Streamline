@@ -1,12 +1,15 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { initAudioPort } from './audio/port';
+	import WindowManager from './windows/WindowManager.svelte';
+	import { registerBuiltinModules } from './modules/register-builtins';
 
-	onMount(() => {
+	onMount(async () => {
 		initAudioPort();
+		await registerBuiltinModules();
 	});
 </script>
 
-<main class="flex h-screen items-center justify-center bg-primary-950 text-primary-100">
-	<h1 class="text-4xl font-bold">Streamline</h1>
-</main>
+<div class="relative h-screen w-screen overflow-hidden bg-primary-950">
+	<WindowManager />
+</div>

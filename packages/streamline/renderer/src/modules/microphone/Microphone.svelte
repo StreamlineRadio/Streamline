@@ -73,12 +73,23 @@
 		if (!gainNode) return;
 		const ctx = getAudioContext();
 		gainNode.gain.cancelScheduledValues(ctx.currentTime);
+		gainNode.gain.setValueAtTime(gainNode.gain.value, ctx.currentTime);
 		gainNode.gain.linearRampToValueAtTime(targetValue, ctx.currentTime + timeMs / 1000);
 	}
 
 	function handlePttDown() {
-		if (!gainNode) startCapture().then(() => rampGain(volume, 10));
-		else rampGain(volume, 10);
+		if (!gainNode) {
+			startCapture()
+				.then(() => {
+					if (isLive) rampGain(volume, 10);
+				})
+				.catch((err) => {
+					isLive = false;
+					console.error('Mic capture failed:', err);
+				});
+		} else {
+			rampGain(volume, 10);
+		}
 		isLive = true;
 	}
 
@@ -91,8 +102,19 @@
 	function toggleLock() {
 		isLocked = !isLocked;
 		if (isLocked) {
-			if (!gainNode) startCapture().then(() => rampGain(volume, 10));
-			else rampGain(volume, 10);
+			if (!gainNode) {
+				startCapture()
+					.then(() => {
+						if (isLive) rampGain(volume, 10);
+					})
+					.catch((err) => {
+						isLive = false;
+						isLocked = false;
+						console.error('Mic capture failed:', err);
+					});
+			} else {
+				rampGain(volume, 10);
+			}
 			isLive = true;
 		} else {
 			rampGain(0, 50);
@@ -121,7 +143,12 @@
 		bind:value={selectedDeviceId}
 		class="rounded border border-primary-700 bg-primary-800 px-2 py-1 text-sm text-primary-100"
 		onchange={() => {
-			if (gainNode) startCapture();
+			if (gainNode)
+				startCapture().catch((err) => {
+					isLive = false;
+					isLocked = false;
+					console.error('Mic capture failed:', err);
+				});
 		}}
 	>
 		<option value="">System Default</option>
@@ -176,7 +203,7 @@
 			step="0.01"
 			bind:value={volume}
 			oninput={() => {
-				if (gainNode && isLive) gainNode.gain.value = volume;
+				if (isLive) rampGain(volume, 10);
 			}}
 			class="flex-1 accent-secondary-500"
 		/>

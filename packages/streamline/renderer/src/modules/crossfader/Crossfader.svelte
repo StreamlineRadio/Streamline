@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onDestroy } from 'svelte';
 	import type { CurveType } from './curves';
 	import { applyCurve } from './curves';
 	import { instanceStore } from '../instance-store.svelte';
@@ -13,7 +14,7 @@
 	let curve = $state<CurveType>('equal-power');
 	let leftDeckId = $state('');
 	let rightDeckId = $state('');
-	let fadeDurationMs = $state(4000);
+	let fadeDurationSec = $state(4);
 	let isAnimating = $state(false);
 
 	let animRaf: number | null = null;
@@ -33,12 +34,12 @@
 	function startCrossfade() {
 		if (isAnimating) return;
 		const from = position;
-		const to = position < 0 ? 1 : -1;
+		const to = position <= 0 ? 1 : -1;
 		const start = performance.now();
 		isAnimating = true;
 
 		const tick = (now: number) => {
-			const progress = Math.min((now - start) / fadeDurationMs, 1);
+			const progress = Math.min((now - start) / (fadeDurationSec * 1000), 1);
 			position = from + (to - from) * progress;
 			if (progress < 1) {
 				animRaf = requestAnimationFrame(tick);
@@ -57,6 +58,10 @@
 			isAnimating = false;
 		}
 	}
+
+	onDestroy(() => {
+		cancelAnimation();
+	});
 </script>
 
 <div class="flex h-full flex-col gap-3 p-3">
@@ -120,17 +125,17 @@
 		>
 			{isAnimating ? 'Cancel' : 'Crossfade Now'}
 		</button>
-		<label for="cf-dur-{instanceId}" class="sr-only">Fade duration seconds</label>
+		<label for="cf-dur-{instanceId}" class="sr-only">Fade duration</label>
 		<input
 			id="cf-dur-{instanceId}"
 			type="number"
 			min="1"
 			max="30"
 			step="0.5"
-			bind:value={fadeDurationMs}
+			bind:value={fadeDurationSec}
 			class="w-16 rounded border border-primary-700 bg-primary-800 px-2 py-1 text-xs text-primary-100"
-			title="Fade duration (ms)"
+			title="Fade duration (s)"
 		/>
-		<span class="text-xs text-primary-400">ms</span>
+		<span class="text-xs text-primary-400">s</span>
 	</div>
 </div>

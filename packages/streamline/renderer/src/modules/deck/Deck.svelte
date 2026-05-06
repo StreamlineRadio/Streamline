@@ -4,6 +4,7 @@
 	import DbMeter from './DbMeter.svelte';
 	import WaveformDisplay from './WaveformDisplay.svelte';
 	import type { Song } from '@streamline/shared';
+	import { eventBus } from '../event-bus';
 
 	interface Props {
 		instanceId: string;
@@ -21,6 +22,7 @@
 
 	let positionRaf: number;
 	let worker: Worker | null = null;
+	let unsubVolume: (() => void) | null = null;
 
 	onMount(() => {
 		audio.onEnded(() => {
@@ -39,12 +41,16 @@
 				await window.streamline.api.library.saveWaveform(e.data.hash, e.data.peaks);
 			}
 		};
+		unsubVolume = eventBus.on(`${instanceId}:setVolume`, (payload) => {
+			updateVolume(payload as number);
+		});
 	});
 
 	onDestroy(() => {
 		cancelAnimationFrame(positionRaf);
 		audio.destroy();
 		worker?.terminate();
+		unsubVolume?.();
 	});
 
 	async function loadSong(path: string) {

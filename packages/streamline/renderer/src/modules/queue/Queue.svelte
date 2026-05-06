@@ -4,6 +4,7 @@
 	interface Props {
 		instanceId: string;
 	}
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	const { instanceId }: Props = $props();
 
 	interface QueueItem {
@@ -38,12 +39,13 @@
 		items = items.map((item, i) => ({ ...item, position: i }));
 	}
 
+	function clearItems() {
+		items = [];
+	}
+
 	function handleDrop(e: DragEvent) {
 		e.preventDefault();
-		const file = e.dataTransfer?.files[0];
-		if (file) {
-			console.log(`[${instanceId}] dropped file on queue`, file.name);
-		}
+		dragIndex = null;
 	}
 </script>
 
@@ -59,7 +61,7 @@
 		>
 		<button
 			class="ml-auto rounded bg-primary-700 px-2 py-1 text-xs hover:bg-primary-600"
-			onclick={() => (items = [])}
+			onclick={clearItems}
 		>
 			Clear
 		</button>

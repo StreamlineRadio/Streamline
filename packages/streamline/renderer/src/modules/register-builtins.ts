@@ -4,6 +4,7 @@ import { localOutputManifest } from './local-output/manifest';
 import { deckManifest } from './deck/manifest';
 import { queueManifest } from './queue/manifest';
 import { crossfaderManifest } from './crossfader/manifest';
+import { microphoneManifest } from './microphone/manifest';
 import { createModuleContext } from './context';
 
 export async function registerBuiltinModules(): Promise<void> {
@@ -12,6 +13,7 @@ export async function registerBuiltinModules(): Promise<void> {
 	registerModule(deckManifest);
 	registerModule(queueManifest);
 	registerModule(crossfaderManifest);
+	registerModule(microphoneManifest);
 	// Initialize singleton headless modules immediately
 	if (mixerManifest.init) {
 		const ctx = createModuleContext('mixer-singleton', 'mixer');

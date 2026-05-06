@@ -49,7 +49,11 @@
 
 	async function changeDevice(deviceId: string) {
 		selectedDeviceId = deviceId;
-		if (audioEl && 'setSinkId' in audioEl) {
+		if ('setSinkId' in AudioContext.prototype) {
+			await (
+				getAudioContext() as AudioContext & { setSinkId(id: string): Promise<void> }
+			).setSinkId(deviceId);
+		} else if (audioEl && 'setSinkId' in audioEl) {
 			await (audioEl as HTMLAudioElement & { setSinkId(id: string): Promise<void> }).setSinkId(
 				deviceId
 			);

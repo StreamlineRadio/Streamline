@@ -38,9 +38,12 @@ export function createDeckAudio(): DeckAudio {
 		analyserNode,
 
 		async load(arrayBuffer: ArrayBuffer): Promise<void> {
+			gainNode.gain.cancelScheduledValues(ctx.currentTime);
+			gainNode.gain.setValueAtTime(1, ctx.currentTime);
 			if (source) {
 				source.stop();
 				source.disconnect();
+				source = null;
 			}
 			buffer = await ctx.decodeAudioData(arrayBuffer);
 			pauseOffset = 0;
@@ -55,6 +58,7 @@ export function createDeckAudio(): DeckAudio {
 			source.onended = () => {
 				if (isPlaying) {
 					isPlaying = false;
+					source = null;
 					endedCallbacks.forEach((cb) => cb());
 				}
 			};

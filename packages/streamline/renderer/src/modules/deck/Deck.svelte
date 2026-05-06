@@ -49,6 +49,7 @@
 
 	async function loadSong(path: string) {
 		const arrayBuffer = await window.streamline.api.library.readAudioFile(path);
+		const workerBuffer = arrayBuffer.slice(0);
 		await audio.load(arrayBuffer);
 		duration = audio.getDuration();
 		position = 0;
@@ -60,9 +61,7 @@
 		if (cached) {
 			peaks = cached;
 		} else {
-			worker?.postMessage({ arrayBuffer: arrayBuffer.slice(0), hash, pixelWidth: 600 }, [
-				arrayBuffer.slice(0)
-			]);
+			worker?.postMessage({ arrayBuffer: workerBuffer, hash, pixelWidth: 600 }, [workerBuffer]);
 		}
 	}
 

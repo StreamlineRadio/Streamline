@@ -14,7 +14,8 @@
 	const PEAK_HOLD_MS = 2000;
 	const PEAK_DECAY_DB_PER_S = 10;
 
-	const timeDomainData = $derived(new Float32Array(analyser.fftSize));
+	const timeDomainData = new Float32Array(analyser.fftSize);
+	let lastTickMs = 0;
 
 	function tick(now: number) {
 		analyser.getFloatTimeDomainData(timeDomainData);
@@ -25,11 +26,14 @@
 		const rms = Math.sqrt(sum / timeDomainData.length);
 		dbfs = rms > 0 ? Math.max(-60, 20 * Math.log10(rms)) : -60;
 
+		const dt = lastTickMs === 0 ? 1 / 60 : (now - lastTickMs) / 1000;
+		lastTickMs = now;
+
 		if (dbfs >= peak) {
 			peak = dbfs;
 			peakHoldTime = now;
 		} else if (now - peakHoldTime > PEAK_HOLD_MS) {
-			peak = Math.max(-60, peak - PEAK_DECAY_DB_PER_S / 60);
+			peak = Math.max(-60, peak - PEAK_DECAY_DB_PER_S * dt);
 		}
 
 		rafId = requestAnimationFrame(tick);

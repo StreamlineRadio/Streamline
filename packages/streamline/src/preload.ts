@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, webUtils } from 'electron';
 import type { StreamlineWindowApi, TypedIpcApi } from '@streamline/shared';
 import { IPC } from '@streamline/shared';
 
@@ -56,6 +56,7 @@ const api: TypedIpcApi = {
 const streamline: StreamlineWindowApi = {
 	platform: process.platform,
 	api,
+	getPathForFile: (file: File) => webUtils.getPathForFile(file),
 	onAudioPort: (cb: (port: MessagePort) => void) =>
 		ipcRenderer.on(IPC.AUDIO_PORT, (_e, _payload, ports) => {
 			if (ports[0]) cb(ports[0]);

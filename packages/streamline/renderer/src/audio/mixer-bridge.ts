@@ -45,7 +45,17 @@ export async function initMixer(): Promise<void> {
 
 export function setSoftClipEnabled(enabled: boolean): void {
 	if (!masterBus || !softClipper || !tapNode) return;
-	masterBus.disconnect();
+	// Use targeted disconnects to avoid severing LocalOutput gainNode connections
+	try {
+		masterBus.disconnect(softClipper);
+	} catch {
+		/* not connected */
+	}
+	try {
+		masterBus.disconnect(tapNode);
+	} catch {
+		/* not connected */
+	}
 	if (enabled) {
 		masterBus.connect(softClipper);
 		softClipper.connect(tapNode);

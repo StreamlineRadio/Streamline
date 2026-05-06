@@ -12,12 +12,13 @@
 	let selectedDeviceId = $state<string>('');
 	let volume = $state(1.0);
 
+	let ctx: AudioContext | null = null;
 	let gainNode: GainNode | null = null;
 	let audioEl: HTMLAudioElement | null = null;
 	let destNode: MediaStreamAudioDestinationNode | null = null;
 
 	onMount(async () => {
-		const ctx = getAudioContext();
+		ctx = getAudioContext();
 		gainNode = ctx.createGain();
 		gainNode.gain.value = volume;
 		getMasterBus().connect(gainNode);
@@ -26,7 +27,11 @@
 		gainNode.connect(destNode);
 		audioEl = new Audio();
 		audioEl.srcObject = destNode.stream;
-		await audioEl.play();
+		try {
+			await audioEl.play();
+		} catch (err) {
+			console.error('[LocalOutput] audioEl.play() failed:', err);
+		}
 
 		await refreshDevices();
 		navigator.mediaDevices.addEventListener('devicechange', refreshDevices);
@@ -48,15 +53,19 @@
 	}
 
 	async function changeDevice(deviceId: string) {
+		const previousDeviceId = selectedDeviceId;
 		selectedDeviceId = deviceId;
-		if ('setSinkId' in AudioContext.prototype) {
-			await (
-				getAudioContext() as AudioContext & { setSinkId(id: string): Promise<void> }
-			).setSinkId(deviceId);
-		} else if (audioEl && 'setSinkId' in audioEl) {
-			await (audioEl as HTMLAudioElement & { setSinkId(id: string): Promise<void> }).setSinkId(
-				deviceId
-			);
+		try {
+			if (ctx && 'setSinkId' in AudioContext.prototype) {
+				await (ctx as AudioContext & { setSinkId(id: string): Promise<void> }).setSinkId(deviceId);
+			} else if (audioEl && 'setSinkId' in audioEl) {
+				await (audioEl as HTMLAudioElement & { setSinkId(id: string): Promise<void> }).setSinkId(
+					deviceId
+				);
+			}
+		} catch (err) {
+			console.error('[LocalOutput] changeDevice failed:', err);
+			selectedDeviceId = previousDeviceId;
 		}
 	}
 

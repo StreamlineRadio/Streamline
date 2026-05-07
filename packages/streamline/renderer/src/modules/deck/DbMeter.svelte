@@ -9,7 +9,7 @@
 	let dbfs = $state(-60);
 	let peak = $state(-60);
 	let peakHoldTime = 0;
-	let rafId: number;
+	let animationFrameId: number;
 
 	const PEAK_HOLD_MS = 2000;
 	const PEAK_DECAY_DB_PER_S = 10;
@@ -36,11 +36,11 @@
 			peak = Math.max(-60, peak - PEAK_DECAY_DB_PER_S * dt);
 		}
 
-		rafId = requestAnimationFrame(tick);
+		animationFrameId = requestAnimationFrame(tick);
 	}
 
-	rafId = requestAnimationFrame(tick);
-	onDestroy(() => cancelAnimationFrame(rafId));
+	animationFrameId = requestAnimationFrame(tick);
+	onDestroy(() => cancelAnimationFrame(animationFrameId));
 
 	const toPercent = (db: number) => Math.max(0, Math.min(100, ((db + 60) / 60) * 100));
 	const isClipping = $derived(peak >= -0.1);

@@ -16,12 +16,12 @@ export function connectToMaster(source: AudioNode): void {
 }
 
 export async function initMixer(): Promise<void> {
-	const ctx = getAudioContext();
-	masterBus = ctx.createGain();
+	const audioCtx = getAudioContext();
+	masterBus = audioCtx.createGain();
 	masterBus.gain.value = 1.0;
 
 	// Soft clipper (tanh curve, 256-point WaveShaper)
-	softClipper = ctx.createWaveShaper();
+	softClipper = audioCtx.createWaveShaper();
 	const curve = new Float32Array(256);
 	for (let i = 0; i < 256; i++) {
 		const x = (i * 2) / (256 - 1) - 1;
@@ -31,8 +31,10 @@ export async function initMixer(): Promise<void> {
 	softClipper.oversample = '4x';
 
 	// Load tap worklet and wire up PCM forwarding
-	await ctx.audioWorklet.addModule(new URL('/worklets/tap-processor.js', window.location.href));
-	tapNode = new AudioWorkletNode(ctx, TAP_PROCESSOR_NAME);
+	await audioCtx.audioWorklet.addModule(
+		new URL('/worklets/tap-processor.js', window.location.href)
+	);
+	tapNode = new AudioWorkletNode(audioCtx, TAP_PROCESSOR_NAME);
 	tapNode.port.onmessage = (e: MessageEvent) => {
 		sendPcm(e.data.buffer, e.data.frames, e.data.encoderTargets);
 	};
@@ -40,7 +42,7 @@ export async function initMixer(): Promise<void> {
 	// Chain: masterBus → softClipper → tapNode → destination
 	masterBus.connect(softClipper);
 	softClipper.connect(tapNode);
-	tapNode.connect(ctx.destination);
+	tapNode.connect(audioCtx.destination);
 }
 
 export function setSoftClipEnabled(enabled: boolean): void {

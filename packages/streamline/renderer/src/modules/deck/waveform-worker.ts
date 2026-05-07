@@ -3,8 +3,8 @@ self.onmessage = async (
 ) => {
 	const { arrayBuffer, hash, pixelWidth } = e.data;
 	try {
-		const ctx = new OfflineAudioContext(1, 1, 44100);
-		const decoded = await ctx.decodeAudioData(arrayBuffer.slice(0));
+		const offlineAudioCtx = new OfflineAudioContext(1, 1, 44100);
+		const decoded = await offlineAudioCtx.decodeAudioData(arrayBuffer.slice(0));
 		const samplesPerPixel = Math.floor(decoded.length / pixelWidth);
 		const peaks = new Array(pixelWidth);
 		for (let i = 0; i < pixelWidth; i++) {

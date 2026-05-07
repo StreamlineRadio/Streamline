@@ -8,29 +8,29 @@ import { log } from '../logging';
 
 const processes = new Map<string, EncoderProcess>();
 
-export function startEncoder(config: EncoderConfig, win: BrowserWindow): string {
+export function startEncoder(config: EncoderConfig, mainWindow: BrowserWindow): string {
 	if (processes.has(config.id)) stopEncoder(config.id);
 
-	const proc = new EncoderProcess(config, () =>
+	const encoderProcess = new EncoderProcess(config, () =>
 		'passwordRef' in config && config.passwordRef ? getSecret(config.passwordRef) : null
 	);
 
-	proc.setStatusListener((status) => {
-		win.webContents.send(IPC.ENCODER_STATUS_PUSH, config.id, status);
+	encoderProcess.setStatusListener((status) => {
+		mainWindow.webContents.send(IPC.ENCODER_STATUS_PUSH, config.id, status);
 	});
 
-	processes.set(config.id, proc);
-	registerEncoderConsumer(config.id, (buf) => proc.write(buf));
-	proc.start();
+	processes.set(config.id, encoderProcess);
+	registerEncoderConsumer(config.id, (buf) => encoderProcess.write(buf));
+	encoderProcess.start();
 	log.info('Encoder started', { id: config.id, name: config.name });
 	return config.id;
 }
 
 export function stopEncoder(id: string): void {
-	const proc = processes.get(id);
-	if (!proc) return;
+	const encoderProcess = processes.get(id);
+	if (!encoderProcess) return;
 	unregisterEncoderConsumer(id);
-	proc.stop();
+	encoderProcess.stop();
 	processes.delete(id);
 	log.info('Encoder stopped', { id });
 }

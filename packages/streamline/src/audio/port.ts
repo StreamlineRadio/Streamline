@@ -5,7 +5,7 @@ import { handlePcmMessage } from './pcm-receiver';
 
 let mainPort: MessagePortMain | null = null;
 
-export function createAudioPort(win: BrowserWindow): void {
+export function createAudioPort(mainWindow: BrowserWindow): void {
 	const { port1, port2 } = new MessageChannelMain();
 	mainPort = port1;
 	mainPort.start();
@@ -16,8 +16,8 @@ export function createAudioPort(win: BrowserWindow): void {
 		}
 	});
 	// Transfer port2 to the renderer — must happen after webContents is ready
-	win.webContents.on('did-finish-load', () => {
-		win.webContents.postMessage('audio:port', null, [port2]);
+	mainWindow.webContents.on('did-finish-load', () => {
+		mainWindow.webContents.postMessage('audio:port', null, [port2]);
 		log.info('Audio MessagePort transferred to renderer');
 	});
 }

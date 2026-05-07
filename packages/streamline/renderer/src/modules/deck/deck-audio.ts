@@ -17,9 +17,9 @@ export interface DeckAudio {
 }
 
 export function createDeckAudio(): DeckAudio {
-	const ctx = getAudioContext();
-	const gainNode = ctx.createGain();
-	const analyserNode = ctx.createAnalyser();
+	const audioCtx = getAudioContext();
+	const gainNode = audioCtx.createGain();
+	const analyserNode = audioCtx.createAnalyser();
 	analyserNode.fftSize = 2048;
 	analyserNode.smoothingTimeConstant = 0.8;
 
@@ -38,21 +38,21 @@ export function createDeckAudio(): DeckAudio {
 		analyserNode,
 
 		async load(arrayBuffer: ArrayBuffer): Promise<void> {
-			gainNode.gain.cancelScheduledValues(ctx.currentTime);
-			gainNode.gain.setValueAtTime(1, ctx.currentTime);
+			gainNode.gain.cancelScheduledValues(audioCtx.currentTime);
+			gainNode.gain.setValueAtTime(1, audioCtx.currentTime);
 			if (source) {
 				source.stop();
 				source.disconnect();
 				source = null;
 			}
-			buffer = await ctx.decodeAudioData(arrayBuffer);
+			buffer = await audioCtx.decodeAudioData(arrayBuffer);
 			pauseOffset = 0;
 			isPlaying = false;
 		},
 
 		play(): void {
 			if (!buffer || isPlaying) return;
-			source = ctx.createBufferSource();
+			source = audioCtx.createBufferSource();
 			source.buffer = buffer;
 			source.connect(gainNode);
 			source.onended = () => {
@@ -62,14 +62,14 @@ export function createDeckAudio(): DeckAudio {
 					endedCallbacks.forEach((cb) => cb());
 				}
 			};
-			startTime = ctx.currentTime - pauseOffset;
+			startTime = audioCtx.currentTime - pauseOffset;
 			source.start(0, pauseOffset);
 			isPlaying = true;
 		},
 
 		pause(): void {
 			if (!isPlaying || !source) return;
-			pauseOffset = ctx.currentTime - startTime;
+			pauseOffset = audioCtx.currentTime - startTime;
 			source.stop();
 			isPlaying = false;
 		},
@@ -90,12 +90,12 @@ export function createDeckAudio(): DeckAudio {
 
 		fadeOut(durationMs: number): void {
 			const tc = durationMs / 1000 / 3;
-			gainNode.gain.setTargetAtTime(0, ctx.currentTime, tc);
+			gainNode.gain.setTargetAtTime(0, audioCtx.currentTime, tc);
 		},
 
 		getPosition(): number {
 			if (!buffer) return 0;
-			if (isPlaying) return ctx.currentTime - startTime;
+			if (isPlaying) return audioCtx.currentTime - startTime;
 			return pauseOffset;
 		},
 

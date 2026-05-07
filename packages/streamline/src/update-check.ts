@@ -16,12 +16,12 @@ export async function checkForUpdates(): Promise<void> {
 	if (!app.isPackaged) return;
 
 	try {
-		const res = await fetch(RELEASES_API, {
+		const releaseResponse = await fetch(RELEASES_API, {
 			headers: { 'User-Agent': 'Streamline-App' }
 		});
-		if (!res.ok) return;
+		if (!releaseResponse.ok) return;
 
-		const { tag_name } = (await res.json()) as { tag_name: string };
+		const { tag_name } = (await releaseResponse.json()) as { tag_name: string };
 		if (!tag_name || !isNewerVersion(tag_name, app.getVersion())) return;
 
 		const version = tag_name.replace(/^v/, '');

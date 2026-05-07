@@ -18,8 +18,8 @@
 
 	function drawWaveform(peakData: number[], pos: number, dur: number) {
 		if (!canvas) return;
-		const ctx = canvas.getContext('2d')!;
-		ctx.clearRect(0, 0, width, height);
+		const canvasCtx = canvas.getContext('2d')!;
+		canvasCtx.clearRect(0, 0, width, height);
 
 		const mid = height / 2;
 		const playedX = dur > 0 ? (pos / dur) * width : 0;
@@ -27,18 +27,18 @@
 		for (let i = 0; i < peakData.length; i++) {
 			const x = (i / peakData.length) * width;
 			const h = peakData[i] * height;
-			ctx.fillStyle =
+			canvasCtx.fillStyle =
 				i < (pos / dur) * peakData.length ? 'rgba(91, 192, 185, 0.9)' : 'rgba(91, 192, 185, 0.35)';
-			ctx.fillRect(x, mid - h / 2, Math.max(1, width / peakData.length - 0.5), h);
+			canvasCtx.fillRect(x, mid - h / 2, Math.max(1, width / peakData.length - 0.5), h);
 		}
 
 		// Playhead
-		ctx.strokeStyle = '#fff';
-		ctx.lineWidth = 2;
-		ctx.beginPath();
-		ctx.moveTo(playedX, 0);
-		ctx.lineTo(playedX, height);
-		ctx.stroke();
+		canvasCtx.strokeStyle = '#fff';
+		canvasCtx.lineWidth = 2;
+		canvasCtx.beginPath();
+		canvasCtx.moveTo(playedX, 0);
+		canvasCtx.lineTo(playedX, height);
+		canvasCtx.stroke();
 	}
 
 	function handleClick(e: MouseEvent) {

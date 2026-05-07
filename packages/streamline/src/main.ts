@@ -62,9 +62,9 @@ app.whenReady().then(async () => {
 	runMigrations();
 	registerAllHandlers();
 	checkForUpdates();
-	const win = createWindow();
-	setEncoderWindow(win);
-	createAudioPort(win);
+	const mainWindow = createWindow();
+	setEncoderWindow(mainWindow);
+	createAudioPort(mainWindow);
 
 	app.on('activate', () => {
 		if (BrowserWindow.getAllWindows().length === 0) createWindow();

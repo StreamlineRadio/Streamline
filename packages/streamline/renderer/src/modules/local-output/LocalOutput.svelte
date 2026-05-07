@@ -12,18 +12,18 @@
 	let selectedDeviceId = $state<string>('');
 	let volume = $state(1.0);
 
-	let ctx: AudioContext | null = null;
+	let audioCtx: AudioContext | null = null;
 	let gainNode: GainNode | null = null;
 	let audioEl: HTMLAudioElement | null = null;
 	let destNode: MediaStreamAudioDestinationNode | null = null;
 
 	onMount(async () => {
-		ctx = getAudioContext();
-		gainNode = ctx.createGain();
+		audioCtx = getAudioContext();
+		gainNode = audioCtx.createGain();
 		gainNode.gain.value = volume;
 		getMasterBus().connect(gainNode);
 
-		destNode = ctx.createMediaStreamDestination();
+		destNode = audioCtx.createMediaStreamDestination();
 		gainNode.connect(destNode);
 		audioEl = new Audio();
 		audioEl.srcObject = destNode.stream;
@@ -56,8 +56,10 @@
 		const previousDeviceId = selectedDeviceId;
 		selectedDeviceId = deviceId;
 		try {
-			if (ctx && 'setSinkId' in AudioContext.prototype) {
-				await (ctx as AudioContext & { setSinkId(id: string): Promise<void> }).setSinkId(deviceId);
+			if (audioCtx && 'setSinkId' in AudioContext.prototype) {
+				await (audioCtx as AudioContext & { setSinkId(id: string): Promise<void> }).setSinkId(
+					deviceId
+				);
 			} else if (audioEl && 'setSinkId' in audioEl) {
 				await (audioEl as HTMLAudioElement & { setSinkId(id: string): Promise<void> }).setSinkId(
 					deviceId

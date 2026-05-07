@@ -19,17 +19,17 @@
 	let sourceNode: MediaStreamAudioSourceNode | null = null;
 	let gainNode: GainNode | null = null;
 	let analyserNode: AnalyserNode | null = null;
-	let rafId: number;
+	let animationFrameId: number;
 
 	onMount(async () => {
 		await refreshDevices();
 		navigator.mediaDevices.addEventListener('devicechange', refreshDevices);
-		rafId = requestAnimationFrame(tickLevel);
+		animationFrameId = requestAnimationFrame(tickLevel);
 	});
 
 	onDestroy(() => {
 		navigator.mediaDevices.removeEventListener('devicechange', refreshDevices);
-		cancelAnimationFrame(rafId);
+		cancelAnimationFrame(animationFrameId);
 		stopCapture();
 	});
 
@@ -40,7 +40,7 @@
 
 	async function startCapture() {
 		stopCapture();
-		const ctx = getAudioContext();
+		const audioCtx = getAudioContext();
 		stream = await navigator.mediaDevices.getUserMedia({
 			audio: {
 				deviceId: selectedDeviceId ? { exact: selectedDeviceId } : undefined,
@@ -49,10 +49,10 @@
 				autoGainControl: false
 			}
 		});
-		sourceNode = ctx.createMediaStreamSource(stream);
-		gainNode = ctx.createGain();
+		sourceNode = audioCtx.createMediaStreamSource(stream);
+		gainNode = audioCtx.createGain();
 		gainNode.gain.value = 0;
-		analyserNode = ctx.createAnalyser();
+		analyserNode = audioCtx.createAnalyser();
 		analyserNode.fftSize = 2048;
 		sourceNode.connect(gainNode);
 		gainNode.connect(analyserNode);
@@ -71,10 +71,10 @@
 
 	function rampGain(targetValue: number, timeMs: number) {
 		if (!gainNode) return;
-		const ctx = getAudioContext();
-		gainNode.gain.cancelScheduledValues(ctx.currentTime);
-		gainNode.gain.setValueAtTime(gainNode.gain.value, ctx.currentTime);
-		gainNode.gain.linearRampToValueAtTime(targetValue, ctx.currentTime + timeMs / 1000);
+		const audioCtx = getAudioContext();
+		gainNode.gain.cancelScheduledValues(audioCtx.currentTime);
+		gainNode.gain.setValueAtTime(gainNode.gain.value, audioCtx.currentTime);
+		gainNode.gain.linearRampToValueAtTime(targetValue, audioCtx.currentTime + timeMs / 1000);
 	}
 
 	function handlePttDown() {
@@ -131,7 +131,7 @@
 			const rms = Math.sqrt(sum / timeDomainBuf.length);
 			level = rms > 0 ? Math.max(-60, 20 * Math.log10(rms)) : -60;
 		}
-		rafId = requestAnimationFrame(tickLevel);
+		animationFrameId = requestAnimationFrame(tickLevel);
 	}
 </script>
 

@@ -1,15 +1,15 @@
-let _ctx: AudioContext | null = null;
+let _audioCtx: AudioContext | null = null;
 
 export function getAudioContext(): AudioContext {
-	if (!_ctx) {
-		_ctx = new AudioContext({ sampleRate: 48000, latencyHint: 'interactive' });
+	if (!_audioCtx) {
+		_audioCtx = new AudioContext({ sampleRate: 48000, latencyHint: 'interactive' });
 	}
-	return _ctx;
+	return _audioCtx;
 }
 
 export async function resumeAudioContext(): Promise<void> {
-	const ctx = getAudioContext();
-	if (ctx.state === 'suspended') {
-		await ctx.resume();
+	const audioCtx = getAudioContext();
+	if (audioCtx.state === 'suspended') {
+		await audioCtx.resume();
 	}
 }

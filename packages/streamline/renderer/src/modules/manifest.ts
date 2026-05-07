@@ -18,6 +18,6 @@ export interface ModuleManifest {
 	defaultWidth?: number;
 	defaultHeight?: number;
 	defaultSettings?: Record<string, unknown>;
-	init?: (ctx: ModuleContext) => Promise<void>;
-	destroy?: (ctx: ModuleContext) => Promise<void>;
+	init?: (moduleContext: ModuleContext) => Promise<void>;
+	destroy?: (moduleContext: ModuleContext) => Promise<void>;
 }

@@ -5,10 +5,10 @@ import { IPC } from '@streamline/shared';
 import { getDb, schema } from '../../db';
 import { startEncoder, stopEncoder, getEncoderStatus } from '../../encoders/manager';
 
-let _win: BrowserWindow | null = null;
+let _mainWindow: BrowserWindow | null = null;
 
-export function setEncoderWindow(win: BrowserWindow): void {
-	_win = win;
+export function setEncoderWindow(mainWindow: BrowserWindow): void {
+	_mainWindow = mainWindow;
 }
 
 export function registerEncoderHandlers(): void {
@@ -30,8 +30,8 @@ export function registerEncoderHandlers(): void {
 	});
 
 	ipcMain.handle(IPC.ENCODER_START, (_e, config: EncoderConfig) => {
-		if (!_win) throw new Error('No window available');
-		return { id: startEncoder(config, _win) };
+		if (!_mainWindow) throw new Error('No window available');
+		return { id: startEncoder(config, _mainWindow) };
 	});
 
 	ipcMain.handle(IPC.ENCODER_STOP, (_e, id: string) => stopEncoder(id));

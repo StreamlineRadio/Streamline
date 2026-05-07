@@ -4,7 +4,7 @@ import { getFFmpegPath } from './ffmpeg-path';
 import { log } from '../logging';
 
 export class EncoderProcess {
-	private proc: ChildProcess | null = null;
+	private ffmpegProcess: ChildProcess | null = null;
 	private _status: EncoderStatus = { status: 'idle' };
 	private bytesEncoded = 0;
 	private secondsEncoded = 0;
@@ -29,27 +29,27 @@ export class EncoderProcess {
 	}
 
 	start(): void {
-		if (this.proc) return;
+		if (this.ffmpegProcess) return;
 		this.setStatus({ status: 'connecting' });
 
 		const args = this.buildArgs();
 		log.info('Starting encoder', { id: this.config.id, format: this.config.format, args });
 
-		this.proc = spawn(getFFmpegPath(), args, { stdio: ['pipe', 'pipe', 'pipe'] });
+		this.ffmpegProcess = spawn(getFFmpegPath(), args, { stdio: ['pipe', 'pipe', 'pipe'] });
 
-		this.proc.stderr?.on('data', (chunk: Buffer) => {
+		this.ffmpegProcess.stderr?.on('data', (chunk: Buffer) => {
 			log.debug('ffmpeg', chunk.toString());
 		});
 
-		this.proc.on('error', (err) => {
+		this.ffmpegProcess.on('error', (err) => {
 			log.error('Encoder process error', err);
 			this.setStatus({ status: 'error', error: err.message });
-			this.proc = null;
+			this.ffmpegProcess = null;
 		});
 
-		this.proc.on('close', (code) => {
+		this.ffmpegProcess.on('close', (code) => {
 			log.info('Encoder process closed', { code, id: this.config.id });
-			this.proc = null;
+			this.ffmpegProcess = null;
 			if (this._status.status !== 'stopped') {
 				this.setStatus({ status: 'error', error: `Process exited with code ${code}` });
 			}
@@ -64,9 +64,9 @@ export class EncoderProcess {
 	}
 
 	write(buffer: ArrayBuffer): void {
-		if (!this.proc?.stdin?.writable) return;
+		if (!this.ffmpegProcess?.stdin?.writable) return;
 		const buf = Buffer.from(buffer);
-		this.proc.stdin.write(buf);
+		this.ffmpegProcess.stdin.write(buf);
 		this.bytesEncoded += buf.byteLength;
 		this.secondsEncoded += buf.byteLength / (this.config.sampleRate * this.config.channels * 4);
 		if (this._status.status === 'streaming') {
@@ -81,9 +81,9 @@ export class EncoderProcess {
 
 	stop(): void {
 		this.setStatus({ status: 'stopped' });
-		this.proc?.stdin?.end();
-		this.proc?.kill('SIGTERM');
-		this.proc = null;
+		this.ffmpegProcess?.stdin?.end();
+		this.ffmpegProcess?.kill('SIGTERM');
+		this.ffmpegProcess = null;
 	}
 
 	private buildArgs(): string[] {

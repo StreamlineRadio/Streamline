@@ -3,6 +3,7 @@ import { registerSettingsHandlers } from './handlers/settings';
 import { registerLayoutHandlers } from './handlers/layout';
 import { registerSecretHandlers } from './handlers/secret';
 import { registerHotkeyHandlers } from './handlers/hotkeys';
+import { registerEncoderHandlers } from './handlers/encoder';
 
 export function registerAllHandlers(): void {
 	registerSystemHandlers();
@@ -10,5 +11,6 @@ export function registerAllHandlers(): void {
 	registerLayoutHandlers();
 	registerSecretHandlers();
 	registerHotkeyHandlers();
-	// Library and encoder handlers registered after their subsystems are initialized
+	registerEncoderHandlers();
+	// Library handlers registered after their subsystem is initialized
 }

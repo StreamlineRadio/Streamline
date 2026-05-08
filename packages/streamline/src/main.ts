@@ -7,6 +7,7 @@ import { openDb, closeDb } from './db';
 import { runMigrations } from './db/migrate';
 import { registerAllHandlers } from './ipc/register';
 import { setEncoderWindow } from './ipc/handlers/encoder';
+import { setLibraryWindow } from './ipc/handlers/library';
 import { createAudioPort } from './audio/port';
 
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string;
@@ -64,6 +65,7 @@ app.whenReady().then(async () => {
 	checkForUpdates();
 	const mainWindow = createWindow();
 	setEncoderWindow(mainWindow);
+	setLibraryWindow(mainWindow);
 	createAudioPort(mainWindow);
 
 	app.on('activate', () => {

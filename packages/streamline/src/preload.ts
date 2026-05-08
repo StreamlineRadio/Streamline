@@ -53,14 +53,18 @@ const api: TypedIpcApi = {
 	}
 };
 
+// contextBridge cannot properly transfer MessagePort through callback proxies —
+// dispatch as a native DOM event instead so the renderer gets a real port.
+ipcRenderer.on(IPC.AUDIO_PORT, (event) => {
+	if (event.ports[0]) {
+		window.dispatchEvent(new MessageEvent('streamline-audio-port', { ports: [event.ports[0]] }));
+	}
+});
+
 const streamline: StreamlineWindowApi = {
 	platform: process.platform,
 	api,
 	getPathForFile: (file: File) => webUtils.getPathForFile(file),
-	onAudioPort: (cb: (port: MessagePort) => void) =>
-		ipcRenderer.on(IPC.AUDIO_PORT, (event) => {
-			if (event.ports[0]) cb(event.ports[0]);
-		}),
 	onEncoderStatus: (cb: (id: string, status: unknown) => void) =>
 		ipcRenderer.on(IPC.ENCODER_STATUS_PUSH, (_e, id, status) => cb(id, status)),
 	onScanProgress: (cb: (progress: unknown) => void) =>

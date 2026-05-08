@@ -3,9 +3,12 @@ import type { PcmMessage } from '@streamline/shared';
 let _port: MessagePort | null = null;
 
 export function initAudioPort(): void {
-	window.streamline.onAudioPort((port) => {
-		_port?.close();
-		_port = port;
+	window.addEventListener('streamline-audio-port', (event) => {
+		const port = (event as MessageEvent).ports?.[0];
+		if (port) {
+			_port?.close();
+			_port = port;
+		}
 	});
 }
 

@@ -15,5 +15,10 @@ function copyMigrations(): Plugin {
 }
 
 export default defineConfig({
+	build: {
+		rollupOptions: {
+			external: ['better-sqlite3']
+		}
+	},
 	plugins: [copyMigrations()]
 });

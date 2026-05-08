@@ -31,29 +31,4 @@ export function registerSystemHandlers(): void {
 		const result = await dialog.showOpenDialog({ properties: ['openDirectory'] });
 		return result.canceled ? null : result.filePaths[0];
 	});
-	// Path is user-selected (via dialog or library scan) — renderer is sandboxed, not untrusted code
-	ipcMain.handle(IPC.LIBRARY_READ_AUDIO_FILE, async (_e, path: string) => {
-		const { readFile } = await import('fs/promises');
-		return readFile(path);
-	});
-	ipcMain.handle(IPC.LIBRARY_SAVE_WAVEFORM, async (_e, hash: string, peaks: number[]) => {
-		if (!/^[a-f0-9]{32,128}$/.test(hash)) throw new Error('Invalid waveform hash format');
-		const { writeFile, mkdir } = await import('fs/promises');
-		const dir = join(app.getPath('userData'), 'waveforms');
-		await mkdir(dir, { recursive: true });
-		await writeFile(join(dir, `${hash}.json`), JSON.stringify(peaks));
-	});
-	ipcMain.handle(IPC.LIBRARY_LOAD_WAVEFORM, async (_e, hash: string) => {
-		if (!/^[a-f0-9]{32,128}$/.test(hash)) throw new Error('Invalid waveform hash format');
-		const { readFile } = await import('fs/promises');
-		try {
-			const data = await readFile(
-				join(app.getPath('userData'), 'waveforms', `${hash}.json`),
-				'utf8'
-			);
-			return JSON.parse(data);
-		} catch {
-			return null;
-		}
-	});
 }

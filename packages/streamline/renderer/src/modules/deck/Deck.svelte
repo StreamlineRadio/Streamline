@@ -5,11 +5,41 @@
 	import WaveformDisplay from './WaveformDisplay.svelte';
 	import type { Song } from '@streamline/shared';
 	import { eventBus } from '../event-bus';
+	import { instanceStore } from '../instance-store.svelte';
+	import { layoutStore } from '../../layout/store.svelte';
 
 	interface Props {
 		instanceId: string;
 	}
 	const { instanceId }: Props = $props();
+
+	interface DeckSettings {
+		sendMetadata: boolean;
+		acceptsFromQueueId: string | null;
+	}
+
+	const defaultSettings: DeckSettings = { sendMetadata: true, acceptsFromQueueId: null };
+
+	let showSettings = $state(false);
+
+	const currentSettings = $derived(
+		(() => {
+			const record = instanceStore.get(instanceId)?.record;
+			if (!record?.settingsJson) return defaultSettings;
+			try {
+				return JSON.parse(record.settingsJson) as DeckSettings;
+			} catch {
+				return defaultSettings;
+			}
+		})()
+	);
+
+	function updateSettings(patch: Partial<DeckSettings>) {
+		const next = { ...currentSettings, ...patch };
+		const json = JSON.stringify(next);
+		instanceStore.update(instanceId, { settingsJson: json });
+		layoutStore.updateInstance(instanceId, { settingsJson: json });
+	}
 
 	const audio = createDeckAudio();
 
@@ -145,7 +175,40 @@
 		<div class="h-12 w-6">
 			<DbMeter analyser={audio.analyserNode} />
 		</div>
+		<button
+			class="px-1 text-primary-500 hover:text-primary-300"
+			onclick={() => (showSettings = !showSettings)}
+			title="Deck settings">⚙</button
+		>
 	</div>
+
+	<!-- Settings panel -->
+	{#if showSettings}
+		<div class="flex flex-col gap-2 rounded bg-primary-800 p-2 text-xs">
+			<label class="flex cursor-pointer items-center gap-2">
+				<input
+					type="checkbox"
+					checked={currentSettings.sendMetadata}
+					onchange={(e) => updateSettings({ sendMetadata: (e.target as HTMLInputElement).checked })}
+					class="accent-secondary-500"
+				/>
+				Send metadata
+			</label>
+			<label class="flex flex-col gap-1">
+				<span class="text-primary-400">Queue ID</span>
+				<input
+					type="text"
+					value={currentSettings.acceptsFromQueueId ?? ''}
+					oninput={(e) => {
+						const value = (e.target as HTMLInputElement).value.trim();
+						updateSettings({ acceptsFromQueueId: value || null });
+					}}
+					placeholder="none"
+					class="rounded bg-primary-700 px-2 py-1 text-primary-100 outline-none focus:ring-1 focus:ring-secondary-500"
+				/>
+			</label>
+		</div>
+	{/if}
 
 	<!-- Waveform / seekbar -->
 	<div class="h-16 flex-shrink-0">

@@ -43,6 +43,11 @@
 		items = [];
 	}
 
+	async function addFolder() {
+		const folder = await window.streamline.api.system.selectFolder();
+		if (folder) await window.streamline.api.library.addFolder(folder);
+	}
+
 	function handleDrop(e: DragEvent) {
 		e.preventDefault();
 		dragIndex = null;
@@ -59,6 +64,13 @@
 		</label>
 		<span class="text-xs text-primary-500">{items.length} track{items.length !== 1 ? 's' : ''}</span
 		>
+		<button
+			class="rounded bg-primary-700 px-2 py-1 text-xs hover:bg-primary-600"
+			onclick={addFolder}
+			title="Add folder to library"
+		>
+			+ Folder
+		</button>
 		<button
 			class="ml-auto rounded bg-primary-700 px-2 py-1 text-xs hover:bg-primary-600"
 			onclick={clearItems}

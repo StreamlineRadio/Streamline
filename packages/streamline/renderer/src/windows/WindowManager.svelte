@@ -11,11 +11,14 @@
 
 	onMount(async () => {
 		const layouts = await window.streamline.api.layout.list();
-		const active = layouts.find((l) => l.isActive);
-		if (active) {
-			layoutStore.set(active);
-			for (const inst of active.instances) {
-				instanceStore.add(inst);
+		const stub = layouts.find((l) => l.isActive);
+		if (stub) {
+			const active = await window.streamline.api.layout.load(stub.id);
+			if (active) {
+				layoutStore.set(active);
+				for (const inst of active.instances) {
+					instanceStore.add(inst);
+				}
 			}
 		}
 	});

@@ -7,9 +7,10 @@ export function startLayoutPersistence(): void {
 	$effect(() => {
 		const layout = layoutStore.active;
 		if (!layout) return;
+		const snapshot = $state.snapshot(layout);
 		const timer = setTimeout(() => {
 			window.streamline.api.layout
-				.save(layout)
+				.save(snapshot)
 				.catch((e) => console.error('layout save failed', e));
 		}, DEBOUNCE_MS);
 		return () => clearTimeout(timer);

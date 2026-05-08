@@ -1,10 +1,19 @@
-import { defineConfig } from 'vite';
-import { viteStaticCopy } from 'vite-plugin-static-copy';
+import { defineConfig, type Plugin } from 'vite';
+import { cpSync, mkdirSync } from 'node:fs';
+import { join } from 'node:path';
+
+function copyMigrations(): Plugin {
+	return {
+		name: 'copy-migrations',
+		closeBundle() {
+			const src = join(process.cwd(), 'src/db/migrations');
+			const dest = join(process.cwd(), '.vite/build/migrations');
+			mkdirSync(dest, { recursive: true });
+			cpSync(src, dest, { recursive: true });
+		}
+	};
+}
 
 export default defineConfig({
-	plugins: [
-		viteStaticCopy({
-			targets: [{ src: 'src/db/migrations', dest: '.' }]
-		})
-	]
+	plugins: [copyMigrations()]
 });

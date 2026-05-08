@@ -7,6 +7,7 @@
 	import { eventBus } from '../event-bus';
 	import { instanceStore } from '../instance-store.svelte';
 	import { layoutStore } from '../../layout/store.svelte';
+	import logoUrl from '../../assets/favicon.svg?url';
 
 	interface Props {
 		instanceId: string;
@@ -84,6 +85,15 @@
 	});
 
 	async function loadSong(path: string) {
+		const filename = path.split('/').pop() ?? path;
+		song = {
+			id: '', path, title: filename, artist: null, album: null,
+			durationSec: null, sampleRate: null, channels: null, bitrateKbps: null,
+			codec: null, artworkPath: null, waveformPath: null, fileSize: null,
+			fileMtime: null, addedAt: Date.now(), lastPlayedAt: null,
+			playCount: 0, missing: false
+		};
+
 		const arrayBuffer = await window.streamline.api.library.readAudioFile(path);
 		const workerBuffer = arrayBuffer.slice(0);
 		await audio.load(arrayBuffer);
@@ -91,6 +101,11 @@
 		position = 0;
 		isPlaying = false;
 		peaks = null;
+
+		window.streamline.api.library.search(filename).then((results: Song[]) => {
+			const match = results.find((result) => result.path === path);
+			if (match) song = match;
+		});
 
 		const hash = await computeHash(path);
 		const cached = await window.streamline.api.library.loadWaveform(hash);
@@ -161,11 +176,7 @@
 		{#if song?.artworkPath}
 			<img src={song.artworkPath} alt="cover" class="h-12 w-12 rounded object-cover" />
 		{:else}
-			<div
-				class="flex h-12 w-12 items-center justify-center rounded bg-primary-800 text-2xl text-primary-500"
-			>
-				♫
-			</div>
+			<img src={logoUrl} alt="Streamline" class="h-12 w-12 rounded object-contain p-1 opacity-40" />
 		{/if}
 		<div class="flex-1 overflow-hidden">
 			<div class="truncate text-sm font-semibold">{song?.title ?? 'Drop a file here'}</div>
@@ -212,7 +223,7 @@
 
 	<!-- Waveform / seekbar -->
 	<div class="h-16 flex-shrink-0">
-		<WaveformDisplay {peaks} {position} {duration} onSeek={seek} />
+		<WaveformDisplay {peaks} {position} {duration} songLoaded={song !== null} onSeek={seek} />
 	</div>
 
 	<!-- Time display -->
@@ -227,14 +238,22 @@
 			class="rounded px-4 py-1.5 text-sm font-medium transition-colors"
 			class:bg-success-600={isPlaying}
 			class:hover:bg-success-500={isPlaying}
-			class:bg-primary-700={!isPlaying}
-			class:hover:bg-primary-600={!isPlaying}
+			class:bg-primary-700={!isPlaying && song !== null}
+			class:hover:bg-primary-600={!isPlaying && song !== null}
+			class:bg-primary-800={song === null}
+			class:opacity-40={song === null}
+			class:cursor-not-allowed={song === null}
+			disabled={song === null}
 			onclick={togglePlay}
 		>
 			{isPlaying ? '⏸ Pause' : '▶ Play'}
 		</button>
 		<button
-			class="rounded bg-primary-700 px-3 py-1.5 text-sm transition-colors hover:bg-primary-600"
+			class="rounded bg-primary-700 px-3 py-1.5 text-sm transition-colors"
+			class:hover:bg-primary-600={song !== null}
+			class:opacity-40={song === null}
+			class:cursor-not-allowed={song === null}
+			disabled={song === null}
 			onclick={fadeOut}>Fade Out</button
 		>
 		<label for="deck-vol-{instanceId}" class="sr-only">Volume</label>

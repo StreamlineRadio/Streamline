@@ -1,6 +1,7 @@
 import { getAudioContext } from './context';
 import { TAP_PROCESSOR_NAME } from '@streamline/audio-worklet';
 import { sendPcm } from './port';
+import tapProcessorUrl from '@streamline/audio-worklet/tap-processor?url';
 
 let masterBus: GainNode | null = null;
 let softClipper: WaveShaperNode | null = null;
@@ -31,9 +32,7 @@ export async function initMixer(): Promise<void> {
 	softClipper.oversample = '4x';
 
 	// Load tap worklet and wire up PCM forwarding
-	await audioCtx.audioWorklet.addModule(
-		new URL('/worklets/tap-processor.js', window.location.href)
-	);
+	await audioCtx.audioWorklet.addModule(tapProcessorUrl);
 	tapNode = new AudioWorkletNode(audioCtx, TAP_PROCESSOR_NAME);
 	tapNode.port.onmessage = (e: MessageEvent) => {
 		sendPcm(e.data.buffer, e.data.frames, e.data.encoderTargets);

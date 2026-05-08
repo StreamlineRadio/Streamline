@@ -53,7 +53,7 @@
 			if (status?.status === 'streaming' || status?.status === 'connecting') {
 				await window.streamline.api.encoder.stop(config.id);
 			} else {
-				await window.streamline.api.encoder.start(config);
+				await window.streamline.api.encoder.start(JSON.parse(JSON.stringify(config)));
 			}
 		} catch (error) {
 			console.error('Failed to toggle encoder streaming:', error);

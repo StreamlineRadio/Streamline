@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Song } from '@streamline/shared';
+	import { setSongDragData } from '../../drag-drop/song-drag';
 
 	interface Props {
 		instanceId: string;
@@ -98,7 +99,20 @@
 				addSong(await songFromPath(window.streamline.getPathForFile(file)));
 			}
 		} else if (dragIndex !== null && dragIndex !== targetIndex) {
+			if (e.dataTransfer) e.dataTransfer.dropEffect = 'none';
 			moveItem(dragIndex, targetIndex);
+		}
+		dragIndex = null;
+	}
+
+	function handleRowDragStart(e: DragEvent, item: QueueItem, index: number) {
+		dragIndex = index;
+		setSongDragData(e, item.song);
+	}
+
+	function handleRowDragEnd(e: DragEvent, item: QueueItem) {
+		if (e.dataTransfer?.dropEffect === 'move') {
+			removeSong(item.id);
 		}
 		dragIndex = null;
 	}
@@ -142,7 +156,8 @@
 			<div
 				class="group flex cursor-pointer items-center gap-2 border-b border-primary-800 px-3 py-2 hover:bg-primary-800"
 				draggable="true"
-				ondragstart={() => (dragIndex = i)}
+				ondragstart={(e) => handleRowDragStart(e, item, i)}
+				ondragend={(e) => handleRowDragEnd(e, item)}
 				ondragover={(e) => {
 					e.preventDefault();
 				}}

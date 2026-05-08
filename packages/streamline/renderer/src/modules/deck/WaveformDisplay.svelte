@@ -48,6 +48,12 @@
 		const x = e.clientX - rect.left;
 		onSeek((x / rect.width) * duration);
 	}
+
+	function handleBarClick(e: MouseEvent) {
+		if (duration === 0) return;
+		const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+		onSeek(((e.clientX - rect.left) / rect.width) * duration);
+	}
 </script>
 
 <div class="relative h-full w-full" bind:clientWidth={width} bind:clientHeight={height}>
@@ -60,8 +66,27 @@
 			onclick={handleClick}
 		></canvas>
 	{:else if songLoaded}
-		<div class="flex h-full items-center justify-center text-xs text-primary-500">
-			Loading waveform…
+		<div
+			class="relative h-full w-full cursor-pointer rounded bg-primary-800"
+			onclick={handleBarClick}
+			onkeydown={(e) => {
+				if (e.key === 'ArrowLeft') onSeek(Math.max(0, position - 5));
+				if (e.key === 'ArrowRight') onSeek(Math.min(duration, position + 5));
+			}}
+			role="slider"
+			aria-label="Seek"
+			aria-valuemin={0}
+			aria-valuemax={duration}
+			aria-valuenow={position}
+			tabindex="0"
+		>
+			<div
+				class="absolute inset-y-0 left-0 rounded bg-secondary-900 opacity-60"
+				style="width:{duration > 0 ? (position / duration) * 100 : 0}%"
+			></div>
+			<div class="absolute inset-0 flex items-center justify-center text-xs text-primary-500">
+				Loading waveform…
+			</div>
 		</div>
 	{:else}
 		<div class="flex h-full items-center justify-center text-xs text-primary-500">

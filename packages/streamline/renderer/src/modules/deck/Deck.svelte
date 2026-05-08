@@ -8,6 +8,7 @@
 	import { instanceStore } from '../instance-store.svelte';
 	import { layoutStore } from '../../layout/store.svelte';
 	import logoUrl from '../../assets/favicon.svg?url';
+	import { getSongDragData } from '../../drag-drop/song-drag';
 
 	interface Props {
 		instanceId: string;
@@ -52,12 +53,12 @@
 	let peaks = $state<number[] | null>(null);
 
 	let positionRaf: number;
-	let worker: Worker | null = null;
 	let unsubVolume: (() => void) | null = null;
+	let fadeOutTimer: ReturnType<typeof setTimeout> | null = null;
 
 	onMount(() => {
 		audio.onEnded(() => {
-			isPlaying = false;
+			unload();
 		});
 		const trackPosition = () => {
 			position = audio.getPosition();
@@ -65,13 +66,6 @@
 			positionRaf = requestAnimationFrame(trackPosition);
 		};
 		positionRaf = requestAnimationFrame(trackPosition);
-		worker = new Worker(new URL('./waveform-worker.ts', import.meta.url), { type: 'module' });
-		worker.onmessage = async (e: MessageEvent<{ peaks: number[] | null; hash: string }>) => {
-			if (e.data.peaks) {
-				peaks = e.data.peaks;
-				await window.streamline.api.library.saveWaveform(e.data.hash, e.data.peaks);
-			}
-		};
 		unsubVolume = eventBus.on(`${instanceId}:setVolume`, (payload) => {
 			updateVolume(payload as number);
 		});
@@ -79,10 +73,23 @@
 
 	onDestroy(() => {
 		cancelAnimationFrame(positionRaf);
+		if (fadeOutTimer !== null) clearTimeout(fadeOutTimer);
 		audio.destroy();
-		worker?.terminate();
 		unsubVolume?.();
 	});
+
+	function unload() {
+		if (fadeOutTimer !== null) {
+			clearTimeout(fadeOutTimer);
+			fadeOutTimer = null;
+		}
+		audio.stop();
+		song = null;
+		peaks = null;
+		position = 0;
+		duration = 0;
+		isPlaying = false;
+	}
 
 	async function loadSong(path: string) {
 		const filename = path.split('/').pop() ?? path;
@@ -108,7 +115,6 @@
 		};
 
 		const arrayBuffer = await window.streamline.api.library.readAudioFile(path);
-		const workerBuffer = arrayBuffer.slice(0);
 		await audio.load(arrayBuffer);
 		duration = audio.getDuration();
 		position = 0;
@@ -125,7 +131,13 @@
 		if (cached) {
 			peaks = cached;
 		} else {
-			worker?.postMessage({ arrayBuffer: workerBuffer, hash, pixelWidth: 600 }, [workerBuffer]);
+			requestIdleCallback(() => {
+				const computedPeaks = audio.getPeaks(600);
+				if (computedPeaks.length > 0) {
+					peaks = computedPeaks;
+					window.streamline.api.library.saveWaveform(hash, computedPeaks);
+				}
+			});
 		}
 	}
 
@@ -138,8 +150,14 @@
 			.slice(0, 16);
 	}
 
-	function handleDrop(e: DragEvent) {
+	async function handleDrop(e: DragEvent) {
 		e.preventDefault();
+		const droppedSong = getSongDragData(e);
+		if (droppedSong) {
+			if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+			await loadSong(droppedSong.path);
+			return;
+		}
 		const file = e.dataTransfer?.files[0];
 		if (file) loadSong(window.streamline.getPathForFile(file));
 	}
@@ -168,7 +186,9 @@
 	}
 
 	function fadeOut() {
-		audio.fadeOut(5000);
+		audio.fadeOut(3000);
+		if (fadeOutTimer !== null) clearTimeout(fadeOutTimer);
+		fadeOutTimer = setTimeout(unload, 3500);
 	}
 
 	const formatTime = (s: number) => {
@@ -199,6 +219,13 @@
 		<div class="h-12 w-6">
 			<DbMeter analyser={audio.analyserNode} />
 		</div>
+		{#if song !== null}
+			<button
+				class="px-1 text-primary-500 hover:text-danger-400"
+				onclick={unload}
+				title="Unload song">✕</button
+			>
+		{/if}
 		<button
 			class="px-1 text-primary-500 hover:text-primary-300"
 			onclick={() => (showSettings = !showSettings)}

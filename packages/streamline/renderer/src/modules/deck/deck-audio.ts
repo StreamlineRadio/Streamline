@@ -7,9 +7,11 @@ export interface DeckAudio {
 	load(arrayBuffer: ArrayBuffer): Promise<void>;
 	play(): void;
 	pause(): void;
+	stop(): void;
 	seek(seconds: number): void;
 	setVolume(value: number): void;
 	fadeOut(durationMs: number): void;
+	getPeaks(pixelWidth: number): number[];
 	getPosition(): number;
 	getDuration(): number;
 	onEnded(cb: () => void): () => void;
@@ -33,6 +35,17 @@ export function createDeckAudio(): DeckAudio {
 	let isPlaying = false;
 	let endedCallbacks: (() => void)[] = [];
 
+	function stopSource() {
+		if (source) {
+			source.onended = null;
+			source.stop();
+			source.disconnect();
+			source = null;
+		}
+		isPlaying = false;
+		pauseOffset = 0;
+	}
+
 	return {
 		gainNode,
 		analyserNode,
@@ -40,14 +53,8 @@ export function createDeckAudio(): DeckAudio {
 		async load(arrayBuffer: ArrayBuffer): Promise<void> {
 			gainNode.gain.cancelScheduledValues(audioCtx.currentTime);
 			gainNode.gain.setValueAtTime(1, audioCtx.currentTime);
-			if (source) {
-				source.stop();
-				source.disconnect();
-				source = null;
-			}
+			stopSource();
 			buffer = await audioCtx.decodeAudioData(arrayBuffer);
-			pauseOffset = 0;
-			isPlaying = false;
 		},
 
 		play(): void {
@@ -74,6 +81,13 @@ export function createDeckAudio(): DeckAudio {
 			isPlaying = false;
 		},
 
+		stop(): void {
+			gainNode.gain.cancelScheduledValues(audioCtx.currentTime);
+			gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+			stopSource();
+			buffer = null;
+		},
+
 		seek(seconds: number): void {
 			const wasPlaying = isPlaying;
 			if (isPlaying && source) {
@@ -91,6 +105,24 @@ export function createDeckAudio(): DeckAudio {
 		fadeOut(durationMs: number): void {
 			const tc = durationMs / 1000 / 3;
 			gainNode.gain.setTargetAtTime(0, audioCtx.currentTime, tc);
+		},
+
+		getPeaks(pixelWidth: number): number[] {
+			if (!buffer) return [];
+			const peaks: number[] = new Array(pixelWidth);
+			const samplesPerPixel = Math.floor(buffer.length / pixelWidth);
+			for (let i = 0; i < pixelWidth; i++) {
+				let max = 0;
+				const start = i * samplesPerPixel;
+				for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
+					const channelData = buffer.getChannelData(ch);
+					for (let j = 0; j < samplesPerPixel; j++) {
+						max = Math.max(max, Math.abs(channelData[start + j] ?? 0));
+					}
+				}
+				peaks[i] = max;
+			}
+			return peaks;
 		},
 
 		getPosition(): number {
@@ -111,7 +143,7 @@ export function createDeckAudio(): DeckAudio {
 		},
 
 		destroy(): void {
-			source?.stop();
+			stopSource();
 			gainNode.disconnect();
 			analyserNode.disconnect();
 		}

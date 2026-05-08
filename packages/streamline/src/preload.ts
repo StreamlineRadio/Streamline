@@ -58,8 +58,8 @@ const streamline: StreamlineWindowApi = {
 	api,
 	getPathForFile: (file: File) => webUtils.getPathForFile(file),
 	onAudioPort: (cb: (port: MessagePort) => void) =>
-		ipcRenderer.on(IPC.AUDIO_PORT, (_e, _payload, ports) => {
-			if (ports[0]) cb(ports[0]);
+		ipcRenderer.on(IPC.AUDIO_PORT, (event) => {
+			if (event.ports[0]) cb(event.ports[0]);
 		}),
 	onEncoderStatus: (cb: (id: string, status: unknown) => void) =>
 		ipcRenderer.on(IPC.ENCODER_STATUS_PUSH, (_e, id, status) => cb(id, status)),

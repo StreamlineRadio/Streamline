@@ -14,6 +14,9 @@ function normalizeKey(event: KeyboardEvent): string {
 
 export function initHotkeyBinder(): () => void {
 	function onKeyDown(event: KeyboardEvent) {
+		const target = event.target as HTMLElement;
+		if (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
+			return;
 		const accelerator = normalizeKey(event);
 		const binding = hotkeyStore.all.find((b) => b.accelerator === accelerator);
 		if (!binding) return;

@@ -59,25 +59,29 @@ export function createDeckAudio(): DeckAudio {
 
 		play(): void {
 			if (!buffer || isPlaying) return;
-			source = audioCtx.createBufferSource();
-			source.buffer = buffer;
-			source.connect(gainNode);
-			source.onended = () => {
-				if (isPlaying) {
+			const newSource = audioCtx.createBufferSource();
+			newSource.buffer = buffer;
+			newSource.connect(gainNode);
+			newSource.onended = () => {
+				if (source === newSource && isPlaying) {
 					isPlaying = false;
 					source = null;
 					endedCallbacks.forEach((cb) => cb());
 				}
 			};
 			startTime = audioCtx.currentTime - pauseOffset;
-			source.start(0, pauseOffset);
+			newSource.start(0, pauseOffset);
+			source = newSource;
 			isPlaying = true;
 		},
 
 		pause(): void {
 			if (!isPlaying || !source) return;
 			pauseOffset = audioCtx.currentTime - startTime;
+			source.onended = null;
 			source.stop();
+			source.disconnect();
+			source = null;
 			isPlaying = false;
 		},
 
@@ -90,8 +94,11 @@ export function createDeckAudio(): DeckAudio {
 
 		seek(seconds: number): void {
 			const wasPlaying = isPlaying;
-			if (isPlaying && source) {
-				source.stop();
+			if (source) {
+				source.onended = null;
+				if (isPlaying) source.stop();
+				source.disconnect();
+				source = null;
 				isPlaying = false;
 			}
 			pauseOffset = Math.max(0, Math.min(seconds, buffer?.duration ?? 0));

@@ -7,10 +7,12 @@
 	interface Props {
 		instanceId: string;
 		moduleDisplayName: string;
+		minWidth?: number;
+		minHeight?: number;
 		children: Snippet;
 	}
 
-	const { instanceId, moduleDisplayName, children }: Props = $props();
+	const { instanceId, moduleDisplayName, minWidth, minHeight, children }: Props = $props();
 
 	const instance = $derived(instanceStore.get(instanceId));
 	const record = $derived(instance?.record);
@@ -64,8 +66,10 @@
 		class="absolute flex flex-col overflow-hidden rounded-lg border border-primary-700 bg-primary-900 shadow-xl"
 		style="left:{record.x}px; top:{record.y}px; width:{record.width}px; height:{record.minimized
 			? 'auto'
-			: record.height + 'px'}; z-index:{record.zIndex}"
-		use:useInteract={{ onMove, onResize }}
+			: record.height + 'px'}; z-index:{record.zIndex};{minWidth
+			? ` min-width:${minWidth}px;`
+			: ''}{minHeight ? ` min-height:${minHeight}px;` : ''}"
+		use:useInteract={{ onMove, onResize, minWidth, minHeight }}
 		onpointerdown={bringToFront}
 		role="region"
 		aria-label="{moduleDisplayName} window"
@@ -105,7 +109,7 @@
 
 		<!-- Content -->
 		{#if !record.minimized}
-			<div class="flex-1 overflow-auto">
+			<div class="flex-1 overflow-hidden">
 				{@render children()}
 			</div>
 		{/if}

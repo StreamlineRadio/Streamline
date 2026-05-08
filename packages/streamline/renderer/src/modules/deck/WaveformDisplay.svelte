@@ -3,9 +3,10 @@
 		peaks: number[] | null;
 		position: number;
 		duration: number;
+		songLoaded: boolean;
 		onSeek: (seconds: number) => void;
 	}
-	const { peaks, position, duration, onSeek }: Props = $props();
+	const { peaks, position, duration, songLoaded, onSeek }: Props = $props();
 
 	let canvas = $state<HTMLCanvasElement | undefined>(undefined);
 	let width = $state(0);
@@ -58,9 +59,13 @@
 			class="h-full w-full cursor-pointer"
 			onclick={handleClick}
 		></canvas>
-	{:else}
+	{:else if songLoaded}
 		<div class="flex h-full items-center justify-center text-xs text-primary-500">
 			Loading waveform…
+		</div>
+	{:else}
+		<div class="flex h-full items-center justify-center text-xs text-primary-500">
+			Drop a file to load
 		</div>
 	{/if}
 </div>

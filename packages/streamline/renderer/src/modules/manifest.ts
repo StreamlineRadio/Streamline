@@ -17,6 +17,8 @@ export interface ModuleManifest {
 	settingsUi?: Component;
 	defaultWidth?: number;
 	defaultHeight?: number;
+	minWidth?: number;
+	minHeight?: number;
 	defaultSettings?: Record<string, unknown>;
 	init?: (moduleContext: ModuleContext) => Promise<void>;
 	destroy?: (moduleContext: ModuleContext) => Promise<void>;

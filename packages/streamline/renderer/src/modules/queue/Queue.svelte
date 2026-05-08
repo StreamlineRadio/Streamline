@@ -17,13 +17,12 @@
 	let autoplay = $state(false);
 	let dragIndex = $state<number | null>(null);
 
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	function addSong(song: Song) {
 		items = [...items, { id: crypto.randomUUID(), song, position: items.length }];
 	}
 
 	function removeSong(id: string) {
-		items = items.filter((i) => i.id !== id);
+		items = items.filter((item) => item.id !== id);
 		reindex();
 	}
 
@@ -36,7 +35,7 @@
 	}
 
 	function reindex() {
-		items = items.map((item, i) => ({ ...item, position: i }));
+		items = items.map((item, index) => ({ ...item, position: index }));
 	}
 
 	function clearItems() {
@@ -48,8 +47,59 @@
 		if (folder) await window.streamline.api.library.addFolder(folder);
 	}
 
-	function handleDrop(e: DragEvent) {
+	async function songFromPath(path: string): Promise<Song> {
+		const filename = path.split('/').pop() ?? path;
+		const results = await window.streamline.api.library.search(filename);
+		const match = results.find((result: Song) => result.path === path);
+		if (match) return match;
+		return {
+			id: crypto.randomUUID(),
+			path,
+			title: filename,
+			artist: null,
+			album: null,
+			durationSec: null,
+			sampleRate: null,
+			channels: null,
+			bitrateKbps: null,
+			codec: null,
+			artworkPath: null,
+			waveformPath: null,
+			fileSize: null,
+			fileMtime: null,
+			addedAt: Date.now(),
+			lastPlayedAt: null,
+			playCount: 0,
+			missing: false
+		};
+	}
+
+	async function addSongFile() {
+		const path = await window.streamline.api.system.selectFile([
+			{ name: 'Audio Files', extensions: ['mp3', 'flac', 'wav', 'aac', 'ogg', 'm4a', 'opus'] }
+		]);
+		if (path) addSong(await songFromPath(path));
+	}
+
+	async function handleDrop(e: DragEvent) {
 		e.preventDefault();
+		dragIndex = null;
+		if (e.dataTransfer && e.dataTransfer.files.length > 0) {
+			for (const file of Array.from(e.dataTransfer.files)) {
+				addSong(await songFromPath(window.streamline.getPathForFile(file)));
+			}
+		}
+	}
+
+	async function handleRowDrop(e: DragEvent, targetIndex: number) {
+		e.preventDefault();
+		if (e.dataTransfer && e.dataTransfer.files.length > 0) {
+			for (const file of Array.from(e.dataTransfer.files)) {
+				addSong(await songFromPath(window.streamline.getPathForFile(file)));
+			}
+		} else if (dragIndex !== null && dragIndex !== targetIndex) {
+			moveItem(dragIndex, targetIndex);
+		}
 		dragIndex = null;
 	}
 </script>
@@ -72,6 +122,13 @@
 			+ Folder
 		</button>
 		<button
+			class="rounded bg-primary-700 px-2 py-1 text-xs hover:bg-primary-600"
+			onclick={addSongFile}
+			title="Add audio file to queue"
+		>
+			+ Song
+		</button>
+		<button
 			class="ml-auto rounded bg-primary-700 px-2 py-1 text-xs hover:bg-primary-600"
 			onclick={clearItems}
 		>
@@ -89,13 +146,7 @@
 				ondragover={(e) => {
 					e.preventDefault();
 				}}
-				ondrop={(e) => {
-					e.preventDefault();
-					if (dragIndex !== null && dragIndex !== i) {
-						moveItem(dragIndex, i);
-					}
-					dragIndex = null;
-				}}
+				ondrop={(e) => handleRowDrop(e, i)}
 			>
 				<span class="w-5 text-right text-xs text-primary-500">{i + 1}</span>
 				<div class="flex-1 overflow-hidden">

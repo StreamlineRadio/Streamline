@@ -28,7 +28,12 @@
 	{#each [...instanceStore.all.values()] as { record } (record.id)}
 		{@const manifest = getModule(record.moduleId)}
 		{#if manifest?.kind === 'window' && manifest.ui}
-			<WindowWrapper instanceId={record.id} moduleDisplayName={manifest.displayName}>
+			<WindowWrapper
+				instanceId={record.id}
+				moduleDisplayName={manifest.displayName}
+				minWidth={manifest.minWidth}
+				minHeight={manifest.minHeight}
+			>
 				<manifest.ui instanceId={record.id} />
 			</WindowWrapper>
 		{/if}

@@ -14,7 +14,7 @@
 	const PEAK_HOLD_MS = 2000;
 	const PEAK_DECAY_DB_PER_S = 10;
 
-	const timeDomainData = new Float32Array(analyser.fftSize);
+	const timeDomainData = $derived(new Float32Array(analyser.fftSize));
 	let lastTickMs = 0;
 
 	function tick(now: number) {

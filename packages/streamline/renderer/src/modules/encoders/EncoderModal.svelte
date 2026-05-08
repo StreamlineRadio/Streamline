@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import type { EncoderConfig } from '@streamline/shared';
 
 	interface Props {
@@ -8,21 +9,27 @@
 	}
 	const { config, onSave, onCancel }: Props = $props();
 
-	let name = $state(config?.name ?? '');
-	let type = $state<EncoderConfig['type']>(config?.type ?? 'icecast');
-	let format = $state<EncoderConfig['format']>(config?.format ?? 'mp3');
-	let bitrateKbps = $state(config?.bitrateKbps ?? 128);
-	let sampleRate = $state<EncoderConfig['sampleRate']>(config?.sampleRate ?? 48000);
-	let channels = $state<1 | 2>(config?.channels ?? 2);
-	let host = $state(config?.type !== 'file' ? (config?.host ?? '') : '');
-	let port = $state(config?.type !== 'file' ? (config?.port ?? 8000) : 8000);
-	let mount = $state(config?.type !== 'file' ? (config?.mount ?? '/stream') : '/stream');
-	let username = $state(config?.type !== 'file' ? (config?.username ?? 'source') : 'source');
-	let password = $state(''); // never pre-filled — secrets are one-way
+	let name = $state(untrack(() => config?.name ?? ''));
+	let type = $state<EncoderConfig['type']>(untrack(() => config?.type ?? 'icecast'));
+	let format = $state<EncoderConfig['format']>(untrack(() => config?.format ?? 'mp3'));
+	let bitrateKbps = $state(untrack(() => config?.bitrateKbps ?? 128));
+	let sampleRate = $state<EncoderConfig['sampleRate']>(untrack(() => config?.sampleRate ?? 48000));
+	let channels = $state<1 | 2>(untrack(() => config?.channels ?? 2));
+	let host = $state(untrack(() => (config?.type !== 'file' ? (config?.host ?? '') : '')));
+	let port = $state(untrack(() => (config?.type !== 'file' ? (config?.port ?? 8000) : 8000)));
+	let mount = $state(
+		untrack(() => (config?.type !== 'file' ? (config?.mount ?? '/stream') : '/stream'))
+	);
+	let username = $state(
+		untrack(() => (config?.type !== 'file' ? (config?.username ?? 'source') : 'source'))
+	);
+	let password = $state('');
 	let pathTemplate = $state(
-		config?.type === 'file'
-			? (config?.pathTemplate ?? '~/recordings/{date}-{time}.{format}')
-			: '~/recordings/{date}-{time}.{format}'
+		untrack(() =>
+			config?.type === 'file'
+				? (config?.pathTemplate ?? '~/recordings/{date}-{time}.{format}')
+				: '~/recordings/{date}-{time}.{format}'
+		)
 	);
 
 	async function save() {

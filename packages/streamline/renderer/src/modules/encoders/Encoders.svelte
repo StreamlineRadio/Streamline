@@ -7,8 +7,8 @@
 	interface Props {
 		instanceId: string;
 	}
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	const { instanceId }: Props = $props();
-	void instanceId;
 
 	let configs = $state<EncoderConfig[]>([]);
 	const statuses = new SvelteMap<string, EncoderStatus>();

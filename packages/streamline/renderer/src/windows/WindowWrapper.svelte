@@ -18,6 +18,10 @@
 	let isEditingTitle = $state(false);
 	let titleInput = $state('');
 
+	function focusElement(node: HTMLElement) {
+		node.focus();
+	}
+
 	function onMove(dx: number, dy: number) {
 		if (!record) return;
 		const newX = record.x + dx;
@@ -81,7 +85,7 @@
 					bind:value={titleInput}
 					onblur={commitRename}
 					onkeydown={(e) => e.key === 'Enter' && commitRename()}
-					autofocus
+					use:focusElement
 				/>
 			{:else}
 				<span

@@ -22,6 +22,7 @@ export const useInteract: Action<HTMLElement, InteractOptions> = (node, initialO
 		})
 		.resizable({
 			edges: { right: true, bottom: true, left: true, top: false },
+			ignoreFrom: '[data-modal]',
 			listeners: {
 				move(event) {
 					opts.onResize(event.rect.width, event.rect.height);

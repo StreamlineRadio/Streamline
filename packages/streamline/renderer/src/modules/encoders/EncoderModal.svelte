@@ -62,7 +62,7 @@
 	}
 </script>
 
-<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" data-modal>
 	<div class="flex w-96 flex-col gap-4 rounded-lg border border-primary-700 bg-primary-900 p-6">
 		<h2 class="text-lg font-semibold">{config ? 'Edit Encoder' : 'Add Encoder'}</h2>
 

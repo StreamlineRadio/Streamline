@@ -1,8 +1,10 @@
 import chokidar, { type FSWatcher } from 'chokidar';
 import { extname } from 'node:path';
 import type { BrowserWindow } from 'electron';
+import { eq } from 'drizzle-orm';
 import { scanFolder } from './scanner';
 import { log } from '../logging';
+import { getDb, schema } from '../db';
 
 const SUPPORTED_EXTENSIONS = new Set(['.mp3', '.m4a', '.aac', '.flac', '.wav', '.ogg', '.opus']);
 
@@ -31,8 +33,13 @@ export function watchFolders(folders: string[]): void {
 		if (parentFolder && _mainWindow) scanFolder(parentFolder, _mainWindow);
 	});
 
-	watcher.on('unlink', () => {
-		// Mark missing songs on next full scan; no-op for now
+	watcher.on('unlink', (filePath) => {
+		getDb()
+			.update(schema.songs)
+			.set({ missing: true })
+			.where(eq(schema.songs.path, filePath))
+			.run();
+		log.info('Song marked missing', { path: filePath });
 	});
 
 	watcher.on('error', (err) => log.error('Watcher error', err));

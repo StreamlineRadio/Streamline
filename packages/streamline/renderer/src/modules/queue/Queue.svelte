@@ -1,6 +1,9 @@
 <script lang="ts">
+	import { onMount, onDestroy } from 'svelte';
+	import { SvelteMap } from 'svelte/reactivity';
 	import type { Song } from '@streamline/shared';
 	import { setSongDragData } from '../../drag-drop/song-drag';
+	import { eventBus } from '../event-bus';
 
 	interface Props {
 		instanceId: string;
@@ -17,6 +20,56 @@
 	let items = $state<QueueItem[]>([]);
 	let autoplay = $state(false);
 	let dragIndex = $state<number | null>(null);
+	// Absolute ms timestamp when the first queue item is expected to start.
+	// Updated by deck emissions so it stays approximately constant during playback,
+	// which avoids flicker from two independent 1-second timers.
+	let deckEtaBase = $state<number | null>(null);
+	// Updated every second when no deck is connected so ETA still ticks forward.
+	let now = $state(Date.now());
+
+	const deckRemainingPerDeck = new SvelteMap<string, number>();
+	let loadingInProgress = false;
+
+	let nowTimer: ReturnType<typeof setInterval>;
+	let unsubNext: (() => void) | null = null;
+	let unsubDeckState: (() => void) | null = null;
+
+	onMount(() => {
+		nowTimer = setInterval(() => {
+			// Skip when a deck is connected — deckEtaBase updates drive ETA instead
+			if (deckEtaBase === null) now = Date.now();
+		}, 1000);
+
+		unsubNext = eventBus.on(`queue:${instanceId}:request-next`, (deckId) => {
+			if (!autoplay || items.length === 0) return;
+			if (loadingInProgress) return;
+			// Only fire when ALL connected decks have finished (remaining = 0)
+			const allFinished = Array.from(deckRemainingPerDeck.values()).every((r) => r === 0);
+			if (!allFinished) return;
+			loadingInProgress = true;
+			const [first, ...rest] = items;
+			items = rest;
+			reindex();
+			eventBus.emit(`deck:${deckId as string}:load-song`, first.song.path);
+		});
+
+		unsubDeckState = eventBus.on(`queue:${instanceId}:deck-remaining`, (payload) => {
+			const { deckId, remaining } = payload as { deckId: string; remaining: number };
+			deckRemainingPerDeck.set(deckId, remaining);
+			// Deck started playing — the load completed, allow future autoplay triggers
+			if (remaining > 0) loadingInProgress = false;
+			const maxRemaining =
+				deckRemainingPerDeck.size > 0 ? Math.max(...Array.from(deckRemainingPerDeck.values())) : 0;
+			// Store as absolute future timestamp — stays ~constant during playback
+			deckEtaBase = Date.now() + maxRemaining * 1000;
+		});
+	});
+
+	onDestroy(() => {
+		clearInterval(nowTimer);
+		unsubNext?.();
+		unsubDeckState?.();
+	});
 
 	function addSong(song: Song) {
 		items = [...items, { id: crypto.randomUUID(), song, position: items.length }];
@@ -39,6 +92,40 @@
 		items = items.map((item, index) => ({ ...item, position: index }));
 	}
 
+	function formatDuration(seconds: number | null): string {
+		if (seconds === null) return '--:--';
+		const minutes = Math.floor(seconds / 60);
+		const secs = Math.floor(seconds % 60);
+		return `${minutes}:${secs.toString().padStart(2, '0')}`;
+	}
+
+	function formatEta(cumulativeSeconds: number): string {
+		// deckEtaBase is when item 0 starts; fall back to now when no deck is connected
+		const base = deckEtaBase ?? now;
+		const eta = new Date(base + cumulativeSeconds * 1000);
+		return `${eta.getHours().toString().padStart(2, '0')}:${eta.getMinutes().toString().padStart(2, '0')}:${eta.getSeconds().toString().padStart(2, '0')}`;
+	}
+
+	function songLabel(song: Song): string {
+		const filename =
+			song.path
+				.split('/')
+				.pop()
+				?.replace(/\.[^.]+$/, '') ?? song.path;
+		if (song.title && song.artist) return `${song.artist} - ${song.title}`;
+		if (song.title) return song.title;
+		return filename;
+	}
+
+	function cumulativeDuration(upToIndex: number): number {
+		let total = 0;
+		for (let index = 0; index < upToIndex; index++) {
+			const duration = items[index]?.song.durationSec;
+			if (duration !== null && duration !== undefined) total += duration;
+		}
+		return total;
+	}
+
 	function clearItems() {
 		items = [];
 	}
@@ -49,14 +136,14 @@
 	}
 
 	async function songFromPath(path: string): Promise<Song> {
-		const filename = path.split('/').pop() ?? path;
-		const results = await window.streamline.api.library.search(filename);
-		const match = results.find((result: Song) => result.path === path);
+		const match = await window.streamline.api.library.getSongByPath(path);
 		if (match) return match;
+		const meta = await window.streamline.api.library.getFileMetadata(path);
+		if (meta) return { ...meta, id: crypto.randomUUID() };
 		return {
 			id: crypto.randomUUID(),
 			path,
-			title: filename,
+			title: null,
 			artist: null,
 			album: null,
 			durationSec: null,
@@ -150,9 +237,20 @@
 		</button>
 	</div>
 
-	<!-- Song list -->
-	<div class="flex-1 overflow-y-auto">
+	<!-- Column headers (outside scroll area so they stay fixed) -->
+	<div
+		class="flex shrink-0 items-center gap-2 border-b border-primary-700 px-3 py-1 text-xs text-primary-400"
+	>
+		<span class="w-20 shrink-0 text-right">ETA</span>
+		<span class="flex-1">Song</span>
+		<span class="w-10 shrink-0 text-right">Length</span>
+		<span class="w-4"></span>
+	</div>
+
+	<!-- Song list (scrollable, min-h-0 prevents flex overflow) -->
+	<div class="min-h-0 flex-1 overflow-y-auto">
 		{#each items as item, i (item.id)}
+			{@const eta = cumulativeDuration(i)}
 			<div
 				class="group flex cursor-pointer items-center gap-2 border-b border-primary-800 px-3 py-2 hover:bg-primary-800"
 				draggable="true"
@@ -163,20 +261,22 @@
 				}}
 				ondrop={(e) => handleRowDrop(e, i)}
 			>
-				<span class="w-5 text-right text-xs text-primary-500">{i + 1}</span>
-				<div class="flex-1 overflow-hidden">
-					<div class="truncate text-sm">{item.song.title ?? item.song.path.split('/').pop()}</div>
-					<div class="truncate text-xs text-primary-400">{item.song.artist ?? ''}</div>
-				</div>
+				<span class="w-20 shrink-0 text-right font-mono text-xs text-primary-300">
+					{formatEta(eta)}
+				</span>
+				<span class="flex-1 truncate text-sm text-primary-100">{songLabel(item.song)}</span>
+				<span class="w-10 shrink-0 text-right font-mono text-xs text-primary-300"
+					>{formatDuration(item.song.durationSec)}</span
+				>
 				<button
-					class="text-xs text-danger-400 opacity-0 group-hover:opacity-100 hover:text-danger-300"
+					class="w-4 text-xs text-danger-400 opacity-0 group-hover:opacity-100 hover:text-danger-300"
 					onclick={() => removeSong(item.id)}
 				>
 					✕
 				</button>
 			</div>
 		{:else}
-			<div class="flex items-center justify-center h-full text-primary-500 text-sm">
+			<div class="flex h-full items-center justify-center text-sm text-primary-500">
 				Drop songs here or drag from library
 			</div>
 		{/each}

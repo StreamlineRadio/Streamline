@@ -18,7 +18,10 @@ export interface TypedIpcApi {
 		listFolders(): Promise<string[]>;
 		search(query: string): Promise<Song[]>;
 		getSong(id: string): Promise<Song | null>;
+		getSongByPath(path: string): Promise<Song | null>;
+		getFileMetadata(path: string): Promise<Song | null>;
 		readAudioFile(path: string): Promise<ArrayBuffer>;
+		getCoverArt(path: string): Promise<string | null>;
 		saveWaveform(hash: string, peaks: number[]): Promise<void>;
 		loadWaveform(hash: string): Promise<number[] | null>;
 	};

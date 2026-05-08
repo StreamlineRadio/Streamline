@@ -2,6 +2,7 @@ import { ipcMain, BrowserWindow, app } from 'electron';
 import { like, eq, and } from 'drizzle-orm';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
+import { parseFile as parseAudioFile } from 'music-metadata';
 import { IPC } from '@streamline/shared';
 import { getDb, schema } from '../../db';
 import { scanFolder } from '../../library/scanner';
@@ -67,6 +68,51 @@ export function registerLibraryHandlers(): void {
 		(_e, id: string) =>
 			getDb().select().from(schema.songs).where(eq(schema.songs.id, id)).get() ?? null
 	);
+
+	ipcMain.handle(
+		IPC.LIBRARY_GET_SONG_BY_PATH,
+		(_e, path: string) =>
+			getDb().select().from(schema.songs).where(eq(schema.songs.path, path)).get() ?? null
+	);
+
+	ipcMain.handle(IPC.LIBRARY_GET_FILE_METADATA, async (_e, filePath: string) => {
+		try {
+			const meta = await parseAudioFile(filePath, { skipCovers: true });
+			return {
+				id: '',
+				path: filePath,
+				title: meta.common.title ?? null,
+				artist: meta.common.artist ?? null,
+				album: meta.common.album ?? null,
+				durationSec: meta.format.duration ?? null,
+				sampleRate: meta.format.sampleRate ?? null,
+				channels: meta.format.numberOfChannels ?? null,
+				bitrateKbps: meta.format.bitrate ? Math.round(meta.format.bitrate / 1000) : null,
+				codec: meta.format.codec ?? null,
+				artworkPath: null,
+				waveformPath: null,
+				fileSize: null,
+				fileMtime: null,
+				addedAt: Date.now(),
+				lastPlayedAt: null,
+				playCount: 0,
+				missing: false
+			};
+		} catch {
+			return null;
+		}
+	});
+
+	ipcMain.handle(IPC.LIBRARY_GET_COVER_ART, async (_e, filePath: string) => {
+		try {
+			const meta = await parseAudioFile(filePath, { skipCovers: false, duration: false });
+			const picture = meta.common.picture?.[0];
+			if (!picture) return null;
+			return `data:${picture.format};base64,${Buffer.from(picture.data).toString('base64')}`;
+		} catch {
+			return null;
+		}
+	});
 
 	ipcMain.handle(IPC.LIBRARY_READ_AUDIO_FILE, async (_e, filePath: string) => {
 		const buffer = await readFile(filePath);

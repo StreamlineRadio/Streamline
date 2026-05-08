@@ -46,6 +46,7 @@
 	const audio = createDeckAudio();
 
 	let song = $state<Song | null>(null);
+	let artworkDataUrl = $state<string | null>(null);
 	let isPlaying = $state(false);
 	let position = $state(0);
 	let duration = $state(0);
@@ -53,19 +54,59 @@
 	let peaks = $state<number[] | null>(null);
 
 	let positionRaf: number;
+	let deckStateTimer: ReturnType<typeof setInterval>;
 	let unsubVolume: (() => void) | null = null;
+	let unsubLoad: (() => void) | null = null;
 	let fadeOutTimer: ReturnType<typeof setTimeout> | null = null;
+	let loadGeneration = 0;
+
+	function emitDeckRemaining() {
+		const queueId = currentSettings.acceptsFromQueueId;
+		if (!queueId) return;
+		const dur = audio.getDuration();
+		const pos = audio.getPosition();
+		const remaining = dur > 0 ? Math.max(0, dur - pos) : 0;
+		eventBus.emit(`queue:${queueId}:deck-remaining`, { deckId: instanceId, remaining });
+	}
+
+	// Notify old queue when acceptsFromQueueId changes mid-session
+	$effect(() => {
+		const queueId = currentSettings.acceptsFromQueueId;
+		return () => {
+			if (queueId) {
+				eventBus.emit(`queue:${queueId}:deck-remaining`, {
+					deckId: instanceId,
+					remaining: 0
+				});
+			}
+		};
+	});
 
 	onMount(() => {
 		audio.onEnded(() => {
+			const queueId = currentSettings.acceptsFromQueueId;
 			unload();
+			if (queueId) {
+				eventBus.emit(`queue:${queueId}:request-next`, instanceId);
+			}
 		});
+
+		unsubLoad = eventBus.on(`deck:${instanceId}:load-song`, async (path) => {
+			await loadSong(path as string);
+			audio.play();
+			isPlaying = true;
+		});
+
 		const trackPosition = () => {
 			position = audio.getPosition();
 			duration = audio.getDuration();
 			positionRaf = requestAnimationFrame(trackPosition);
 		};
 		positionRaf = requestAnimationFrame(trackPosition);
+
+		// Emit remaining time to connected queue every second for live ETA
+		deckStateTimer = setInterval(emitDeckRemaining, 1000);
+
 		unsubVolume = eventBus.on(`${instanceId}:setVolume`, (payload) => {
 			updateVolume(payload as number);
 		});
@@ -73,9 +114,16 @@
 
 	onDestroy(() => {
 		cancelAnimationFrame(positionRaf);
+		clearInterval(deckStateTimer);
 		if (fadeOutTimer !== null) clearTimeout(fadeOutTimer);
 		audio.destroy();
 		unsubVolume?.();
+		unsubLoad?.();
+		// Signal queue that this deck is gone
+		const queueId = currentSettings.acceptsFromQueueId;
+		if (queueId) {
+			eventBus.emit(`queue:${queueId}:deck-remaining`, { deckId: instanceId, remaining: 0 });
+		}
 	});
 
 	function unload() {
@@ -85,6 +133,7 @@
 		}
 		audio.stop();
 		song = null;
+		artworkDataUrl = null;
 		peaks = null;
 		position = 0;
 		duration = 0;
@@ -92,7 +141,9 @@
 	}
 
 	async function loadSong(path: string) {
+		const generation = ++loadGeneration;
 		const filename = path.split('/').pop() ?? path;
+		artworkDataUrl = null;
 		song = {
 			id: '',
 			path,
@@ -121,9 +172,20 @@
 		isPlaying = false;
 		peaks = null;
 
-		window.streamline.api.library.search(filename).then((results: Song[]) => {
-			const match = results.find((result) => result.path === path);
-			if (match) song = match;
+		window.streamline.api.library.getCoverArt(path).then((dataUrl) => {
+			if (generation !== loadGeneration) return;
+			artworkDataUrl = dataUrl;
+		});
+
+		window.streamline.api.library.getSongByPath(path).then(async (match) => {
+			if (generation !== loadGeneration) return;
+			if (match) {
+				song = match;
+			} else {
+				const meta = await window.streamline.api.library.getFileMetadata(path);
+				if (generation !== loadGeneration) return;
+				if (meta) song = meta;
+			}
 		});
 
 		const hash = await computeHash(path);
@@ -206,8 +268,8 @@
 >
 	<!-- Track info -->
 	<div class="flex min-h-12 items-center gap-2">
-		{#if song?.artworkPath}
-			<img src={song.artworkPath} alt="cover" class="h-12 w-12 rounded object-cover" />
+		{#if artworkDataUrl}
+			<img src={artworkDataUrl} alt="cover" class="h-12 w-12 rounded object-cover" />
 		{:else}
 			<img src={logoUrl} alt="Streamline" class="h-12 w-12 rounded object-contain p-1 opacity-40" />
 		{/if}

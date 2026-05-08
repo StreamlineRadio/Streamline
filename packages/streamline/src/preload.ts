@@ -9,7 +9,10 @@ const api: TypedIpcApi = {
 		listFolders: () => ipcRenderer.invoke(IPC.LIBRARY_LIST_FOLDERS),
 		search: (query) => ipcRenderer.invoke(IPC.LIBRARY_SEARCH, query),
 		getSong: (id) => ipcRenderer.invoke(IPC.LIBRARY_GET_SONG, id),
+		getSongByPath: (path) => ipcRenderer.invoke(IPC.LIBRARY_GET_SONG_BY_PATH, path),
+		getFileMetadata: (path) => ipcRenderer.invoke(IPC.LIBRARY_GET_FILE_METADATA, path),
 		readAudioFile: (path) => ipcRenderer.invoke(IPC.LIBRARY_READ_AUDIO_FILE, path),
+		getCoverArt: (path) => ipcRenderer.invoke(IPC.LIBRARY_GET_COVER_ART, path),
 		saveWaveform: (hash, peaks) => ipcRenderer.invoke(IPC.LIBRARY_SAVE_WAVEFORM, hash, peaks),
 		loadWaveform: (hash) => ipcRenderer.invoke(IPC.LIBRARY_LOAD_WAVEFORM, hash)
 	},

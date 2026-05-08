@@ -15,5 +15,7 @@ export const localOutputManifest: ModuleManifest = {
 	subscribes: [],
 	defaultWidth: 300,
 	defaultHeight: 160,
+	minWidth: 240,
+	minHeight: 155,
 	ui: LocalOutput
 };

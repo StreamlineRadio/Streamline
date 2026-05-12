@@ -40,5 +40,7 @@ export const deckManifest: ModuleManifest = {
 	subscribes: [],
 	defaultWidth: 420,
 	defaultHeight: 280,
+	minWidth: 380,
+	minHeight: 220,
 	ui: Deck
 };

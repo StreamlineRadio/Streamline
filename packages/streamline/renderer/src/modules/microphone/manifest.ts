@@ -17,6 +17,8 @@ export const microphoneManifest: ModuleManifest = {
 	},
 	subscribes: [],
 	defaultWidth: 280,
-	defaultHeight: 220,
+	defaultHeight: 340,
+	minWidth: 220,
+	minHeight: 260,
 	ui: Microphone
 };

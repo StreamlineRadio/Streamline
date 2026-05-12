@@ -11,6 +11,16 @@ export interface InteractOptions {
 export const useInteract: Action<HTMLElement, InteractOptions> = (node, initialOpts) => {
 	let opts = initialOpts;
 
+	// Getters keep the modifier reading the live opts after the action's update() runs.
+	const minSize = {
+		get width() {
+			return opts.minWidth ?? 200;
+		},
+		get height() {
+			return opts.minHeight ?? 150;
+		}
+	};
+
 	const ic = interact(node)
 		.draggable({
 			allowFrom: '[data-drag-handle]',
@@ -25,14 +35,12 @@ export const useInteract: Action<HTMLElement, InteractOptions> = (node, initialO
 			ignoreFrom: '[data-modal]',
 			listeners: {
 				move(event) {
-					opts.onResize(event.rect.width, event.rect.height);
+					const width = Math.max(event.rect.width, minSize.width);
+					const height = Math.max(event.rect.height, minSize.height);
+					opts.onResize(width, height);
 				}
 			},
-			modifiers: [
-				interact.modifiers.restrictSize({
-					min: { width: opts.minWidth ?? 200, height: opts.minHeight ?? 150 }
-				})
-			]
+			modifiers: [interact.modifiers.restrictSize({ min: minSize })]
 		});
 
 	return {

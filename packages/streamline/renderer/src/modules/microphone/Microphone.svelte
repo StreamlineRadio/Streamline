@@ -1,7 +1,15 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import { FontAwesomeIcon } from '@fortawesome/svelte-fontawesome';
+	import {
+		faMicrophone,
+		faLock,
+		faLockOpen,
+		faTowerBroadcast
+	} from '@fortawesome/free-solid-svg-icons';
 	import { getAudioContext } from '../../audio/context';
 	import { connectToMaster } from '../../audio/mixer-bridge';
+	import DbMeter from '../../components/DbMeter.svelte';
 
 	interface Props {
 		instanceId: string;
@@ -13,34 +21,39 @@
 	let isLive = $state(false);
 	let isLocked = $state(false);
 	let volume = $state(1.0);
-	let level = $state(-60);
+	let volTrackHeight = $state(0);
+
+	const audioCtx = getAudioContext();
+	const gainNode = audioCtx.createGain();
+	gainNode.gain.value = 0;
+	const analyserNode = audioCtx.createAnalyser();
+	analyserNode.fftSize = 2048;
+	gainNode.connect(analyserNode);
+	connectToMaster(gainNode);
 
 	let stream: MediaStream | null = null;
 	let sourceNode: MediaStreamAudioSourceNode | null = null;
-	let gainNode: GainNode | null = null;
-	let analyserNode: AnalyserNode | null = null;
-	let animationFrameId: number;
+	let pttHeld = false;
 
 	onMount(async () => {
 		await refreshDevices();
 		navigator.mediaDevices.addEventListener('devicechange', refreshDevices);
-		animationFrameId = requestAnimationFrame(tickLevel);
 	});
 
 	onDestroy(() => {
 		navigator.mediaDevices.removeEventListener('devicechange', refreshDevices);
-		cancelAnimationFrame(animationFrameId);
 		stopCapture();
+		gainNode.disconnect();
+		analyserNode.disconnect();
 	});
 
 	async function refreshDevices() {
-		const all = await navigator.mediaDevices.enumerateDevices();
-		devices = all.filter((d) => d.kind === 'audioinput');
+		const allDevices = await navigator.mediaDevices.enumerateDevices();
+		devices = allDevices.filter((device) => device.kind === 'audioinput');
 	}
 
 	async function startCapture() {
 		stopCapture();
-		const audioCtx = getAudioContext();
 		stream = await navigator.mediaDevices.getUserMedia({
 			audio: {
 				deviceId: selectedDeviceId ? { exact: selectedDeviceId } : undefined,
@@ -50,162 +63,218 @@
 			}
 		});
 		sourceNode = audioCtx.createMediaStreamSource(stream);
-		gainNode = audioCtx.createGain();
-		gainNode.gain.value = 0;
-		analyserNode = audioCtx.createAnalyser();
-		analyserNode.fftSize = 2048;
 		sourceNode.connect(gainNode);
-		gainNode.connect(analyserNode);
-		connectToMaster(gainNode);
 	}
 
 	function stopCapture() {
-		gainNode?.disconnect();
 		sourceNode?.disconnect();
-		stream?.getTracks().forEach((t) => t.stop());
+		stream?.getTracks().forEach((track) => track.stop());
 		stream = null;
 		sourceNode = null;
-		gainNode = null;
-		analyserNode = null;
 	}
 
 	function rampGain(targetValue: number, timeMs: number) {
-		if (!gainNode) return;
-		const audioCtx = getAudioContext();
 		gainNode.gain.cancelScheduledValues(audioCtx.currentTime);
 		gainNode.gain.setValueAtTime(gainNode.gain.value, audioCtx.currentTime);
 		gainNode.gain.linearRampToValueAtTime(targetValue, audioCtx.currentTime + timeMs / 1000);
 	}
 
-	function handlePttDown() {
-		if (!gainNode) {
-			startCapture()
-				.then(() => {
-					if (isLive) rampGain(volume, 10);
-				})
-				.catch((err) => {
-					isLive = false;
-					console.error('Mic capture failed:', err);
-				});
-		} else {
-			rampGain(volume, 10);
+	async function ensureCapture(): Promise<boolean> {
+		if (sourceNode) return true;
+		try {
+			await startCapture();
+			return true;
+		} catch (err) {
+			console.error('Mic capture failed:', err);
+			return false;
 		}
-		isLive = true;
 	}
 
-	function handlePttUp() {
-		if (isLocked) return;
-		rampGain(0, 50);
+	function handlePttDown() {
+		pttHeld = true;
+		if (isLocked) isLocked = false;
+		isLive = true;
+		ensureCapture().then((ok) => {
+			if (!ok) {
+				pttHeld = false;
+				isLive = false;
+				return;
+			}
+			rampGain(volume, 10);
+		});
+	}
+
+	function handlePttRelease() {
+		if (!pttHeld) return;
+		pttHeld = false;
 		isLive = false;
+		rampGain(0, 50);
 	}
 
 	function toggleLock() {
-		isLocked = !isLocked;
-		if (isLocked) {
-			if (!gainNode) {
-				startCapture()
-					.then(() => {
-						if (isLive) rampGain(volume, 10);
-					})
-					.catch((err) => {
-						isLive = false;
-						isLocked = false;
-						console.error('Mic capture failed:', err);
-					});
-			} else {
-				rampGain(volume, 10);
-			}
+		const next = !isLocked;
+		isLocked = next;
+		if (next) {
 			isLive = true;
+			ensureCapture().then((ok) => {
+				if (!ok) {
+					isLive = false;
+					isLocked = false;
+					return;
+				}
+				rampGain(volume, 10);
+			});
 		} else {
-			rampGain(0, 50);
 			isLive = false;
+			rampGain(0, 50);
 		}
 	}
 
-	const timeDomainBuf = new Float32Array(2048);
-	function tickLevel() {
-		if (analyserNode) {
-			analyserNode.getFloatTimeDomainData(timeDomainBuf);
-			let sum = 0;
-			for (let i = 0; i < timeDomainBuf.length; i++) sum += timeDomainBuf[i] * timeDomainBuf[i];
-			const rms = Math.sqrt(sum / timeDomainBuf.length);
-			level = rms > 0 ? Math.max(-60, 20 * Math.log10(rms)) : -60;
+	async function handleDeviceChange() {
+		if (!sourceNode) return;
+		try {
+			await startCapture();
+		} catch (err) {
+			console.error('Mic capture failed:', err);
 		}
-		animationFrameId = requestAnimationFrame(tickLevel);
 	}
 </script>
 
-<div class="flex h-full flex-col gap-3 p-3">
-	<!-- Device selector -->
-	<label for="mic-device-{instanceId}" class="sr-only">Input Device</label>
-	<select
-		id="mic-device-{instanceId}"
-		bind:value={selectedDeviceId}
-		class="rounded border border-primary-700 bg-primary-800 px-2 py-1 text-sm text-primary-100"
-		onchange={() => {
-			if (gainNode)
-				startCapture().catch((err) => {
-					isLive = false;
-					isLocked = false;
-					console.error('Mic capture failed:', err);
-				});
-		}}
-	>
-		<option value="">System Default</option>
-		{#each devices as d (d.deviceId)}
-			<option value={d.deviceId}>{d.label || d.deviceId}</option>
-		{/each}
-	</select>
+<div
+	class="relative flex h-full flex-col overflow-hidden bg-primary-950 text-primary-100 select-none"
+>
+	<!-- Top accent bar — slides in when on-air (mirrors Deck pattern) -->
+	<div
+		class="absolute inset-x-0 top-0 z-10 h-0.5 origin-left bg-danger-500 transition-transform duration-300"
+		style="transform: scaleX({isLive ? 1 : 0})"
+	></div>
 
-	<!-- Level meter -->
-	<div class="h-3 overflow-hidden rounded bg-primary-800">
-		<div
-			class="h-full transition-none"
-			class:bg-success-500={level < -6}
-			class:bg-warning-500={level >= -6 && level < -0.1}
-			class:bg-danger-500={level >= -0.1}
-			style="width: {Math.max(0, ((level + 60) / 60) * 100)}%"
-		></div>
-	</div>
+	<div class="flex min-h-0 flex-1">
+		<!-- Left column: device select, big PTT button, lock pill -->
+		<div class="flex min-w-0 flex-1 flex-col gap-3 p-3">
+			<!-- Top row: device dropdown + on-air badge -->
+			<div class="flex items-center gap-2">
+				<label for="mic-device-{instanceId}" class="sr-only">Input device</label>
+				<select
+					id="mic-device-{instanceId}"
+					bind:value={selectedDeviceId}
+					onchange={handleDeviceChange}
+					class="min-w-0 flex-1 rounded border border-primary-700 bg-primary-900 px-2 py-1 text-xs text-primary-100 outline-none focus:border-secondary-500"
+				>
+					<option value="">System Default</option>
+					{#each devices as device (device.deviceId)}
+						<option value={device.deviceId}>{device.label || device.deviceId}</option>
+					{/each}
+				</select>
 
-	<!-- Controls -->
-	<div class="flex gap-2">
-		<button
-			class="flex-1 rounded py-3 text-sm font-bold transition-colors select-none"
-			class:bg-danger-600={isLive && !isLocked}
-			class:bg-primary-700={!isLive || isLocked}
-			onpointerdown={handlePttDown}
-			onpointerup={handlePttUp}
-			onpointerleave={handlePttUp}
-		>
-			Push to Talk
-		</button>
+				<div
+					class={[
+						'flex shrink-0 items-center gap-1 rounded border px-1.5 py-1 text-[0.55rem] font-bold tracking-[0.18em] uppercase transition-colors',
+						isLive
+							? 'border-danger-400 bg-danger-600 text-primary-50'
+							: 'border-primary-700 bg-primary-900 text-primary-500'
+					]}
+				>
+					<FontAwesomeIcon icon={faTowerBroadcast} />
+					<span>On Air</span>
+				</div>
+			</div>
 
-		<button
-			class="rounded px-3 py-3 text-sm transition-colors"
-			class:bg-danger-700={isLocked}
-			class:bg-primary-700={!isLocked}
-			onclick={toggleLock}
-			title="Lock talk on/off"
-		>
-			{isLocked ? '🔴 LIVE' : '🔒'}
-		</button>
-	</div>
+			<!-- Center: hold-to-talk button -->
+			<div class="flex min-h-0 flex-1 flex-col items-center justify-center gap-3">
+				<button
+					aria-label="Hold to talk"
+					aria-pressed={isLive}
+					onpointerdown={handlePttDown}
+					onpointerup={handlePttRelease}
+					onpointerleave={handlePttRelease}
+					class={[
+						'ptt-button group relative flex aspect-square w-full max-w-[150px] items-center justify-center rounded-full border-2 transition-all duration-150',
+						isLive
+							? 'border-danger-400 bg-danger-600 text-primary-50 shadow-[0_0_24px_var(--color-danger-500)]'
+							: 'border-primary-700 bg-primary-900 text-primary-300 hover:border-secondary-500 hover:text-secondary-200'
+					]}
+				>
+					{#if isLive}
+						<span class="absolute inset-0 animate-ping rounded-full bg-danger-500/40"></span>
+					{/if}
+					<div class="relative flex flex-col items-center gap-1.5">
+						<FontAwesomeIcon icon={faMicrophone} class="text-3xl" />
+						<span class="text-[0.6rem] font-bold tracking-[0.2em] uppercase">
+							{isLive ? 'Live' : 'Hold'}
+						</span>
+					</div>
+				</button>
 
-	<!-- Volume -->
-	<div class="flex items-center gap-2 text-xs text-primary-400">
-		<label for="mic-vol-{instanceId}">Vol</label>
-		<input
-			id="mic-vol-{instanceId}"
-			type="range"
-			min="0"
-			max="1"
-			step="0.01"
-			bind:value={volume}
-			oninput={() => {
-				if (isLive) rampGain(volume, 10);
-			}}
-			class="flex-1 accent-secondary-500"
-		/>
+				<!-- Small lock-talk pill underneath -->
+				<button
+					onclick={toggleLock}
+					title={isLocked ? 'Release talk lock' : 'Lock talk on'}
+					class={[
+						'flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[0.6rem] font-bold tracking-[0.18em] uppercase transition-colors',
+						isLocked
+							? 'border-danger-500 bg-danger-700 text-primary-50 hover:bg-danger-600'
+							: 'border-primary-700 bg-primary-900 text-primary-400 hover:border-secondary-600 hover:text-secondary-300'
+					]}
+				>
+					<FontAwesomeIcon icon={isLocked ? faLock : faLockOpen} />
+					<span>{isLocked ? 'Locked' : 'Lock Talk'}</span>
+				</button>
+			</div>
+		</div>
+
+		<!-- Right column: vertical vol + DB meter (matching Deck) -->
+		<div class="flex gap-1.5 py-3 pr-2">
+			<div class="flex w-5 flex-col items-center gap-1">
+				<span class="side-label">VOL</span>
+				<div class="min-h-0 flex-1" bind:clientHeight={volTrackHeight}>
+					<label for="mic-vol-{instanceId}" class="sr-only">Volume</label>
+					<input
+						id="mic-vol-{instanceId}"
+						type="range"
+						min="0"
+						max="1"
+						step="0.01"
+						bind:value={volume}
+						oninput={() => {
+							if (isLive) rampGain(volume, 10);
+						}}
+						class="vol-slider"
+						style:height="{volTrackHeight}px"
+					/>
+				</div>
+			</div>
+
+			<div class="flex w-3 flex-col gap-1">
+				<span class="side-label">DB</span>
+				<div class="min-h-0 flex-1">
+					<DbMeter analyser={analyserNode} />
+				</div>
+			</div>
+		</div>
 	</div>
 </div>
+
+<style>
+	.side-label {
+		font-size: 0.45rem;
+		text-transform: uppercase;
+		letter-spacing: 0.1em;
+		color: var(--color-primary-600);
+		text-align: center;
+		line-height: 1;
+	}
+
+	.vol-slider {
+		writing-mode: vertical-lr;
+		direction: rtl;
+		display: block;
+		width: 20px;
+		cursor: pointer;
+		accent-color: var(--color-secondary-500);
+	}
+
+	.ptt-button:active {
+		transform: scale(0.97);
+	}
+</style>

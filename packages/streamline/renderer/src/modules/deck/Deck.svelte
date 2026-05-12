@@ -10,7 +10,7 @@
 		faGear
 	} from '@fortawesome/free-solid-svg-icons';
 	import { createDeckAudio } from './deck-audio';
-	import DbMeter from './DbMeter.svelte';
+	import DbMeter from '../../components/DbMeter.svelte';
 	import WaveformDisplay from './WaveformDisplay.svelte';
 	import type { Song } from '@streamline/shared';
 	import { eventBus } from '../event-bus';

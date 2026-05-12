@@ -26,5 +26,7 @@ export const queueManifest: ModuleManifest = {
 	subscribes: [],
 	defaultWidth: 320,
 	defaultHeight: 400,
+	minWidth: 260,
+	minHeight: 200,
 	ui: Queue
 };

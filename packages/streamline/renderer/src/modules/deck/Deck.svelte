@@ -1,5 +1,14 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import { FontAwesomeIcon } from '@fortawesome/svelte-fontawesome';
+	import {
+		faPlay,
+		faPause,
+		faStop,
+		faEject,
+		faArrowTrendDown,
+		faGear
+	} from '@fortawesome/free-solid-svg-icons';
 	import { createDeckAudio } from './deck-audio';
 	import DbMeter from './DbMeter.svelte';
 	import WaveformDisplay from './WaveformDisplay.svelte';
@@ -53,31 +62,35 @@
 	let volume = $state(1.0);
 	let peaks = $state<number[] | null>(null);
 
-	let positionRaf: number;
+	let volTrackHeight = $state(0);
+
+	let positionAnimationFrameId: number;
 	let deckStateTimer: ReturnType<typeof setInterval>;
 	let unsubVolume: (() => void) | null = null;
 	let unsubLoad: (() => void) | null = null;
+	let unsubLoadIfIdle: (() => void) | null = null;
 	let fadeOutTimer: ReturnType<typeof setTimeout> | null = null;
 	let loadGeneration = 0;
+
+	const remaining = $derived(Math.max(0, duration - position));
 
 	function emitDeckRemaining() {
 		const queueId = currentSettings.acceptsFromQueueId;
 		if (!queueId) return;
 		const dur = audio.getDuration();
 		const pos = audio.getPosition();
-		const remaining = dur > 0 ? Math.max(0, dur - pos) : 0;
-		eventBus.emit(`queue:${queueId}:deck-remaining`, { deckId: instanceId, remaining });
+		const trackRemaining = dur > 0 ? Math.max(0, dur - pos) : 0;
+		eventBus.emit(`queue:${queueId}:deck-remaining`, {
+			deckId: instanceId,
+			remaining: trackRemaining
+		});
 	}
 
-	// Notify old queue when acceptsFromQueueId changes mid-session
 	$effect(() => {
 		const queueId = currentSettings.acceptsFromQueueId;
 		return () => {
 			if (queueId) {
-				eventBus.emit(`queue:${queueId}:deck-remaining`, {
-					deckId: instanceId,
-					remaining: 0
-				});
+				eventBus.emit(`queue:${queueId}:deck-remaining`, { deckId: instanceId, remaining: 0 });
 			}
 		};
 	});
@@ -97,14 +110,22 @@
 			isPlaying = true;
 		});
 
+		unsubLoadIfIdle = eventBus.on(`deck:${instanceId}:load-if-idle`, async (payload) => {
+			const { path, onAccept } = payload as { path: string; onAccept: () => void };
+			if (song !== null) return;
+			onAccept();
+			await loadSong(path);
+			audio.play();
+			isPlaying = true;
+		});
+
 		const trackPosition = () => {
 			position = audio.getPosition();
 			duration = audio.getDuration();
-			positionRaf = requestAnimationFrame(trackPosition);
+			positionAnimationFrameId = requestAnimationFrame(trackPosition);
 		};
-		positionRaf = requestAnimationFrame(trackPosition);
+		positionAnimationFrameId = requestAnimationFrame(trackPosition);
 
-		// Emit remaining time to connected queue every second for live ETA
 		deckStateTimer = setInterval(emitDeckRemaining, 1000);
 
 		unsubVolume = eventBus.on(`${instanceId}:setVolume`, (payload) => {
@@ -113,13 +134,13 @@
 	});
 
 	onDestroy(() => {
-		cancelAnimationFrame(positionRaf);
+		cancelAnimationFrame(positionAnimationFrameId);
 		clearInterval(deckStateTimer);
 		if (fadeOutTimer !== null) clearTimeout(fadeOutTimer);
 		audio.destroy();
 		unsubVolume?.();
 		unsubLoad?.();
-		// Signal queue that this deck is gone
+		unsubLoadIfIdle?.();
 		const queueId = currentSettings.acceptsFromQueueId;
 		if (queueId) {
 			eventBus.emit(`queue:${queueId}:deck-remaining`, { deckId: instanceId, remaining: 0 });
@@ -137,6 +158,16 @@
 		peaks = null;
 		position = 0;
 		duration = 0;
+		isPlaying = false;
+	}
+
+	function stopPlayback() {
+		if (fadeOutTimer !== null) {
+			clearTimeout(fadeOutTimer);
+			fadeOutTimer = null;
+		}
+		audio.pause();
+		audio.seek(0);
 		isPlaying = false;
 	}
 
@@ -205,8 +236,8 @@
 
 	async function computeHash(path: string): Promise<string> {
 		const data = new TextEncoder().encode(path);
-		const hashBuf = await crypto.subtle.digest('SHA-256', data);
-		return Array.from(new Uint8Array(hashBuf))
+		const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+		return Array.from(new Uint8Array(hashBuffer))
 			.map((b) => b.toString(16).padStart(2, '0'))
 			.join('')
 			.slice(0, 16);
@@ -221,7 +252,7 @@
 			return;
 		}
 		const file = e.dataTransfer?.files[0];
-		if (file) loadSong(window.streamline.getPathForFile(file));
+		if (file) await loadSong(window.streamline.getPathForFile(file));
 	}
 
 	function handleDragOver(e: DragEvent) {
@@ -242,9 +273,9 @@
 		audio.seek(seconds);
 	}
 
-	function updateVolume(v: number) {
-		volume = v;
-		audio.setVolume(v);
+	function updateVolume(value: number) {
+		volume = value;
+		audio.setVolume(value);
 	}
 
 	function fadeOut() {
@@ -253,121 +284,249 @@
 		fadeOutTimer = setTimeout(unload, 3500);
 	}
 
-	const formatTime = (s: number) => {
-		const m = Math.floor(s / 60);
-		const sec = Math.floor(s % 60);
-		return `${m}:${sec.toString().padStart(2, '0')}`;
+	const formatTime = (seconds: number) => {
+		const minutes = Math.floor(seconds / 60);
+		const secs = Math.floor(seconds % 60);
+		const tenths = Math.floor((seconds % 1) * 10);
+		return `${minutes}:${secs.toString().padStart(2, '0')}.${tenths}`;
 	};
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
-	class="flex h-full flex-col gap-2 bg-primary-900 p-3 text-primary-100 select-none"
+	class="relative flex h-full overflow-hidden bg-primary-950 text-primary-100 select-none"
 	ondrop={handleDrop}
 	ondragover={handleDragOver}
 >
-	<!-- Track info -->
-	<div class="flex min-h-12 items-center gap-2">
-		{#if artworkDataUrl}
-			<img src={artworkDataUrl} alt="cover" class="h-12 w-12 rounded object-cover" />
-		{:else}
-			<img src={logoUrl} alt="Streamline" class="h-12 w-12 rounded object-contain p-1 opacity-40" />
-		{/if}
-		<div class="flex-1 overflow-hidden">
-			<div class="truncate text-sm font-semibold">{song?.title ?? 'Drop a file here'}</div>
-			<div class="truncate text-xs text-primary-400">{song?.artist ?? ''}</div>
-		</div>
-		<!-- dB Meter -->
-		<div class="h-12 w-6">
-			<DbMeter analyser={audio.analyserNode} />
-		</div>
-		{#if song !== null}
-			<button
-				class="px-1 text-primary-500 hover:text-danger-400"
-				onclick={unload}
-				title="Unload song">✕</button
+	<!-- Top playing accent bar (spans full width) -->
+	<div
+		class="absolute inset-x-0 top-0 z-10 h-0.5 origin-left bg-secondary-500 transition-transform duration-300"
+		style="transform: scaleX({isPlaying ? 1 : 0})"
+	></div>
+
+	<!-- Left column: header, waveform, controls, timestamps -->
+	<div class="flex min-w-0 flex-1 flex-col">
+		<!-- Track header (cover + title/artist on top, transport buttons below title) -->
+		<div class="flex items-stretch gap-2.5 px-2.5 pt-2.5 pb-2">
+			<div
+				class={[
+					'h-24 w-24 shrink-0 overflow-hidden rounded transition-all duration-300',
+					isPlaying ? 'ring-1 ring-secondary-500 ring-offset-1 ring-offset-primary-950' : ''
+				]}
 			>
-		{/if}
-		<button
-			class="px-1 text-primary-500 hover:text-primary-300"
-			onclick={() => (showSettings = !showSettings)}
-			title="Deck settings">⚙</button
-		>
-	</div>
+				{#if artworkDataUrl}
+					<img src={artworkDataUrl} alt="cover" class="h-full w-full object-cover" />
+				{:else}
+					<div class="flex h-full w-full items-center justify-center bg-primary-800">
+						<img src={logoUrl} alt="Streamline" class="h-14 w-14 object-contain opacity-30" />
+					</div>
+				{/if}
+			</div>
 
-	<!-- Settings panel -->
-	{#if showSettings}
-		<div class="flex flex-col gap-2 rounded bg-primary-800 p-2 text-xs">
-			<label class="flex cursor-pointer items-center gap-2">
-				<input
-					type="checkbox"
-					checked={currentSettings.sendMetadata}
-					onchange={(e) => updateSettings({ sendMetadata: (e.target as HTMLInputElement).checked })}
-					class="accent-secondary-500"
-				/>
-				Send metadata
-			</label>
-			<label class="flex flex-col gap-1">
-				<span class="text-primary-400">Queue ID</span>
-				<input
-					type="text"
-					value={currentSettings.acceptsFromQueueId ?? ''}
-					oninput={(e) => {
-						const value = (e.target as HTMLInputElement).value.trim();
-						updateSettings({ acceptsFromQueueId: value || null });
-					}}
-					placeholder="none"
-					class="rounded bg-primary-700 px-2 py-1 text-primary-100 outline-none focus:ring-1 focus:ring-secondary-500"
-				/>
-			</label>
+			<div class="flex min-w-0 flex-1 flex-col justify-between gap-2">
+				<div class="min-w-0">
+					<div class="truncate text-sm leading-snug font-semibold">
+						{song?.title ?? 'Drop a file here'}
+					</div>
+					<div class="truncate text-xs leading-snug text-primary-400">
+						{song?.artist ?? ' '}
+					</div>
+				</div>
+
+				<!-- Transport buttons (deck controls left, settings pushed right) -->
+				<div class="flex items-center justify-between gap-2">
+					<div class="flex items-center gap-1">
+						<button
+							title={isPlaying ? 'Pause' : 'Play'}
+							disabled={song === null}
+							onclick={togglePlay}
+							class={[
+								'flex h-10 w-10 items-center justify-center rounded border text-base transition-colors disabled:cursor-not-allowed disabled:opacity-40',
+								isPlaying
+									? 'border-success-700 bg-success-900 text-success-400 hover:border-success-600 hover:bg-success-800 hover:text-success-300'
+									: 'border-primary-700 bg-primary-800 text-primary-200 hover:border-primary-600 hover:bg-primary-700 hover:text-primary-50'
+							]}
+						>
+							<FontAwesomeIcon icon={isPlaying ? faPause : faPlay} />
+						</button>
+
+						<button
+							title="Stop"
+							disabled={song === null}
+							onclick={stopPlayback}
+							class="flex h-10 w-10 items-center justify-center rounded border border-primary-700 bg-primary-800 text-base text-primary-200 transition-colors hover:border-primary-600 hover:bg-primary-700 hover:text-primary-50 disabled:cursor-not-allowed disabled:opacity-40"
+						>
+							<FontAwesomeIcon icon={faStop} />
+						</button>
+
+						<button
+							title="Unload"
+							disabled={song === null}
+							onclick={unload}
+							class="flex h-10 w-10 items-center justify-center rounded border border-primary-700 bg-primary-800 text-base text-primary-200 transition-colors hover:border-danger-700 hover:bg-danger-950 hover:text-danger-400 disabled:cursor-not-allowed disabled:opacity-40"
+						>
+							<FontAwesomeIcon icon={faEject} />
+						</button>
+
+						<button
+							title="Fade out"
+							disabled={song === null}
+							onclick={fadeOut}
+							class="flex h-10 w-10 items-center justify-center rounded border border-primary-700 bg-primary-800 text-base text-primary-200 transition-colors hover:border-primary-600 hover:bg-primary-700 hover:text-primary-50 disabled:cursor-not-allowed disabled:opacity-40"
+						>
+							<FontAwesomeIcon icon={faArrowTrendDown} />
+						</button>
+					</div>
+
+					<button
+						title="Settings"
+						onclick={() => (showSettings = !showSettings)}
+						class={[
+							'flex h-10 w-10 items-center justify-center rounded border text-base transition-colors',
+							showSettings
+								? 'border-secondary-600 bg-primary-800 text-secondary-400'
+								: 'border-primary-700 bg-primary-800 text-primary-200 hover:border-primary-600 hover:bg-primary-700 hover:text-primary-50'
+						]}
+					>
+						<FontAwesomeIcon icon={faGear} />
+					</button>
+				</div>
+			</div>
 		</div>
-	{/if}
 
-	<!-- Waveform / seekbar -->
-	<div class="h-16 flex-shrink-0">
-		<WaveformDisplay {peaks} {position} {duration} songLoaded={song !== null} onSeek={seek} />
+		<!-- Time info row (timestamps) -->
+		<div
+			class="mx-2 mb-1.5 grid grid-cols-4 divide-x divide-primary-800 overflow-hidden rounded border border-primary-800 bg-primary-900"
+		>
+			<div class="flex flex-col items-center px-1 py-1.5">
+				<span class="time-label">POS</span>
+				<span class="time-value">{formatTime(position)}</span>
+			</div>
+			<div class="flex flex-col items-center px-1 py-1.5">
+				<span class="time-label">DUR</span>
+				<span class="time-value">{formatTime(duration)}</span>
+			</div>
+			<div class="flex flex-col items-center px-1 py-1.5">
+				<span class="time-label">REM</span>
+				<span
+					class={[
+						'time-value',
+						isPlaying && remaining > 0 && remaining < 10 && 'text-danger-400',
+						isPlaying && remaining >= 10 && remaining < 30 && 'text-secondary-400'
+					]}
+				>
+					-{formatTime(remaining)}
+				</span>
+			</div>
+			<div class="flex flex-col items-center px-1 py-1.5">
+				<span class="time-label">CUE</span>
+				<span class="time-value text-primary-600">0:00.0</span>
+			</div>
+		</div>
+
+		<!-- Settings panel -->
+		{#if showSettings}
+			<div
+				class="mx-2 mb-1.5 flex flex-col gap-2 rounded border border-primary-700 bg-primary-900 p-2 text-xs"
+			>
+				<label class="flex cursor-pointer items-center gap-2 text-primary-200">
+					<input
+						type="checkbox"
+						checked={currentSettings.sendMetadata}
+						onchange={(e) =>
+							updateSettings({ sendMetadata: (e.target as HTMLInputElement).checked })}
+						class="accent-secondary-500"
+					/>
+					Send metadata
+				</label>
+				<label class="flex flex-col gap-1">
+					<span class="tracking-wide text-primary-500 uppercase" style="font-size: 0.625rem">
+						Queue ID
+					</span>
+					<input
+						type="text"
+						value={currentSettings.acceptsFromQueueId ?? ''}
+						oninput={(e) => {
+							const value = (e.target as HTMLInputElement).value.trim();
+							updateSettings({ acceptsFromQueueId: value || null });
+						}}
+						placeholder="none"
+						class="rounded border border-primary-600 bg-primary-800 px-2 py-1 text-primary-100 outline-none focus:border-secondary-500"
+					/>
+				</label>
+			</div>
+		{/if}
+
+		<!-- Waveform (flex-1, takes all remaining vertical space) -->
+		<div class="min-h-0 flex-1 px-2 pb-2">
+			<div class="h-full overflow-hidden rounded bg-primary-900">
+				<WaveformDisplay {peaks} {position} {duration} songLoaded={song !== null} onSeek={seek} />
+			</div>
+		</div>
 	</div>
 
-	<!-- Time display -->
-	<div class="flex justify-between font-mono text-xs text-primary-400">
-		<span>{formatTime(position)}</span>
-		<span>-{formatTime(Math.max(0, duration - position))}</span>
-	</div>
+	<!-- Right column: volume slider + DB meter, full deck height -->
+	<div class="flex gap-1.5 py-2 pr-2">
+		<div class="flex w-5 flex-col items-center gap-1">
+			<span class="side-label">VOL</span>
+			<div class="min-h-0 flex-1" bind:clientHeight={volTrackHeight}>
+				<label for="deck-vol-{instanceId}" class="sr-only">Volume</label>
+				<input
+					id="deck-vol-{instanceId}"
+					type="range"
+					min="0"
+					max="1"
+					step="0.01"
+					value={volume}
+					oninput={(e) => updateVolume(parseFloat((e.target as HTMLInputElement).value))}
+					class="vol-slider"
+					style:height="{volTrackHeight}px"
+				/>
+			</div>
+		</div>
 
-	<!-- Controls -->
-	<div class="flex items-center gap-2">
-		<button
-			class="rounded px-4 py-1.5 text-sm font-medium transition-colors"
-			class:bg-success-600={isPlaying}
-			class:hover:bg-success-500={isPlaying}
-			class:bg-primary-700={!isPlaying && song !== null}
-			class:hover:bg-primary-600={!isPlaying && song !== null}
-			class:bg-primary-800={song === null}
-			class:opacity-40={song === null}
-			class:cursor-not-allowed={song === null}
-			disabled={song === null}
-			onclick={togglePlay}
-		>
-			{isPlaying ? '⏸ Pause' : '▶ Play'}
-		</button>
-		<button
-			class="rounded bg-primary-700 px-3 py-1.5 text-sm transition-colors"
-			class:hover:bg-primary-600={song !== null}
-			class:opacity-40={song === null}
-			class:cursor-not-allowed={song === null}
-			disabled={song === null}
-			onclick={fadeOut}>Fade Out</button
-		>
-		<label for="deck-vol-{instanceId}" class="sr-only">Volume</label>
-		<input
-			id="deck-vol-{instanceId}"
-			type="range"
-			min="0"
-			max="1"
-			step="0.01"
-			value={volume}
-			oninput={(e) => updateVolume(parseFloat((e.target as HTMLInputElement).value))}
-			class="flex-1 accent-secondary-500"
-		/>
+		<div class="flex w-3 flex-col gap-1">
+			<span class="side-label">DB</span>
+			<div class="min-h-0 flex-1">
+				<DbMeter analyser={audio.analyserNode} />
+			</div>
+		</div>
 	</div>
 </div>
+
+<style>
+	.time-label {
+		font-size: 0.5rem;
+		text-transform: uppercase;
+		letter-spacing: 0.1em;
+		color: var(--color-primary-500);
+		line-height: 1;
+		margin-bottom: 2px;
+	}
+
+	.time-value {
+		font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+		font-size: 0.7rem;
+		font-variant-numeric: tabular-nums;
+		color: var(--color-primary-200);
+		line-height: 1;
+	}
+
+	.side-label {
+		font-size: 0.45rem;
+		text-transform: uppercase;
+		letter-spacing: 0.1em;
+		color: var(--color-primary-600);
+		text-align: center;
+		line-height: 1;
+	}
+
+	.vol-slider {
+		writing-mode: vertical-lr;
+		direction: rtl;
+		display: block;
+		width: 20px;
+		cursor: pointer;
+		accent-color: var(--color-secondary-500);
+	}
+</style>

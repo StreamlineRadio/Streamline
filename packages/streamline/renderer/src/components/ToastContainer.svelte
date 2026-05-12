@@ -7,7 +7,9 @@
 </script>
 
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import Toast from './Toast.svelte';
+	import { eventBus } from '../modules/event-bus';
 
 	let toasts = $state<ToastItem[]>([]);
 
@@ -20,6 +22,17 @@
 	function removeToast(id: string) {
 		toasts = toasts.filter((t) => t.id !== id);
 	}
+
+	onMount(() =>
+		eventBus.on('toast:show', (payload) => {
+			const { message, type, durationMs } = payload as {
+				message: string;
+				type?: ToastItem['type'];
+				durationMs?: number;
+			};
+			addToast(message, type ?? 'info', durationMs ?? 8000);
+		})
+	);
 </script>
 
 <div class="fixed right-4 bottom-12 z-50 flex flex-col gap-2">

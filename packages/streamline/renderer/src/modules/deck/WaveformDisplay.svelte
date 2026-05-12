@@ -22,34 +22,39 @@
 		const canvasCtx = canvas.getContext('2d')!;
 		canvasCtx.clearRect(0, 0, width, height);
 
-		const mid = height / 2;
-		const playedX = dur > 0 ? (pos / dur) * width : 0;
+		const midY = height / 2;
+		const playedRatio = dur > 0 ? pos / dur : 0;
+		const barWidth = Math.max(1, width / peakData.length - 0.5);
 
 		for (let i = 0; i < peakData.length; i++) {
 			const x = (i / peakData.length) * width;
-			const h = peakData[i] * height;
-			canvasCtx.fillStyle =
-				i < (pos / dur) * peakData.length ? 'rgba(91, 192, 185, 0.9)' : 'rgba(91, 192, 185, 0.35)';
-			canvasCtx.fillRect(x, mid - h / 2, Math.max(1, width / peakData.length - 0.5), h);
+			const barHeight = peakData[i] * height * 0.88;
+			const isPlayed = i / peakData.length < playedRatio;
+
+			canvasCtx.fillStyle = isPlayed ? 'rgba(91, 192, 185, 0.88)' : 'rgba(40, 65, 76, 0.72)';
+			canvasCtx.fillRect(x, midY - barHeight / 2, barWidth, barHeight);
 		}
 
-		// Playhead
-		canvasCtx.strokeStyle = '#fff';
-		canvasCtx.lineWidth = 2;
+		const playheadX = playedRatio * width;
+		canvasCtx.save();
+		canvasCtx.shadowColor = 'rgba(255, 255, 255, 0.55)';
+		canvasCtx.shadowBlur = 7;
+		canvasCtx.strokeStyle = 'rgba(255, 255, 255, 0.92)';
+		canvasCtx.lineWidth = 1.5;
 		canvasCtx.beginPath();
-		canvasCtx.moveTo(playedX, 0);
-		canvasCtx.lineTo(playedX, height);
+		canvasCtx.moveTo(playheadX, 0);
+		canvasCtx.lineTo(playheadX, height);
 		canvasCtx.stroke();
+		canvasCtx.restore();
 	}
 
-	function handleClick(e: MouseEvent) {
+	function handleCanvasClick(e: MouseEvent) {
 		if (!canvas || duration === 0) return;
 		const rect = canvas.getBoundingClientRect();
-		const x = e.clientX - rect.left;
-		onSeek((x / rect.width) * duration);
+		onSeek(((e.clientX - rect.left) / rect.width) * duration);
 	}
 
-	function handleBarClick(e: MouseEvent) {
+	function handleSeekBarClick(e: MouseEvent) {
 		if (duration === 0) return;
 		const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
 		onSeek(((e.clientX - rect.left) / rect.width) * duration);
@@ -62,13 +67,13 @@
 			bind:this={canvas}
 			{width}
 			{height}
-			class="h-full w-full cursor-pointer"
-			onclick={handleClick}
+			class="block h-full w-full cursor-pointer"
+			onclick={handleCanvasClick}
 		></canvas>
 	{:else if songLoaded}
 		<div
-			class="relative h-full w-full cursor-pointer rounded bg-primary-800"
-			onclick={handleBarClick}
+			class="relative h-full w-full cursor-pointer overflow-hidden rounded bg-primary-800"
+			onclick={handleSeekBarClick}
 			onkeydown={(e) => {
 				if (e.key === 'ArrowLeft') onSeek(Math.max(0, position - 5));
 				if (e.key === 'ArrowRight') onSeek(Math.min(duration, position + 5));
@@ -81,7 +86,7 @@
 			tabindex="0"
 		>
 			<div
-				class="absolute inset-y-0 left-0 rounded bg-secondary-900 opacity-60"
+				class="absolute inset-y-0 left-0 bg-secondary-900 opacity-60"
 				style="width:{duration > 0 ? (position / duration) * 100 : 0}%"
 			></div>
 			<div class="absolute inset-0 flex items-center justify-center text-xs text-primary-500">
@@ -89,7 +94,9 @@
 			</div>
 		</div>
 	{:else}
-		<div class="flex h-full items-center justify-center text-xs text-primary-500">
+		<div
+			class="flex h-full items-center justify-center rounded border border-dashed border-primary-700 bg-primary-900 text-xs text-primary-600"
+		>
 			Drop a file to load
 		</div>
 	{/if}

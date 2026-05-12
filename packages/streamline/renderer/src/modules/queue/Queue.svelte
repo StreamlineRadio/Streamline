@@ -1,14 +1,24 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { SvelteMap } from 'svelte/reactivity';
+	import { FontAwesomeIcon } from '@fortawesome/svelte-fontawesome';
+	import {
+		faPlus,
+		faFolderPlus,
+		faArrowRotateRight,
+		faPlay,
+		faTrashCan,
+		faMusic
+	} from '@fortawesome/free-solid-svg-icons';
 	import type { Song } from '@streamline/shared';
 	import { setSongDragData } from '../../drag-drop/song-drag';
 	import { eventBus } from '../event-bus';
+	import { layoutStore } from '../../layout/store.svelte';
 
 	interface Props {
 		instanceId: string;
 	}
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+
 	const { instanceId }: Props = $props();
 
 	interface QueueItem {
@@ -33,6 +43,10 @@
 	let nowTimer: ReturnType<typeof setInterval>;
 	let unsubNext: (() => void) | null = null;
 	let unsubDeckState: (() => void) | null = null;
+
+	const totalDurationSec = $derived(
+		items.reduce((sum, item) => sum + (item.song.durationSec ?? 0), 0)
+	);
 
 	onMount(() => {
 		nowTimer = setInterval(() => {
@@ -96,6 +110,16 @@
 		if (seconds === null) return '--:--';
 		const minutes = Math.floor(seconds / 60);
 		const secs = Math.floor(seconds % 60);
+		return `${minutes}:${secs.toString().padStart(2, '0')}`;
+	}
+
+	function formatTotalDuration(seconds: number): string {
+		const hours = Math.floor(seconds / 3600);
+		const minutes = Math.floor((seconds % 3600) / 60);
+		const secs = Math.floor(seconds % 60);
+		if (hours > 0) {
+			return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+		}
 		return `${minutes}:${secs.toString().padStart(2, '0')}`;
 	}
 
@@ -203,48 +227,121 @@
 		}
 		dragIndex = null;
 	}
+
+	function showToast(message: string, type: 'error' | 'warning' | 'info' = 'info') {
+		eventBus.emit('toast:show', { message, type });
+	}
+
+	function tryLoadOnDeck(deckId: string, path: string): boolean {
+		let accepted = false;
+		eventBus.emit(`deck:${deckId}:load-if-idle`, {
+			path,
+			onAccept: () => {
+				accepted = true;
+			}
+		});
+		return accepted;
+	}
+
+	function playOnFirstAvailableDeck(item: QueueItem) {
+		const layout = layoutStore.active;
+		if (!layout) {
+			showToast('No layout active', 'error');
+			return;
+		}
+
+		const connectedDecks = layout.instances
+			.filter((instance) => instance.moduleId === 'deck')
+			.filter((instance) => {
+				try {
+					const settings = JSON.parse(instance.settingsJson) as {
+						acceptsFromQueueId?: string | null;
+					};
+					return settings.acceptsFromQueueId === instanceId;
+				} catch {
+					return false;
+				}
+			})
+			.sort((a, b) => a.y - b.y || a.x - b.x);
+
+		if (connectedDecks.length === 0) {
+			showToast('No deck connected to this queue', 'warning');
+			return;
+		}
+
+		for (const deck of connectedDecks) {
+			if (tryLoadOnDeck(deck.id, item.song.path)) {
+				removeSong(item.id);
+				return;
+			}
+		}
+
+		showToast('All decks are busy', 'warning');
+	}
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="flex h-full flex-col" ondrop={handleDrop} ondragover={(e) => e.preventDefault()}>
-	<!-- Toolbar -->
-	<div class="flex items-center gap-2 border-b border-primary-700 p-2">
-		<label class="flex cursor-pointer items-center gap-1 text-xs text-primary-300">
-			<input type="checkbox" bind:checked={autoplay} class="accent-secondary-500" />
-			Autoplay
-		</label>
-		<span class="text-xs text-primary-500">{items.length} track{items.length !== 1 ? 's' : ''}</span
-		>
-		<button
-			class="rounded bg-primary-700 px-2 py-1 text-xs hover:bg-primary-600"
-			onclick={addFolder}
-			title="Add folder to library"
-		>
-			+ Folder
-		</button>
-		<button
-			class="rounded bg-primary-700 px-2 py-1 text-xs hover:bg-primary-600"
-			onclick={addSongFile}
-			title="Add audio file to queue"
-		>
-			+ Song
-		</button>
-		<button
-			class="ml-auto rounded bg-primary-700 px-2 py-1 text-xs hover:bg-primary-600"
-			onclick={clearItems}
-		>
-			Clear
-		</button>
+<div
+	class="flex h-full flex-col select-none"
+	ondrop={handleDrop}
+	ondragover={(e) => e.preventDefault()}
+>
+	<!-- Toolbar: add actions on left, state/destructive actions on right -->
+	<div class="flex shrink-0 items-center justify-between border-b border-primary-800 px-2 py-2">
+		<div class="flex items-center gap-1">
+			<button
+				title="Add song"
+				onclick={addSongFile}
+				class="flex h-10 w-10 items-center justify-center rounded border border-primary-700 bg-primary-800 text-base text-primary-200 transition-colors hover:border-primary-600 hover:bg-primary-700 hover:text-primary-50"
+			>
+				<FontAwesomeIcon icon={faPlus} />
+			</button>
+			<button
+				title="Add folder to library"
+				onclick={addFolder}
+				class="flex h-10 w-10 items-center justify-center rounded border border-primary-700 bg-primary-800 text-base text-primary-200 transition-colors hover:border-primary-600 hover:bg-primary-700 hover:text-primary-50"
+			>
+				<FontAwesomeIcon icon={faFolderPlus} />
+			</button>
+		</div>
+
+		<div class="flex items-center gap-1">
+			<button
+				title={autoplay ? 'Autoplay on' : 'Autoplay off'}
+				onclick={() => (autoplay = !autoplay)}
+				class={[
+					'flex h-10 w-10 items-center justify-center rounded border text-base transition-colors',
+					autoplay
+						? 'border-secondary-600 bg-primary-800 text-secondary-400'
+						: 'border-primary-700 bg-primary-800 text-primary-200 hover:border-primary-600 hover:bg-primary-700 hover:text-primary-50'
+				]}
+			>
+				<span class="relative inline-block leading-none">
+					<FontAwesomeIcon icon={faArrowRotateRight} />
+					<span
+						class="absolute inset-0 flex items-center justify-center"
+						style="font-size: 0.42em;"
+					>
+						<FontAwesomeIcon icon={faPlay} />
+					</span>
+				</span>
+			</button>
+			<button
+				title="Clear queue"
+				onclick={clearItems}
+				class="flex h-10 w-10 items-center justify-center rounded border border-primary-700 bg-primary-800 text-base text-primary-200 transition-colors hover:border-danger-700 hover:bg-danger-950 hover:text-danger-400"
+			>
+				<FontAwesomeIcon icon={faTrashCan} />
+			</button>
+		</div>
 	</div>
 
-	<!-- Column headers (outside scroll area so they stay fixed) -->
-	<div
-		class="flex shrink-0 items-center gap-2 border-b border-primary-700 px-3 py-1 text-xs text-primary-400"
-	>
-		<span class="w-20 shrink-0 text-right">ETA</span>
-		<span class="flex-1">Song</span>
-		<span class="w-10 shrink-0 text-right">Length</span>
-		<span class="w-4"></span>
+	<!-- Column headers -->
+	<div class="flex shrink-0 items-center gap-2 border-b border-primary-800 px-3 py-1">
+		<span class="queue-label w-16 shrink-0 text-right">ETA</span>
+		<span class="queue-label flex-1">Song</span>
+		<span class="queue-label w-12 shrink-0 text-right">Length</span>
+		<span class="w-6 shrink-0"></span>
 	</div>
 
 	<!-- Song list (scrollable, min-h-0 prevents flex overflow) -->
@@ -252,33 +349,70 @@
 		{#each items as item, i (item.id)}
 			{@const eta = cumulativeDuration(i)}
 			<div
-				class="group flex cursor-pointer items-center gap-2 border-b border-primary-800 px-3 py-2 hover:bg-primary-800"
+				class="group relative flex cursor-pointer items-center gap-2 border-b border-primary-800/50 px-3 py-1 transition-colors hover:bg-primary-900"
 				draggable="true"
 				ondragstart={(e) => handleRowDragStart(e, item, i)}
 				ondragend={(e) => handleRowDragEnd(e, item)}
-				ondragover={(e) => {
-					e.preventDefault();
-				}}
+				ondragover={(e) => e.preventDefault()}
 				ondrop={(e) => handleRowDrop(e, i)}
+				ondblclick={() => playOnFirstAvailableDeck(item)}
 			>
-				<span class="w-20 shrink-0 text-right font-mono text-xs text-primary-300">
+				{#if i === 0}
+					<div class="absolute inset-y-0 left-0 w-0.5 bg-secondary-500"></div>
+				{/if}
+				<span class="w-16 shrink-0 text-right font-mono text-xs text-primary-300">
 					{formatEta(eta)}
 				</span>
-				<span class="flex-1 truncate text-sm text-primary-100">{songLabel(item.song)}</span>
-				<span class="w-10 shrink-0 text-right font-mono text-xs text-primary-300"
-					>{formatDuration(item.song.durationSec)}</span
-				>
+				<span class="flex-1 truncate text-xs text-primary-100">
+					{songLabel(item.song)}
+				</span>
+				<span class="w-12 shrink-0 text-right font-mono text-xs text-primary-300">
+					{formatDuration(item.song.durationSec)}
+				</span>
 				<button
-					class="w-4 text-xs text-danger-400 opacity-0 group-hover:opacity-100 hover:text-danger-300"
-					onclick={() => removeSong(item.id)}
+					title="Remove from queue"
+					onclick={(e) => {
+						e.stopPropagation();
+						removeSong(item.id);
+					}}
+					ondblclick={(e) => e.stopPropagation()}
+					class="flex h-6 w-6 shrink-0 items-center justify-center rounded text-xs text-primary-600 transition-colors group-hover:text-primary-300 hover:bg-danger-950 hover:text-danger-400"
 				>
-					✕
+					<FontAwesomeIcon icon={faTrashCan} />
 				</button>
 			</div>
 		{:else}
-			<div class="flex h-full items-center justify-center text-sm text-primary-500">
-				Drop songs here or drag from library
+			<div class="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
+				<div class="text-4xl text-primary-700">
+					<FontAwesomeIcon icon={faMusic} />
+				</div>
+				<div class="text-sm font-medium text-primary-400">Queue is empty</div>
+				<div class="text-xs text-primary-600">Drop songs here or use the buttons above</div>
 			</div>
 		{/each}
 	</div>
+
+	<!-- Footer: track count + total duration -->
+	{#if items.length > 0}
+		<div
+			class="flex shrink-0 items-center justify-between border-t border-primary-800 bg-primary-900 px-3 py-1.5"
+		>
+			<span class="text-xs text-primary-400">
+				{items.length} track{items.length !== 1 ? 's' : ''}
+			</span>
+			<span class="font-mono text-xs text-primary-300">
+				{formatTotalDuration(totalDurationSec)} total
+			</span>
+		</div>
+	{/if}
 </div>
+
+<style>
+	.queue-label {
+		font-size: 0.55rem;
+		text-transform: uppercase;
+		letter-spacing: 0.1em;
+		color: var(--color-primary-500);
+		line-height: 1;
+	}
+</style>

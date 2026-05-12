@@ -23,8 +23,8 @@
 		for (let i = 0; i < timeDomainData.length; i++) {
 			sum += timeDomainData[i] * timeDomainData[i];
 		}
-		const rms = Math.sqrt(sum / timeDomainData.length);
-		dbfs = rms > 0 ? Math.max(-60, 20 * Math.log10(rms)) : -60;
+		const rmsLevel = Math.sqrt(sum / timeDomainData.length);
+		dbfs = rmsLevel > 0 ? Math.max(-60, 20 * Math.log10(rmsLevel)) : -60;
 
 		const dt = lastTickMs === 0 ? 1 / 60 : (now - lastTickMs) / 1000;
 		lastTickMs = now;
@@ -46,22 +46,41 @@
 	const isClipping = $derived(peak >= -0.1);
 </script>
 
-<div class="flex h-full w-6 items-end gap-0.5">
-	<!-- RMS bar -->
-	<div class="relative flex-1 overflow-hidden rounded-sm bg-primary-800">
-		<div
-			class="absolute right-0 bottom-0 left-0 transition-none"
-			class:bg-success-500={dbfs < -6}
-			class:bg-warning-500={dbfs >= -6 && dbfs < -0.1}
-			class:bg-danger-500={dbfs >= -0.1}
-			style="height: {toPercent(dbfs)}%"
-		></div>
-	</div>
-	<!-- Peak indicator -->
+<div class="relative h-full w-full overflow-hidden rounded-sm">
+	<div class="absolute inset-0 bg-primary-800"></div>
+	<div class="meter-fill absolute right-0 bottom-0 left-0" style="height: {toPercent(dbfs)}%"></div>
+	<div class="meter-segments pointer-events-none absolute inset-0"></div>
 	<div
-		class="h-1 w-1 rounded-full"
-		class:bg-danger-500={isClipping}
-		class:bg-primary-400={!isClipping}
-		style="margin-bottom: {toPercent(peak)}%"
+		class="absolute right-0 left-0 h-0.5 rounded-sm"
+		class:bg-primary-300={!isClipping}
+		class:peak-clipping={isClipping}
+		style="bottom: calc({toPercent(peak)}% - 1px)"
 	></div>
 </div>
+
+<style>
+	.meter-fill {
+		background: linear-gradient(
+			to top,
+			var(--color-success-600) 0%,
+			var(--color-success-400) 62%,
+			var(--color-warning-500) 80%,
+			var(--color-danger-500) 94%
+		);
+	}
+
+	.meter-segments {
+		background-image: repeating-linear-gradient(
+			to bottom,
+			transparent 0px,
+			transparent 3px,
+			var(--color-primary-950) 3px,
+			var(--color-primary-950) 4px
+		);
+	}
+
+	.peak-clipping {
+		background: var(--color-danger-400);
+		box-shadow: 0 0 4px var(--color-danger-500);
+	}
+</style>

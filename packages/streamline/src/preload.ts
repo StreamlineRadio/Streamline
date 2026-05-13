@@ -43,7 +43,8 @@ const api: TypedIpcApi = {
 		getAppVersion: () => ipcRenderer.invoke(IPC.SYSTEM_GET_APP_VERSION),
 		getCpuUsage: () => ipcRenderer.invoke(IPC.SYSTEM_GET_CPU_USAGE),
 		selectFile: (filters) => ipcRenderer.invoke(IPC.SYSTEM_SELECT_FILE, filters),
-		selectFolder: () => ipcRenderer.invoke(IPC.SYSTEM_SELECT_FOLDER)
+		selectFolder: () => ipcRenderer.invoke(IPC.SYSTEM_SELECT_FOLDER),
+		getDefaultRecordingsFolder: () => ipcRenderer.invoke(IPC.SYSTEM_GET_DEFAULT_RECORDINGS_FOLDER)
 	},
 	settings: {
 		get: (key) => ipcRenderer.invoke(IPC.SETTINGS_GET, key),

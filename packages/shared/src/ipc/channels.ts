@@ -38,6 +38,7 @@ export const IPC = {
 	SYSTEM_GET_CPU_USAGE: 'system:getCpuUsage',
 	SYSTEM_SELECT_FILE: 'system:selectFile',
 	SYSTEM_SELECT_FOLDER: 'system:selectFolder',
+	SYSTEM_GET_DEFAULT_RECORDINGS_FOLDER: 'system:getDefaultRecordingsFolder',
 	// Settings
 	SETTINGS_GET: 'settings:get',
 	SETTINGS_SET: 'settings:set',

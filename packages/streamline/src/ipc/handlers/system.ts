@@ -31,4 +31,7 @@ export function registerSystemHandlers(): void {
 		const result = await dialog.showOpenDialog({ properties: ['openDirectory'] });
 		return result.canceled ? null : result.filePaths[0];
 	});
+	ipcMain.handle(IPC.SYSTEM_GET_DEFAULT_RECORDINGS_FOLDER, () =>
+		join(app.getPath('music'), 'StreamlineRecordings')
+	);
 }

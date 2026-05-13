@@ -1,6 +1,21 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
-	import type { EncoderConfig } from '@streamline/shared';
+	import { onMount, untrack } from 'svelte';
+	import { faSatelliteDish, faFloppyDisk } from '@fortawesome/free-solid-svg-icons';
+	import {
+		ENCODER_SAMPLE_RATES,
+		formatExtension,
+		type EncoderConfig,
+		type EncoderSampleRate
+	} from '@streamline/shared';
+	import Modal from '../../components/Modal.svelte';
+	import TextField from '../../components/forms/TextField.svelte';
+	import SelectField from '../../components/forms/SelectField.svelte';
+	import NumberField from '../../components/forms/NumberField.svelte';
+	import BitrateField from '../../components/forms/BitrateField.svelte';
+	import SampleRateField from '../../components/forms/SampleRateField.svelte';
+	import FolderField from '../../components/forms/FolderField.svelte';
+	import FilenameField from '../../components/forms/FilenameField.svelte';
+	import { parsePathTemplate, composePathTemplate } from './path-template';
 
 	interface Props {
 		config?: EncoderConfig;
@@ -9,11 +24,26 @@
 	}
 	const { config, onSave, onCancel }: Props = $props();
 
+	function snapSampleRate(value: number): EncoderSampleRate {
+		if (ENCODER_SAMPLE_RATES.includes(value as EncoderSampleRate)) {
+			return value as EncoderSampleRate;
+		}
+		return ENCODER_SAMPLE_RATES.reduce((closest, rate) =>
+			Math.abs(rate - value) < Math.abs(closest - value) ? rate : closest
+		);
+	}
+
+	const initialFile = untrack(() =>
+		config?.type === 'file'
+			? parsePathTemplate(config.pathTemplate)
+			: { folder: '', filename: 'recording-{date}-{time}' }
+	);
+
 	let name = $state(untrack(() => config?.name ?? ''));
 	let type = $state<EncoderConfig['type']>(untrack(() => config?.type ?? 'icecast'));
 	let format = $state<EncoderConfig['format']>(untrack(() => config?.format ?? 'mp3'));
 	let bitrateKbps = $state(untrack(() => config?.bitrateKbps ?? 128));
-	let sampleRate = $state<EncoderConfig['sampleRate']>(untrack(() => config?.sampleRate ?? 48000));
+	let sampleRate = $state<number>(untrack(() => config?.sampleRate ?? 44100));
 	let channels = $state<1 | 2>(untrack(() => config?.channels ?? 2));
 	let host = $state(untrack(() => (config?.type !== 'file' ? (config?.host ?? '') : '')));
 	let port = $state(untrack(() => (config?.type !== 'file' ? (config?.port ?? 8000) : 8000)));
@@ -24,13 +54,14 @@
 		untrack(() => (config?.type !== 'file' ? (config?.username ?? 'source') : 'source'))
 	);
 	let password = $state('');
-	let pathTemplate = $state(
-		untrack(() =>
-			config?.type === 'file'
-				? (config?.pathTemplate ?? '~/recordings/{date}-{time}.{format}')
-				: '~/recordings/{date}-{time}.{format}'
-		)
-	);
+	let folder = $state(initialFile.folder);
+	let filename = $state(initialFile.filename);
+
+	onMount(async () => {
+		if (!folder) {
+			folder = await window.streamline.api.system.getDefaultRecordingsFolder();
+		}
+	});
 
 	async function save() {
 		const id = config?.id ?? crypto.randomUUID();
@@ -41,8 +72,19 @@
 			await window.streamline.api.secret.set(passwordRef, password);
 		}
 
+		const sampleRateOut = snapSampleRate(sampleRate);
 		if (type === 'file') {
-			onSave({ id, name, type, format, bitrateKbps, sampleRate, channels, pathTemplate });
+			const pathTemplate = composePathTemplate(folder, filename);
+			onSave({
+				id,
+				name,
+				type,
+				format,
+				bitrateKbps,
+				sampleRate: sampleRateOut,
+				channels,
+				pathTemplate
+			});
 		} else {
 			onSave({
 				id,
@@ -50,7 +92,7 @@
 				type,
 				format,
 				bitrateKbps,
-				sampleRate,
+				sampleRate: sampleRateOut,
 				channels,
 				host,
 				port,
@@ -62,140 +104,82 @@
 	}
 </script>
 
-<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" data-modal>
-	<div class="flex w-96 flex-col gap-4 rounded-lg border border-primary-700 bg-primary-900 p-6">
-		<h2 class="text-lg font-semibold">{config ? 'Edit Encoder' : 'Add Encoder'}</h2>
-
-		<label class="flex flex-col gap-1 text-sm">
-			<span class="text-primary-400">Name</span>
-			<input
-				bind:value={name}
-				class="rounded border border-primary-700 bg-primary-800 px-2 py-1 text-primary-100"
-			/>
-		</label>
-
-		<div class="grid grid-cols-2 gap-2 text-sm">
-			<label class="flex flex-col gap-1">
-				<span class="text-primary-400">Type</span>
-				<select
-					bind:value={type}
-					class="rounded border border-primary-700 bg-primary-800 px-2 py-1 text-primary-100"
-				>
-					<option value="icecast">Icecast 2</option>
-					<option value="shoutcast">Shoutcast 2</option>
-					<option value="file">File</option>
-				</select>
-			</label>
-			<label class="flex flex-col gap-1">
-				<span class="text-primary-400">Format</span>
-				<select
-					bind:value={format}
-					class="rounded border border-primary-700 bg-primary-800 px-2 py-1 text-primary-100"
-				>
-					<option value="mp3">MP3</option>
-					<option value="aac">AAC</option>
-					<option value="ogg-vorbis">Ogg Vorbis</option>
-					<option value="opus">Opus</option>
-					{#if type === 'file'}<option value="flac">FLAC</option>{/if}
-				</select>
-			</label>
+<Modal
+	title={name || 'Untitled encoder'}
+	eyebrow={config ? 'Edit Output' : 'New Output'}
+	icon={type === 'file' ? faFloppyDisk : faSatelliteDish}
+	onClose={onCancel}
+>
+	<section class="flex flex-col gap-2">
+		<span class="form-section-label">Identity</span>
+		<TextField label="Name" bind:value={name} placeholder="My broadcast" />
+		<div class="grid grid-cols-2 gap-2">
+			<SelectField label="Type" bind:value={type}>
+				<option value="icecast">Icecast 2</option>
+				<option value="shoutcast">Shoutcast 2</option>
+				<option value="file">File</option>
+			</SelectField>
+			<SelectField label="Format" bind:value={format}>
+				<option value="mp3">MP3</option>
+				<option value="aac">AAC</option>
+				<option value="ogg-vorbis">Ogg Vorbis</option>
+				<option value="opus">Opus</option>
+				{#if type === 'file'}<option value="flac">FLAC</option>{/if}
+			</SelectField>
 		</div>
+	</section>
 
-		<div class="grid grid-cols-3 gap-2 text-sm">
-			<label class="flex flex-col gap-1">
-				<span class="text-primary-400">Bitrate (kbps)</span>
-				<input
-					type="number"
-					bind:value={bitrateKbps}
-					class="rounded border border-primary-700 bg-primary-800 px-2 py-1 text-primary-100"
-				/>
-			</label>
-			<label class="flex flex-col gap-1">
-				<span class="text-primary-400">Sample Rate</span>
-				<select
-					bind:value={sampleRate}
-					class="rounded border border-primary-700 bg-primary-800 px-2 py-1 text-primary-100"
-				>
-					<option value={22050}>22050 Hz</option>
-					<option value={32000}>32000 Hz</option>
-					<option value={44100}>44100 Hz</option>
-					<option value={48000}>48000 Hz</option>
-				</select>
-			</label>
-			<label class="flex flex-col gap-1">
-				<span class="text-primary-400">Channels</span>
-				<select
-					bind:value={channels}
-					class="rounded border border-primary-700 bg-primary-800 px-2 py-1 text-primary-100"
-				>
-					<option value={1}>Mono</option>
-					<option value={2}>Stereo</option>
-				</select>
-			</label>
+	<section class="flex flex-col gap-2">
+		<span class="form-section-label">Audio</span>
+		<div class="grid grid-cols-3 gap-2">
+			<BitrateField label="Bitrate" bind:value={bitrateKbps} />
+			<SampleRateField label="Sample Rate" bind:value={sampleRate} />
+			<SelectField label="Channels" bind:value={channels}>
+				<option value={1}>Mono</option>
+				<option value={2}>Stereo</option>
+			</SelectField>
 		</div>
+	</section>
 
+	<section class="flex flex-col gap-2">
+		<span class="form-section-label">Destination</span>
 		{#if type !== 'file'}
-			<div class="grid grid-cols-2 gap-2 text-sm">
-				<label class="flex flex-col gap-1">
-					<span class="text-primary-400">Host</span>
-					<input
-						bind:value={host}
-						class="rounded border border-primary-700 bg-primary-800 px-2 py-1 text-primary-100"
-					/>
-				</label>
-				<label class="flex flex-col gap-1">
-					<span class="text-primary-400">Port</span>
-					<input
-						type="number"
-						bind:value={port}
-						class="rounded border border-primary-700 bg-primary-800 px-2 py-1 text-primary-100"
-					/>
-				</label>
+			<div class="grid grid-cols-[1fr_5.5rem] gap-2">
+				<TextField label="Host" bind:value={host} placeholder="stream.example.com" />
+				<NumberField label="Port" bind:value={port} />
 			</div>
-			<label class="flex flex-col gap-1 text-sm">
-				<span class="text-primary-400">Mount</span>
-				<input
-					bind:value={mount}
-					class="rounded border border-primary-700 bg-primary-800 px-2 py-1 text-primary-100"
+			<TextField label="Mount" bind:value={mount} placeholder="/stream" mono />
+			<div class="grid grid-cols-2 gap-2">
+				<TextField label="Username" bind:value={username} />
+				<TextField
+					label="Password"
+					type="password"
+					bind:value={password}
+					placeholder={config?.type !== 'file' && config?.passwordRef ? '(unchanged)' : ''}
 				/>
-			</label>
-			<div class="grid grid-cols-2 gap-2 text-sm">
-				<label class="flex flex-col gap-1">
-					<span class="text-primary-400">Username</span>
-					<input
-						bind:value={username}
-						class="rounded border border-primary-700 bg-primary-800 px-2 py-1 text-primary-100"
-					/>
-				</label>
-				<label class="flex flex-col gap-1">
-					<span class="text-primary-400">Password</span>
-					<input
-						type="password"
-						bind:value={password}
-						placeholder={config?.type !== 'file' && config?.passwordRef ? '(unchanged)' : ''}
-						class="rounded border border-primary-700 bg-primary-800 px-2 py-1 text-primary-100"
-					/>
-				</label>
 			</div>
 		{:else}
-			<label class="flex flex-col gap-1 text-sm">
-				<span class="text-primary-400">Path Template</span>
-				<input
-					bind:value={pathTemplate}
-					class="rounded border border-primary-700 bg-primary-800 px-2 py-1 font-mono text-xs text-primary-100"
-				/>
-			</label>
+			<FolderField label="Folder" bind:value={folder} />
+			<FilenameField label="Filename" bind:value={filename} extension={formatExtension(format)} />
+			<p class="text-[0.65rem] text-primary-500">
+				Filename tokens: <span class="font-mono text-primary-400">{'{date}'}</span>,
+				<span class="font-mono text-primary-400">{'{time}'}</span>
+			</p>
 		{/if}
+	</section>
 
-		<div class="flex justify-end gap-2">
-			<button
-				onclick={onCancel}
-				class="rounded bg-primary-700 px-4 py-2 text-sm hover:bg-primary-600">Cancel</button
-			>
-			<button
-				onclick={save}
-				class="rounded bg-secondary-700 px-4 py-2 text-sm hover:bg-secondary-600">Save</button
-			>
-		</div>
-	</div>
-</div>
+	{#snippet actions()}
+		<button
+			onclick={onCancel}
+			class="rounded border border-primary-700 bg-primary-800 px-4 py-1.5 text-xs font-bold tracking-[0.18em] text-primary-200 uppercase transition-colors hover:border-primary-600 hover:bg-primary-700 hover:text-primary-50"
+		>
+			Cancel
+		</button>
+		<button
+			onclick={save}
+			class="rounded border border-secondary-600 bg-secondary-700 px-4 py-1.5 text-xs font-bold tracking-[0.18em] text-primary-50 uppercase transition-colors hover:border-secondary-500 hover:bg-secondary-600"
+		>
+			Save
+		</button>
+	{/snippet}
+</Modal>

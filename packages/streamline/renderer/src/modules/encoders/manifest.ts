@@ -15,5 +15,7 @@ export const encodersManifest: ModuleManifest = {
 	subscribes: [],
 	defaultWidth: 480,
 	defaultHeight: 300,
+	minWidth: 380,
+	minHeight: 220,
 	ui: Encoders
 };

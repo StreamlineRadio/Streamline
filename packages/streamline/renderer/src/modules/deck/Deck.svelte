@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { FontAwesomeIcon } from '@fortawesome/svelte-fontawesome';
 	import {
 		faPlay,
 		faPause,
@@ -11,6 +10,7 @@
 	} from '@fortawesome/free-solid-svg-icons';
 	import { createDeckAudio } from './deck-audio';
 	import DbMeter from '../../components/DbMeter.svelte';
+	import IconButton from '../../components/IconButton.svelte';
 	import WaveformDisplay from './WaveformDisplay.svelte';
 	import type { Song } from '@streamline/shared';
 	import { eventBus } from '../event-bus';
@@ -336,60 +336,41 @@
 				<!-- Transport buttons (deck controls left, settings pushed right) -->
 				<div class="flex items-center justify-between gap-2">
 					<div class="flex items-center gap-1">
-						<button
+						<IconButton
+							icon={isPlaying ? faPause : faPlay}
 							title={isPlaying ? 'Pause' : 'Play'}
 							disabled={song === null}
 							onclick={togglePlay}
-							class={[
-								'flex h-10 w-10 items-center justify-center rounded border text-base transition-colors disabled:cursor-not-allowed disabled:opacity-40',
-								isPlaying
-									? 'border-success-700 bg-success-900 text-success-400 hover:border-success-600 hover:bg-success-800 hover:text-success-300'
-									: 'border-primary-700 bg-primary-800 text-primary-200 hover:border-primary-600 hover:bg-primary-700 hover:text-primary-50'
-							]}
-						>
-							<FontAwesomeIcon icon={isPlaying ? faPause : faPlay} />
-						</button>
-
-						<button
+							active={isPlaying}
+							activeVariant="success"
+						/>
+						<IconButton
+							icon={faStop}
 							title="Stop"
 							disabled={song === null}
 							onclick={stopPlayback}
-							class="flex h-10 w-10 items-center justify-center rounded border border-primary-700 bg-primary-800 text-base text-primary-200 transition-colors hover:border-primary-600 hover:bg-primary-700 hover:text-primary-50 disabled:cursor-not-allowed disabled:opacity-40"
-						>
-							<FontAwesomeIcon icon={faStop} />
-						</button>
-
-						<button
+						/>
+						<IconButton
+							icon={faEject}
 							title="Unload"
 							disabled={song === null}
 							onclick={unload}
-							class="flex h-10 w-10 items-center justify-center rounded border border-primary-700 bg-primary-800 text-base text-primary-200 transition-colors hover:border-danger-700 hover:bg-danger-950 hover:text-danger-400 disabled:cursor-not-allowed disabled:opacity-40"
-						>
-							<FontAwesomeIcon icon={faEject} />
-						</button>
-
-						<button
+							destructive
+						/>
+						<IconButton
+							icon={faArrowTrendDown}
 							title="Fade out"
 							disabled={song === null}
 							onclick={fadeOut}
-							class="flex h-10 w-10 items-center justify-center rounded border border-primary-700 bg-primary-800 text-base text-primary-200 transition-colors hover:border-primary-600 hover:bg-primary-700 hover:text-primary-50 disabled:cursor-not-allowed disabled:opacity-40"
-						>
-							<FontAwesomeIcon icon={faArrowTrendDown} />
-						</button>
+						/>
 					</div>
 
-					<button
+					<IconButton
+						icon={faGear}
 						title="Settings"
 						onclick={() => (showSettings = !showSettings)}
-						class={[
-							'flex h-10 w-10 items-center justify-center rounded border text-base transition-colors',
-							showSettings
-								? 'border-secondary-600 bg-primary-800 text-secondary-400'
-								: 'border-primary-700 bg-primary-800 text-primary-200 hover:border-primary-600 hover:bg-primary-700 hover:text-primary-50'
-						]}
-					>
-						<FontAwesomeIcon icon={faGear} />
-					</button>
+						active={showSettings}
+					/>
 				</div>
 			</div>
 		</div>

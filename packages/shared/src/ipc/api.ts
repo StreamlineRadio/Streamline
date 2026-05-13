@@ -53,6 +53,7 @@ export interface TypedIpcApi {
 		getCpuUsage(): Promise<number>;
 		selectFile(filters?: { name: string; extensions: string[] }[]): Promise<string | null>;
 		selectFolder(): Promise<string | null>;
+		getDefaultRecordingsFolder(): Promise<string>;
 	};
 	settings: {
 		get(key: string): Promise<string | null>;

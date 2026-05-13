@@ -1,5 +1,10 @@
 import { spawn, ChildProcess } from 'child_process';
-import type { EncoderConfig, EncoderFormat, EncoderStatus } from '@streamline/shared';
+import {
+	formatExtension,
+	type EncoderConfig,
+	type EncoderFormat,
+	type EncoderStatus
+} from '@streamline/shared';
 import { getFFmpegPath } from './ffmpeg-path';
 import { log } from '../logging';
 
@@ -113,7 +118,7 @@ export class EncoderProcess {
 			const filePath = this.config.pathTemplate
 				.replace('{date}', new Date().toISOString().slice(0, 10))
 				.replace('{time}', new Date().toTimeString().slice(0, 8).replace(/:/g, '-'))
-				.replace('{format}', this.config.format);
+				.replace('{format}', formatExtension(this.config.format));
 			return [...base, filePath];
 		}
 

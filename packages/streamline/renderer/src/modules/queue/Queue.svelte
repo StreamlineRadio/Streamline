@@ -11,6 +11,7 @@
 		faMusic
 	} from '@fortawesome/free-solid-svg-icons';
 	import type { Song } from '@streamline/shared';
+	import IconButton from '../../components/IconButton.svelte';
 	import { setSongDragData } from '../../drag-drop/song-drag';
 	import { eventBus } from '../event-bus';
 	import { layoutStore } from '../../layout/store.svelte';
@@ -289,20 +290,8 @@
 	<!-- Toolbar: add actions on left, state/destructive actions on right -->
 	<div class="flex shrink-0 items-center justify-between border-b border-primary-800 px-2 py-2">
 		<div class="flex items-center gap-1">
-			<button
-				title="Add song"
-				onclick={addSongFile}
-				class="flex h-10 w-10 items-center justify-center rounded border border-primary-700 bg-primary-800 text-base text-primary-200 transition-colors hover:border-primary-600 hover:bg-primary-700 hover:text-primary-50"
-			>
-				<FontAwesomeIcon icon={faPlus} />
-			</button>
-			<button
-				title="Add folder to library"
-				onclick={addFolder}
-				class="flex h-10 w-10 items-center justify-center rounded border border-primary-700 bg-primary-800 text-base text-primary-200 transition-colors hover:border-primary-600 hover:bg-primary-700 hover:text-primary-50"
-			>
-				<FontAwesomeIcon icon={faFolderPlus} />
-			</button>
+			<IconButton icon={faPlus} title="Add song" onclick={addSongFile} />
+			<IconButton icon={faFolderPlus} title="Add folder to library" onclick={addFolder} />
 		</div>
 
 		<div class="flex items-center gap-1">
@@ -326,13 +315,7 @@
 					</span>
 				</span>
 			</button>
-			<button
-				title="Clear queue"
-				onclick={clearItems}
-				class="flex h-10 w-10 items-center justify-center rounded border border-primary-700 bg-primary-800 text-base text-primary-200 transition-colors hover:border-danger-700 hover:bg-danger-950 hover:text-danger-400"
-			>
-				<FontAwesomeIcon icon={faTrashCan} />
-			</button>
+			<IconButton icon={faTrashCan} title="Clear queue" onclick={clearItems} destructive />
 		</div>
 	</div>
 

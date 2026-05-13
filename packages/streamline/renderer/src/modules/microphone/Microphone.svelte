@@ -5,11 +5,14 @@
 		faMicrophone,
 		faLock,
 		faLockOpen,
-		faTowerBroadcast
+		faTowerBroadcast,
+		faHeadphones,
+		faHeadphonesSimple
 	} from '@fortawesome/free-solid-svg-icons';
 	import { getAudioContext } from '../../audio/context';
 	import { connectToMaster } from '../../audio/mixer-bridge';
 	import DbMeter from '../../components/DbMeter.svelte';
+	import IconButton from '../../components/IconButton.svelte';
 
 	interface Props {
 		instanceId: string;
@@ -20,6 +23,7 @@
 	let selectedDeviceId = $state<string>('');
 	let isLive = $state(false);
 	let isLocked = $state(false);
+	let isMonitoring = $state(false);
 	let volume = $state(1.0);
 	let volTrackHeight = $state(0);
 
@@ -30,6 +34,11 @@
 	analyserNode.fftSize = 2048;
 	gainNode.connect(analyserNode);
 	connectToMaster(gainNode);
+
+	// Parallel monitor path → speakers, independent of broadcast gain
+	const monitorGain = audioCtx.createGain();
+	monitorGain.gain.value = 0;
+	monitorGain.connect(audioCtx.destination);
 
 	let stream: MediaStream | null = null;
 	let sourceNode: MediaStreamAudioSourceNode | null = null;
@@ -45,6 +54,7 @@
 		stopCapture();
 		gainNode.disconnect();
 		analyserNode.disconnect();
+		monitorGain.disconnect();
 	});
 
 	async function refreshDevices() {
@@ -64,6 +74,7 @@
 		});
 		sourceNode = audioCtx.createMediaStreamSource(stream);
 		sourceNode.connect(gainNode);
+		sourceNode.connect(monitorGain);
 	}
 
 	function stopCapture() {
@@ -77,6 +88,19 @@
 		gainNode.gain.cancelScheduledValues(audioCtx.currentTime);
 		gainNode.gain.setValueAtTime(gainNode.gain.value, audioCtx.currentTime);
 		gainNode.gain.linearRampToValueAtTime(targetValue, audioCtx.currentTime + timeMs / 1000);
+	}
+
+	function rampMonitor(targetValue: number, timeMs: number) {
+		monitorGain.gain.cancelScheduledValues(audioCtx.currentTime);
+		monitorGain.gain.setValueAtTime(monitorGain.gain.value, audioCtx.currentTime);
+		monitorGain.gain.linearRampToValueAtTime(targetValue, audioCtx.currentTime + timeMs / 1000);
+	}
+
+	// Re-applies both gains to their derived targets. Monitor is muted while live
+	// because the broadcast path already routes to the local destination through master.
+	function applyAudio(timeMs = 10) {
+		rampGain(isLive ? volume : 0, timeMs);
+		rampMonitor(isMonitoring && !isLive ? volume : 0, timeMs);
 	}
 
 	async function ensureCapture(): Promise<boolean> {
@@ -98,9 +122,10 @@
 			if (!ok) {
 				pttHeld = false;
 				isLive = false;
+				applyAudio(50);
 				return;
 			}
-			rampGain(volume, 10);
+			applyAudio(10);
 		});
 	}
 
@@ -108,7 +133,7 @@
 		if (!pttHeld) return;
 		pttHeld = false;
 		isLive = false;
-		rampGain(0, 50);
+		applyAudio(50);
 	}
 
 	function toggleLock() {
@@ -120,13 +145,14 @@
 				if (!ok) {
 					isLive = false;
 					isLocked = false;
+					applyAudio(50);
 					return;
 				}
-				rampGain(volume, 10);
+				applyAudio(10);
 			});
 		} else {
 			isLive = false;
-			rampGain(0, 50);
+			applyAudio(50);
 		}
 	}
 
@@ -136,6 +162,23 @@
 			await startCapture();
 		} catch (err) {
 			console.error('Mic capture failed:', err);
+		}
+	}
+
+	function toggleMonitor() {
+		const next = !isMonitoring;
+		isMonitoring = next;
+		if (next) {
+			ensureCapture().then((ok) => {
+				if (!ok) {
+					isMonitoring = false;
+					applyAudio(50);
+					return;
+				}
+				applyAudio(10);
+			});
+		} else {
+			applyAudio(50);
 		}
 	}
 </script>
@@ -152,7 +195,7 @@
 	<div class="flex min-h-0 flex-1">
 		<!-- Left column: device select, big PTT button, lock pill -->
 		<div class="flex min-w-0 flex-1 flex-col gap-3 p-3">
-			<!-- Top row: device dropdown + on-air badge -->
+			<!-- Top row: device dropdown + monitor toggle + on-air badge -->
 			<div class="flex items-center gap-2">
 				<label for="mic-device-{instanceId}" class="sr-only">Input device</label>
 				<select
@@ -166,6 +209,14 @@
 						<option value={device.deviceId}>{device.label || device.deviceId}</option>
 					{/each}
 				</select>
+
+				<IconButton
+					icon={isMonitoring ? faHeadphones : faHeadphonesSimple}
+					title={isMonitoring ? 'Stop hearing yourself' : 'Hear yourself'}
+					onclick={toggleMonitor}
+					active={isMonitoring}
+					size="xs"
+				/>
 
 				<div
 					class={[
@@ -188,6 +239,7 @@
 					onpointerdown={handlePttDown}
 					onpointerup={handlePttRelease}
 					onpointerleave={handlePttRelease}
+					onpointercancel={handlePttRelease}
 					class={[
 						'ptt-button group relative flex aspect-square w-full max-w-[150px] items-center justify-center rounded-full border-2 transition-all duration-150',
 						isLive
@@ -236,9 +288,7 @@
 						max="1"
 						step="0.01"
 						bind:value={volume}
-						oninput={() => {
-							if (isLive) rampGain(volume, 10);
-						}}
+						oninput={() => applyAudio(10)}
 						class="vol-slider"
 						style:height="{volTrackHeight}px"
 					/>

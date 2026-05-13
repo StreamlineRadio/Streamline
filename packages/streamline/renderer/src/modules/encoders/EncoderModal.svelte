@@ -1,12 +1,7 @@
 <script lang="ts">
 	import { onMount, untrack } from 'svelte';
 	import { faSatelliteDish, faFloppyDisk } from '@fortawesome/free-solid-svg-icons';
-	import {
-		ENCODER_SAMPLE_RATES,
-		formatExtension,
-		type EncoderConfig,
-		type EncoderSampleRate
-	} from '@streamline/shared';
+	import { formatExtension, type EncoderConfig } from '@streamline/shared';
 	import Modal from '../../components/Modal.svelte';
 	import TextField from '../../components/forms/TextField.svelte';
 	import SelectField from '../../components/forms/SelectField.svelte';
@@ -16,6 +11,7 @@
 	import FolderField from '../../components/forms/FolderField.svelte';
 	import FilenameField from '../../components/forms/FilenameField.svelte';
 	import { parsePathTemplate, composePathTemplate } from './path-template';
+	import { snapSampleRate } from './sample-rate';
 
 	interface Props {
 		config?: EncoderConfig;
@@ -23,15 +19,6 @@
 		onCancel: () => void;
 	}
 	const { config, onSave, onCancel }: Props = $props();
-
-	function snapSampleRate(value: number): EncoderSampleRate {
-		if (ENCODER_SAMPLE_RATES.includes(value as EncoderSampleRate)) {
-			return value as EncoderSampleRate;
-		}
-		return ENCODER_SAMPLE_RATES.reduce((closest, rate) =>
-			Math.abs(rate - value) < Math.abs(closest - value) ? rate : closest
-		);
-	}
 
 	const initialFile = untrack(() =>
 		config?.type === 'file'

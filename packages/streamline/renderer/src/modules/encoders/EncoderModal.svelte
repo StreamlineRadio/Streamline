@@ -59,6 +59,13 @@
 			await window.streamline.api.secret.set(passwordRef, password);
 		}
 
+		// Type switched from a network output to a file output — drop the
+		// no-longer-referenced secret so it doesn't leak in the secrets table.
+		if (type === 'file' && config?.type !== 'file' && config?.passwordRef) {
+			await window.streamline.api.secret.delete(config.passwordRef);
+			passwordRef = undefined;
+		}
+
 		const sampleRateOut = snapSampleRate(sampleRate);
 		if (type === 'file') {
 			const pathTemplate = composePathTemplate(folder, filename);

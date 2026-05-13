@@ -31,6 +31,7 @@
 </script>
 
 <button
+	type="button"
 	{title}
 	aria-label={title}
 	{disabled}

@@ -91,6 +91,12 @@
 	}
 </script>
 
+<!--
+	Click-away relies on `wrapperElement.contains(event.target)` so the dropdown
+	must remain in this component's DOM subtree. If the panel is ever portalled
+	out (e.g. for z-index headaches), update handleWindowMousedown to test the
+	panel ref too — otherwise any click inside the portal closes the dropdown.
+-->
 <svelte:window onmousedown={handleWindowMousedown} />
 
 <FormField {label}>

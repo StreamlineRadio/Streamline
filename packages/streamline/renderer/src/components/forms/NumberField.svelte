@@ -13,6 +13,16 @@
 	let { label, value = $bindable(), unit, min, max, decimal = false }: Props = $props();
 
 	let text = $state(untrack(() => String(value)));
+	// Tracks which value the displayed text reflects so an externally re-bound
+	// `value` updates the display without overwriting transient user typing.
+	let textOwnsValue = value;
+
+	$effect(() => {
+		if (value !== textOwnsValue) {
+			text = String(value);
+			textOwnsValue = value;
+		}
+	});
 
 	function commit(raw: string) {
 		text = raw;
@@ -22,10 +32,12 @@
 		if (min !== undefined && next < min) next = min;
 		if (max !== undefined && next > max) next = max;
 		value = next;
+		textOwnsValue = next;
 	}
 
 	function handleBlur() {
 		text = String(value);
+		textOwnsValue = value;
 	}
 </script>
 

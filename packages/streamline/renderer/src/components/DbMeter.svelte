@@ -48,7 +48,10 @@
 
 <div class="relative h-full w-full overflow-hidden rounded-sm">
 	<div class="absolute inset-0 bg-primary-800"></div>
-	<div class="meter-fill absolute right-0 bottom-0 left-0" style="height: {toPercent(dbfs)}%"></div>
+	<div
+		class="meter-fill absolute inset-0"
+		style="clip-path: inset({100 - toPercent(dbfs)}% 0 0 0)"
+	></div>
 	<div class="meter-segments pointer-events-none absolute inset-0"></div>
 	<div
 		class="absolute right-0 left-0 h-0.5 rounded-sm"

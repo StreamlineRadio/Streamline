@@ -128,7 +128,7 @@
 
 		deckStateTimer = setInterval(emitDeckRemaining, 1000);
 
-		unsubVolume = eventBus.on(`${instanceId}:setVolume`, (payload) => {
+		unsubVolume = eventBus.on(`deck:${instanceId}:setVolume`, (payload) => {
 			updateVolume(payload as number);
 		});
 	});

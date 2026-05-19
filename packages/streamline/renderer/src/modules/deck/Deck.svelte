@@ -99,11 +99,8 @@
 
 	onMount(() => {
 		audio.onEnded(() => {
-			const queueId = currentSettings.acceptsFromQueueId;
 			unload();
-			if (queueId) {
-				eventBus.emit(`queue:${queueId}:request-next`, instanceId);
-			}
+			eventBus.emit(`deck:${instanceId}:ended`, undefined);
 		});
 
 		unsubLoad = eventBus.on(`deck:${instanceId}:load-song`, async (path) => {

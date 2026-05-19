@@ -12,6 +12,15 @@ if (typeof globalThis.ResizeObserver === 'undefined') {
 	};
 }
 
+if (typeof globalThis.requestIdleCallback === 'undefined') {
+	(
+		globalThis as unknown as { requestIdleCallback: (cb: () => void) => number }
+	).requestIdleCallback = (cb: () => void) => setTimeout(cb, 0) as unknown as number;
+	(globalThis as unknown as { cancelIdleCallback: (id: number) => void }).cancelIdleCallback = (
+		id: number
+	) => clearTimeout(id);
+}
+
 afterEach(() => {
 	cleanup();
 	_clearEventBusForTesting();

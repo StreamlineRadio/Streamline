@@ -1,4 +1,4 @@
-import type { DeckLifecycle } from '../deck/types';
+import type { DeckState } from '../deck/types';
 
 export function pickLeastRecentlyPushedDeck(
 	linkedDeckIds: readonly string[],
@@ -20,10 +20,10 @@ export function pickLeastRecentlyPushedDeck(
 export function pickLeastRecentlyPushedUnloadedDeck(
 	linkedDeckIds: readonly string[],
 	lastPushedAt: ReadonlyMap<string, number>,
-	lifecycle: ReadonlyMap<string, DeckLifecycle>
+	state: ReadonlyMap<string, DeckState>
 ): string | null {
 	if (linkedDeckIds.length === 0) return null;
-	const unloadedIds = linkedDeckIds.filter((id) => lifecycle.get(id) === 'unloaded');
+	const unloadedIds = linkedDeckIds.filter((id) => state.get(id) === 'unloaded');
 	if (unloadedIds.length === 0) return null;
 	return pickLeastRecentlyPushedDeck(unloadedIds, lastPushedAt);
 }

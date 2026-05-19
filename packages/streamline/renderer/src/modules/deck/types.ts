@@ -1,7 +1,7 @@
-export type DeckLifecycle = 'unloaded' | 'loading' | 'loaded';
+export type DeckState = 'unloaded' | 'loading' | 'loaded';
 
 export interface DeckStatePayload {
-	lifecycle: DeckLifecycle;
+	state: DeckState;
 }
 
 export interface DeckRemainingPayload {

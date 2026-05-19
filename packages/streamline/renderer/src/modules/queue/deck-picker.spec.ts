@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { pickLeastRecentlyPushedDeck, pickLeastRecentlyPushedUnloadedDeck } from './deck-picker';
-import type { DeckLifecycle } from '../deck/types';
+import type { DeckState } from '../deck/types';
 
 describe('pickLeastRecentlyPushedDeck', () => {
 	it('returns null when linkedDeckIds is empty', () => {
@@ -46,18 +46,18 @@ describe('pickLeastRecentlyPushedUnloadedDeck', () => {
 		expect(pickLeastRecentlyPushedUnloadedDeck([], new Map(), new Map())).toBeNull();
 	});
 
-	it('returns the least-recently-pushed deck whose lifecycle is unloaded', () => {
+	it('returns the least-recently-pushed deck whose state is unloaded', () => {
 		const lastPushedAt = new Map<string, number>([
 			['a', 100],
 			['b', 50],
 			['c', 200]
 		]);
-		const lifecycle = new Map<string, DeckLifecycle>([
+		const state = new Map<string, DeckState>([
 			['a', 'unloaded'],
 			['b', 'loaded'],
 			['c', 'unloaded']
 		]);
-		expect(pickLeastRecentlyPushedUnloadedDeck(['a', 'b', 'c'], lastPushedAt, lifecycle)).toBe('a');
+		expect(pickLeastRecentlyPushedUnloadedDeck(['a', 'b', 'c'], lastPushedAt, state)).toBe('a');
 	});
 
 	it('falls through to the next-oldest when the first choice is non-unloaded', () => {
@@ -65,25 +65,25 @@ describe('pickLeastRecentlyPushedUnloadedDeck', () => {
 			['a', 50],
 			['b', 100]
 		]);
-		const lifecycle = new Map<string, DeckLifecycle>([
+		const state = new Map<string, DeckState>([
 			['a', 'loading'],
 			['b', 'unloaded']
 		]);
-		expect(pickLeastRecentlyPushedUnloadedDeck(['a', 'b'], lastPushedAt, lifecycle)).toBe('b');
+		expect(pickLeastRecentlyPushedUnloadedDeck(['a', 'b'], lastPushedAt, state)).toBe('b');
 	});
 
-	it('treats missing lifecycle entries as non-unloaded (blocking)', () => {
+	it('treats missing state entries as non-unloaded (blocking)', () => {
 		const lastPushedAt = new Map<string, number>([['a', 100]]);
-		const lifecycle = new Map<string, DeckLifecycle>([['a', 'unloaded']]);
-		expect(pickLeastRecentlyPushedUnloadedDeck(['b', 'a'], lastPushedAt, lifecycle)).toBe('a');
+		const state = new Map<string, DeckState>([['a', 'unloaded']]);
+		expect(pickLeastRecentlyPushedUnloadedDeck(['b', 'a'], lastPushedAt, state)).toBe('a');
 	});
 
 	it('returns null when no candidate is unloaded', () => {
-		const lifecycle = new Map<string, DeckLifecycle>([
+		const state = new Map<string, DeckState>([
 			['a', 'loading'],
 			['b', 'loaded']
 		]);
-		expect(pickLeastRecentlyPushedUnloadedDeck(['a', 'b'], new Map(), lifecycle)).toBeNull();
+		expect(pickLeastRecentlyPushedUnloadedDeck(['a', 'b'], new Map(), state)).toBeNull();
 	});
 
 	it('breaks ties by linkedDeckIds array order among unloaded candidates', () => {
@@ -91,10 +91,10 @@ describe('pickLeastRecentlyPushedUnloadedDeck', () => {
 			['a', 100],
 			['b', 100]
 		]);
-		const lifecycle = new Map<string, DeckLifecycle>([
+		const state = new Map<string, DeckState>([
 			['a', 'unloaded'],
 			['b', 'unloaded']
 		]);
-		expect(pickLeastRecentlyPushedUnloadedDeck(['b', 'a'], lastPushedAt, lifecycle)).toBe('b');
+		expect(pickLeastRecentlyPushedUnloadedDeck(['b', 'a'], lastPushedAt, state)).toBe('b');
 	});
 });

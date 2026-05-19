@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { shouldAutoplay } from './autoplay-gate';
-import type { DeckLifecycle } from '../deck/types';
+import type { DeckState } from '../deck/types';
 
 const allUnloaded = (ids: string[]) =>
-	new Map<string, DeckLifecycle>(ids.map((id) => [id, 'unloaded' as DeckLifecycle]));
+	new Map<string, DeckState>(ids.map((id) => [id, 'unloaded' as DeckState]));
 
 describe('shouldAutoplay', () => {
 	it('returns false when autoplay is disabled', () => {
@@ -12,7 +12,7 @@ describe('shouldAutoplay', () => {
 				autoplay: false,
 				itemsCount: 1,
 				linkedDeckIds: ['a'],
-				lifecycle: allUnloaded(['a'])
+				state: allUnloaded(['a'])
 			})
 		).toBe(false);
 	});
@@ -23,7 +23,7 @@ describe('shouldAutoplay', () => {
 				autoplay: true,
 				itemsCount: 0,
 				linkedDeckIds: ['a'],
-				lifecycle: allUnloaded(['a'])
+				state: allUnloaded(['a'])
 			})
 		).toBe(false);
 	});
@@ -34,35 +34,35 @@ describe('shouldAutoplay', () => {
 				autoplay: true,
 				itemsCount: 1,
 				linkedDeckIds: [],
-				lifecycle: new Map()
+				state: new Map()
 			})
 		).toBe(false);
 	});
 
 	it('returns false when any linked deck is loaded', () => {
-		const lifecycle = new Map<string, DeckLifecycle>([
+		const state = new Map<string, DeckState>([
 			['a', 'unloaded'],
 			['b', 'loaded']
 		]);
 		expect(
-			shouldAutoplay({ autoplay: true, itemsCount: 1, linkedDeckIds: ['a', 'b'], lifecycle })
+			shouldAutoplay({ autoplay: true, itemsCount: 1, linkedDeckIds: ['a', 'b'], state })
 		).toBe(false);
 	});
 
 	it('returns false when any linked deck is loading', () => {
-		const lifecycle = new Map<string, DeckLifecycle>([
+		const state = new Map<string, DeckState>([
 			['a', 'unloaded'],
 			['b', 'loading']
 		]);
 		expect(
-			shouldAutoplay({ autoplay: true, itemsCount: 1, linkedDeckIds: ['a', 'b'], lifecycle })
+			shouldAutoplay({ autoplay: true, itemsCount: 1, linkedDeckIds: ['a', 'b'], state })
 		).toBe(false);
 	});
 
-	it('returns false when any linked deck has no lifecycle entry (conservative default)', () => {
-		const lifecycle = new Map<string, DeckLifecycle>([['a', 'unloaded']]);
+	it('returns false when any linked deck has no state entry (conservative default)', () => {
+		const state = new Map<string, DeckState>([['a', 'unloaded']]);
 		expect(
-			shouldAutoplay({ autoplay: true, itemsCount: 1, linkedDeckIds: ['a', 'b'], lifecycle })
+			shouldAutoplay({ autoplay: true, itemsCount: 1, linkedDeckIds: ['a', 'b'], state })
 		).toBe(false);
 	});
 
@@ -72,7 +72,7 @@ describe('shouldAutoplay', () => {
 				autoplay: true,
 				itemsCount: 3,
 				linkedDeckIds: ['a', 'b'],
-				lifecycle: allUnloaded(['a', 'b'])
+				state: allUnloaded(['a', 'b'])
 			})
 		).toBe(true);
 	});

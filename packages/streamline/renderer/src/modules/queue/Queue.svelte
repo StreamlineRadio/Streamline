@@ -15,6 +15,7 @@
 	import { setSongDragData } from '../../drag-drop/song-drag';
 	import { eventBus } from '../event-bus';
 	import { layoutStore } from '../../layout/store.svelte';
+	import { instanceStore } from '../instance-store.svelte';
 
 	interface Props {
 		instanceId: string;
@@ -28,8 +29,33 @@
 		position: number;
 	}
 
+	interface QueueSettings {
+		autoplay: boolean;
+		linkedDeckIds: string[];
+	}
+
+	const defaultQueueSettings: QueueSettings = { autoplay: false, linkedDeckIds: [] };
+
+	const currentSettings = $derived(
+		(() => {
+			const record = instanceStore.get(instanceId)?.record;
+			if (!record?.settingsJson) return defaultQueueSettings;
+			try {
+				return { ...defaultQueueSettings, ...JSON.parse(record.settingsJson) } as QueueSettings;
+			} catch {
+				return defaultQueueSettings;
+			}
+		})()
+	);
+
+	function updateSettings(patch: Partial<QueueSettings>) {
+		const next = { ...currentSettings, ...patch };
+		const json = JSON.stringify(next);
+		instanceStore.update(instanceId, { settingsJson: json });
+		layoutStore.updateInstance(instanceId, { settingsJson: json });
+	}
+
 	let items = $state<QueueItem[]>([]);
-	let autoplay = $state(false);
 	let dragIndex = $state<number | null>(null);
 	// Absolute ms timestamp when the first queue item is expected to start.
 	// Updated by deck emissions so it stays approximately constant during playback,
@@ -56,7 +82,7 @@
 		}, 1000);
 
 		unsubNext = eventBus.on(`queue:${instanceId}:request-next`, (deckId) => {
-			if (!autoplay || items.length === 0) return;
+			if (!currentSettings.autoplay || items.length === 0) return;
 			if (loadingInProgress) return;
 			// Only fire when ALL connected decks have finished (remaining = 0)
 			const allFinished = Array.from(deckRemainingPerDeck.values()).every((r) => r === 0);
@@ -287,11 +313,11 @@
 
 		<div class="flex items-center gap-1">
 			<button
-				title={autoplay ? 'Autoplay on' : 'Autoplay off'}
-				onclick={() => (autoplay = !autoplay)}
+				title={currentSettings.autoplay ? 'Autoplay on' : 'Autoplay off'}
+				onclick={() => updateSettings({ autoplay: !currentSettings.autoplay })}
 				class={[
 					'flex h-10 w-10 items-center justify-center rounded border text-base transition-colors',
-					autoplay
+					currentSettings.autoplay
 						? 'border-secondary-600 bg-primary-800 text-secondary-400'
 						: 'border-primary-700 bg-primary-800 text-primary-200 hover:border-primary-600 hover:bg-primary-700 hover:text-primary-50'
 				]}

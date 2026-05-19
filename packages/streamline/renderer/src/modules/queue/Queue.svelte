@@ -253,16 +253,7 @@
 
 		const connectedDecks = layout.instances
 			.filter((instance) => instance.moduleId === 'deck')
-			.filter((instance) => {
-				try {
-					const settings = JSON.parse(instance.settingsJson) as {
-						acceptsFromQueueId?: string | null;
-					};
-					return settings.acceptsFromQueueId === instanceId;
-				} catch {
-					return false;
-				}
-			})
+			.filter(() => false)
 			.sort((a, b) => a.y - b.y || a.x - b.x);
 
 		if (connectedDecks.length === 0) {

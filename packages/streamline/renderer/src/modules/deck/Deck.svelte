@@ -12,6 +12,7 @@
 	import DbMeter from '../../components/DbMeter.svelte';
 	import IconButton from '../../components/IconButton.svelte';
 	import WaveformDisplay from './WaveformDisplay.svelte';
+	import DeckSettingsModal from './DeckSettingsModal.svelte';
 	import type { Song } from '@streamline/shared';
 	import { eventBus } from '../event-bus';
 	import { instanceStore } from '../instance-store.svelte';
@@ -32,10 +33,9 @@
 
 	interface DeckSettings {
 		sendMetadata: boolean;
-		acceptsFromQueueId: string | null;
 	}
 
-	const defaultSettings: DeckSettings = { sendMetadata: true, acceptsFromQueueId: null };
+	const defaultSettings: DeckSettings = { sendMetadata: true };
 
 	let showSettings = $state(false);
 
@@ -44,7 +44,7 @@
 			const record = instanceStore.get(instanceId)?.record;
 			if (!record?.settingsJson) return defaultSettings;
 			try {
-				return JSON.parse(record.settingsJson) as DeckSettings;
+				return { ...defaultSettings, ...JSON.parse(record.settingsJson) } as DeckSettings;
 			} catch {
 				return defaultSettings;
 			}
@@ -436,39 +436,6 @@
 			</div>
 		</div>
 
-		<!-- Settings panel -->
-		{#if showSettings}
-			<div
-				class="mx-2 mb-1.5 flex flex-col gap-2 rounded border border-primary-700 bg-primary-900 p-2 text-xs"
-			>
-				<label class="flex cursor-pointer items-center gap-2 text-primary-200">
-					<input
-						type="checkbox"
-						checked={currentSettings.sendMetadata}
-						onchange={(e) =>
-							updateSettings({ sendMetadata: (e.target as HTMLInputElement).checked })}
-						class="accent-secondary-500"
-					/>
-					Send metadata
-				</label>
-				<label class="flex flex-col gap-1">
-					<span class="tracking-wide text-primary-500 uppercase" style="font-size: 0.625rem">
-						Queue ID
-					</span>
-					<input
-						type="text"
-						value={currentSettings.acceptsFromQueueId ?? ''}
-						oninput={(e) => {
-							const value = (e.target as HTMLInputElement).value.trim();
-							updateSettings({ acceptsFromQueueId: value || null });
-						}}
-						placeholder="none"
-						class="rounded border border-primary-600 bg-primary-800 px-2 py-1 text-primary-100 outline-none focus:border-secondary-500"
-					/>
-				</label>
-			</div>
-		{/if}
-
 		<!-- Waveform (flex-1, takes all remaining vertical space) -->
 		<div class="min-h-0 flex-1 px-2 pb-2">
 			<div class="h-full overflow-hidden rounded bg-primary-900">
@@ -505,6 +472,14 @@
 		</div>
 	</div>
 </div>
+
+{#if showSettings}
+	<DeckSettingsModal
+		sendMetadata={currentSettings.sendMetadata}
+		onChange={(next) => updateSettings(next)}
+		onClose={() => (showSettings = false)}
+	/>
+{/if}
 
 <style>
 	.time-label {

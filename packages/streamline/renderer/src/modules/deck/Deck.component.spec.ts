@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, waitFor } from '@testing-library/svelte';
+import { render, waitFor, fireEvent } from '@testing-library/svelte';
 import Deck from './Deck.svelte';
 import { eventBus } from '../event-bus';
 import type { DeckStatePayload } from './types';
@@ -154,5 +154,19 @@ describe('Deck (component) — state emits', () => {
 		render(Deck, { instanceId: 'd4' });
 		eventBus.emit('deck:d4:state-request', undefined);
 		expect(events).toContain('unloaded');
+	});
+
+	it('opens settings modal via gear button and toggles sendMetadata', async () => {
+		const { container } = render(Deck, { instanceId: 'd5' });
+		const gearButton = container.querySelector('[title="Settings"]') as HTMLButtonElement;
+		await fireEvent.click(gearButton);
+		const checkbox = await waitFor(() => {
+			const el = document.querySelector('[role="dialog"] input[type="checkbox"]');
+			if (!el) throw new Error('modal not open');
+			return el as HTMLInputElement;
+		});
+		expect(checkbox.checked).toBe(true);
+		await fireEvent.click(checkbox);
+		expect(checkbox.checked).toBe(false);
 	});
 });

@@ -18,6 +18,12 @@
 	import { layoutStore } from '../../layout/store.svelte';
 	import logoUrl from '../../assets/favicon.svg?url';
 	import { getSongDragData } from '../../drag-drop/song-drag';
+	import type {
+		DeckState,
+		DeckStatePayload,
+		DeckRemainingPayload,
+		DeckLoadFailedPayload
+	} from './types';
 
 	interface Props {
 		instanceId: string;
@@ -61,6 +67,7 @@
 	let duration = $state(0);
 	let volume = $state(1.0);
 	let peaks = $state<number[] | null>(null);
+	let currentState = $state<DeckState>('unloaded');
 
 	let volTrackHeight = $state(0);
 
@@ -69,31 +76,26 @@
 	let unsubVolume: (() => void) | null = null;
 	let unsubLoad: (() => void) | null = null;
 	let unsubLoadIfIdle: (() => void) | null = null;
+	let unsubStateRequest: (() => void) | null = null;
 	let fadeOutTimer: ReturnType<typeof setTimeout> | null = null;
 	let loadGeneration = 0;
+
+	function emitState(next: DeckState): void {
+		currentState = next;
+		eventBus.emit(`deck:${instanceId}:state`, { state: next } satisfies DeckStatePayload);
+	}
 
 	const remaining = $derived(Math.max(0, duration - position));
 
 	function emitDeckRemaining() {
-		const queueId = currentSettings.acceptsFromQueueId;
-		if (!queueId) return;
+		if (currentState === 'unloaded') return;
 		const dur = audio.getDuration();
 		const pos = audio.getPosition();
 		const trackRemaining = dur > 0 ? Math.max(0, dur - pos) : 0;
-		eventBus.emit(`queue:${queueId}:deck-remaining`, {
-			deckId: instanceId,
+		eventBus.emit(`deck:${instanceId}:remaining`, {
 			remaining: trackRemaining
-		});
+		} satisfies DeckRemainingPayload);
 	}
-
-	$effect(() => {
-		const queueId = currentSettings.acceptsFromQueueId;
-		return () => {
-			if (queueId) {
-				eventBus.emit(`queue:${queueId}:deck-remaining`, { deckId: instanceId, remaining: 0 });
-			}
-		};
-	});
 
 	onMount(() => {
 		audio.onEnded(() => {
@@ -119,6 +121,12 @@
 			isPlaying = true;
 		});
 
+		unsubStateRequest = eventBus.on(`deck:${instanceId}:state-request`, () => {
+			eventBus.emit(`deck:${instanceId}:state`, {
+				state: currentState
+			} satisfies DeckStatePayload);
+		});
+
 		const trackPosition = () => {
 			position = audio.getPosition();
 			duration = audio.getDuration();
@@ -141,10 +149,10 @@
 		unsubVolume?.();
 		unsubLoad?.();
 		unsubLoadIfIdle?.();
-		const queueId = currentSettings.acceptsFromQueueId;
-		if (queueId) {
-			eventBus.emit(`queue:${queueId}:deck-remaining`, { deckId: instanceId, remaining: 0 });
-		}
+		unsubStateRequest?.();
+		eventBus.emit(`deck:${instanceId}:state`, {
+			state: 'unloaded'
+		} satisfies DeckStatePayload);
 	});
 
 	function unload() {
@@ -159,6 +167,7 @@
 		position = 0;
 		duration = 0;
 		isPlaying = false;
+		emitState('unloaded');
 	}
 
 	function stopPlayback() {
@@ -196,12 +205,37 @@
 			missing: false
 		};
 
-		const arrayBuffer = await window.streamline.api.library.readAudioFile(path);
-		await audio.load(arrayBuffer);
-		duration = audio.getDuration();
-		position = 0;
-		isPlaying = false;
-		peaks = null;
+		emitState('loading');
+
+		try {
+			const arrayBuffer = await window.streamline.api.library.readAudioFile(path);
+			if (generation !== loadGeneration) return;
+			await audio.load(arrayBuffer);
+			if (generation !== loadGeneration) return;
+			duration = audio.getDuration();
+			position = 0;
+			isPlaying = false;
+			peaks = null;
+			emitState('loaded');
+		} catch (error) {
+			if (generation !== loadGeneration) return;
+			song = null;
+			artworkDataUrl = null;
+			duration = 0;
+			position = 0;
+			peaks = null;
+			isPlaying = false;
+			emitState('unloaded');
+			eventBus.emit(`deck:${instanceId}:load-failed`, {
+				path,
+				error: String(error)
+			} satisfies DeckLoadFailedPayload);
+			eventBus.emit('toast:show', {
+				message: `Failed to load song: ${filename}`,
+				type: 'error'
+			});
+			return;
+		}
 
 		window.streamline.api.library.getCoverArt(path).then((dataUrl) => {
 			if (generation !== loadGeneration) return;

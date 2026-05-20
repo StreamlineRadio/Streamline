@@ -81,6 +81,8 @@
 			if (deckEtaBase === null) now = Date.now();
 		}, 1000);
 
+		// TODO(task-10): legacy listener — decks no longer emit queue:*:request-next.
+		// Replaced by per-linked-deck subscriptions when Task 10 wires real autoplay routing.
 		unsubNext = eventBus.on(`queue:${instanceId}:request-next`, (deckId) => {
 			if (!currentSettings.autoplay || items.length === 0) return;
 			if (loadingInProgress) return;
@@ -94,6 +96,8 @@
 			eventBus.emit(`deck:${deckId as string}:load-song`, first.song.path);
 		});
 
+		// TODO(task-10): legacy listener — decks now emit deck:${id}:remaining directly.
+		// ETA labels will stay frozen for autoplay sessions until Task 10 subscribes per linked deck.
 		unsubDeckState = eventBus.on(`queue:${instanceId}:deck-remaining`, (payload) => {
 			const { deckId, remaining } = payload as { deckId: string; remaining: number };
 			deckRemainingPerDeck.set(deckId, remaining);
@@ -277,13 +281,15 @@
 			return;
 		}
 
+		// TODO(task-12): placeholder filter drops every deck so double-click is a no-op.
+		// Task 12 replaces this with pickLeastRecentlyPushedUnloadedDeck against linkedDeckIds.
 		const connectedDecks = layout.instances
 			.filter((instance) => instance.moduleId === 'deck')
 			.filter(() => false)
 			.sort((a, b) => a.y - b.y || a.x - b.x);
 
 		if (connectedDecks.length === 0) {
-			showToast('No deck connected to this queue', 'warning');
+			showToast('Queue has no linked decks yet', 'warning');
 			return;
 		}
 

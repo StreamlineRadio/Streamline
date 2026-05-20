@@ -30,6 +30,8 @@ export function buildDefaultLayout(): Layout {
 	const now = Date.now();
 	const queueId = crypto.randomUUID();
 
+	// TODO(task-14): acceptsFromQueueId is the dead deck-side key. Task 14 moves the link
+	// to the queue side by seeding `linkedDeckIds: [deckA.id, deckB.id]` on the queue instead.
 	const instances: ModuleInstanceRecord[] = [
 		makeInstance('deck', 'A', 20, 60, 420, 280, 1, {
 			sendMetadata: true,

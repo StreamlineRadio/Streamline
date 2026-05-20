@@ -8,6 +8,11 @@ interface MockDeckAudioInstance {
 	triggerEnded: () => void;
 }
 
+const { layoutUpdateInstance, instanceUpdate } = vi.hoisted(() => ({
+	layoutUpdateInstance: vi.fn(),
+	instanceUpdate: vi.fn()
+}));
+
 vi.mock('./deck-audio', () => {
 	const fakeAnalyser = {
 		fftSize: 2048,
@@ -45,7 +50,7 @@ vi.mock('./deck-audio', () => {
 vi.mock('../instance-store.svelte', () => ({
 	instanceStore: {
 		get: () => ({ record: { settingsJson: '{}' } }),
-		update: vi.fn(),
+		update: instanceUpdate,
 		add: vi.fn(),
 		remove: vi.fn(),
 		all: new Map()
@@ -56,7 +61,7 @@ vi.mock('../../layout/store.svelte', () => ({
 	layoutStore: {
 		active: null,
 		set: vi.fn(),
-		updateInstance: vi.fn()
+		updateInstance: layoutUpdateInstance
 	}
 }));
 
@@ -67,6 +72,8 @@ describe('Deck (component) — state emits', () => {
 
 	beforeEach(() => {
 		stateEvents = [];
+		layoutUpdateInstance.mockReset();
+		instanceUpdate.mockReset();
 		eventBus.on('deck:d1:state', (payload) => {
 			stateEvents.push(payload as DeckStatePayload);
 		});
@@ -168,5 +175,11 @@ describe('Deck (component) — state emits', () => {
 		expect(checkbox.checked).toBe(true);
 		await fireEvent.click(checkbox);
 		expect(checkbox.checked).toBe(false);
+		expect(layoutUpdateInstance).toHaveBeenCalledWith(
+			'd5',
+			expect.objectContaining({
+				settingsJson: expect.stringContaining('"sendMetadata":false')
+			})
+		);
 	});
 });

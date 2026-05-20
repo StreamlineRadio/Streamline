@@ -88,7 +88,7 @@
 	const remaining = $derived(Math.max(0, duration - position));
 
 	function emitDeckRemaining() {
-		if (currentState === 'unloaded') return;
+		if (currentState !== 'loaded') return;
 		const dur = audio.getDuration();
 		const pos = audio.getPosition();
 		const trackRemaining = dur > 0 ? Math.max(0, dur - pos) : 0;

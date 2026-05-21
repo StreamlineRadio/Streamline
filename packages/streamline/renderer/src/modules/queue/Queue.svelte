@@ -16,6 +16,7 @@
 	import { eventBus } from '../event-bus';
 	import { layoutStore } from '../../layout/store.svelte';
 	import { instanceStore } from '../instance-store.svelte';
+	import type { DeckState, DeckStatePayload, DeckRemainingPayload } from '../deck/types';
 
 	interface Props {
 		instanceId: string;
@@ -64,56 +65,102 @@
 	// Updated every second when no deck is connected so ETA still ticks forward.
 	let now = $state(Date.now());
 
-	const deckRemainingPerDeck = new SvelteMap<string, number>();
-	let loadingInProgress = false;
+	interface LinkedDeckEntry {
+		state: DeckState;
+		remaining: number;
+		// Reserved for Task 11/12 (LRU autoplay deck pick).
+		lastPushedAt: number;
+		unsubs: Array<() => void>;
+	}
+
+	const linkedDecks = new SvelteMap<string, LinkedDeckEntry>();
+	// Tracks the previous linkedDeckIds across $effect runs so the reconcile
+	// effect does not read the SvelteMap it mutates (which would self-cycle).
+	let previouslyLinkedDeckIds: string[] = [];
 
 	let nowTimer: ReturnType<typeof setInterval>;
-	let unsubNext: (() => void) | null = null;
-	let unsubDeckState: (() => void) | null = null;
 
 	const totalDurationSec = $derived(
 		items.reduce((sum, item) => sum + (item.song.durationSec ?? 0), 0)
 	);
+
+	function updateLinkedDeck(deckId: string, patch: Partial<LinkedDeckEntry>): void {
+		const entry = linkedDecks.get(deckId);
+		if (!entry) return;
+		linkedDecks.set(deckId, { ...entry, ...patch });
+	}
+
+	function recomputeDeckEtaBase(): void {
+		const remainings = Array.from(linkedDecks.values()).map((entry) => entry.remaining);
+		const maxRemaining = remainings.length > 0 ? Math.max(...remainings) : 0;
+		deckEtaBase = Date.now() + maxRemaining * 1000;
+	}
+
+	function onLinkedDeckEnded(): void {
+		// Stub for Task 11 (autoplay handler).
+	}
+
+	function subscribeToDeck(deckId: string): void {
+		const unsubs: Array<() => void> = [];
+		unsubs.push(
+			eventBus.on(`deck:${deckId}:state`, (payload) => {
+				const next = (payload as DeckStatePayload).state;
+				const patch: Partial<LinkedDeckEntry> = { state: next };
+				if (next === 'unloaded') patch.remaining = 0;
+				updateLinkedDeck(deckId, patch);
+			})
+		);
+		unsubs.push(
+			eventBus.on(`deck:${deckId}:remaining`, (payload) => {
+				updateLinkedDeck(deckId, { remaining: (payload as DeckRemainingPayload).remaining });
+				recomputeDeckEtaBase();
+			})
+		);
+		unsubs.push(
+			eventBus.on(`deck:${deckId}:ended`, () => {
+				onLinkedDeckEnded();
+			})
+		);
+		linkedDecks.set(deckId, {
+			state: 'unloaded',
+			remaining: 0,
+			lastPushedAt: 0,
+			unsubs
+		});
+		eventBus.emit(`deck:${deckId}:state-request`, undefined);
+	}
+
+	function unsubscribeFromDeck(deckId: string): void {
+		linkedDecks.get(deckId)?.unsubs.forEach((fn) => fn());
+		linkedDecks.delete(deckId);
+	}
 
 	onMount(() => {
 		nowTimer = setInterval(() => {
 			// Skip when a deck is connected — deckEtaBase updates drive ETA instead
 			if (deckEtaBase === null) now = Date.now();
 		}, 1000);
+	});
 
-		// TODO(task-10): legacy listener — decks no longer emit queue:*:request-next.
-		// Replaced by per-linked-deck subscriptions when Task 10 wires real autoplay routing.
-		unsubNext = eventBus.on(`queue:${instanceId}:request-next`, (deckId) => {
-			if (!currentSettings.autoplay || items.length === 0) return;
-			if (loadingInProgress) return;
-			// Only fire when ALL connected decks have finished (remaining = 0)
-			const allFinished = Array.from(deckRemainingPerDeck.values()).every((r) => r === 0);
-			if (!allFinished) return;
-			loadingInProgress = true;
-			const [first, ...rest] = items;
-			items = rest;
-			reindex();
-			eventBus.emit(`deck:${deckId as string}:load-song`, first.song.path);
-		});
-
-		// TODO(task-10): legacy listener — decks now emit deck:${id}:remaining directly.
-		// ETA labels will stay frozen for autoplay sessions until Task 10 subscribes per linked deck.
-		unsubDeckState = eventBus.on(`queue:${instanceId}:deck-remaining`, (payload) => {
-			const { deckId, remaining } = payload as { deckId: string; remaining: number };
-			deckRemainingPerDeck.set(deckId, remaining);
-			// Deck started playing — the load completed, allow future autoplay triggers
-			if (remaining > 0) loadingInProgress = false;
-			const maxRemaining =
-				deckRemainingPerDeck.size > 0 ? Math.max(...Array.from(deckRemainingPerDeck.values())) : 0;
-			// Store as absolute future timestamp — stays ~constant during playback
-			deckEtaBase = Date.now() + maxRemaining * 1000;
-		});
+	// Reconciles per-deck subscriptions with currentSettings.linkedDeckIds.
+	// Runs on mount (initial subscribe) and whenever the list changes.
+	$effect(() => {
+		const wanted = new Set(currentSettings.linkedDeckIds);
+		const previous = new Set(previouslyLinkedDeckIds);
+		for (const deckId of previous) {
+			if (!wanted.has(deckId)) unsubscribeFromDeck(deckId);
+		}
+		for (const deckId of wanted) {
+			if (!previous.has(deckId)) subscribeToDeck(deckId);
+		}
+		previouslyLinkedDeckIds = [...currentSettings.linkedDeckIds];
 	});
 
 	onDestroy(() => {
 		clearInterval(nowTimer);
-		unsubNext?.();
-		unsubDeckState?.();
+		for (const deckId of Array.from(linkedDecks.keys())) {
+			unsubscribeFromDeck(deckId);
+		}
 	});
 
 	function addSong(song: Song) {

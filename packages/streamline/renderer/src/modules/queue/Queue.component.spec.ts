@@ -1,14 +1,48 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, fireEvent } from '@testing-library/svelte';
 import Queue from './Queue.svelte';
-import { eventBus } from '../event-bus';
+import { eventBus, _clearEventBusForTesting } from '../event-bus';
 import type { DeckState } from '../deck/types';
+import type { Song } from '@streamline/shared';
 
-const { layoutUpdateInstance, instanceUpdate, settingsHolder } = vi.hoisted(() => ({
-	layoutUpdateInstance: vi.fn(),
-	instanceUpdate: vi.fn(),
-	settingsHolder: { current: JSON.stringify({ autoplay: false, linkedDeckIds: [] }) }
-}));
+function makeSong(overrides: Partial<Song> = {}): Song {
+	return {
+		id: 's1',
+		path: '/tmp/song1.mp3',
+		title: 's1',
+		artist: null,
+		album: null,
+		durationSec: 60,
+		sampleRate: null,
+		channels: null,
+		bitrateKbps: null,
+		codec: null,
+		artworkPath: null,
+		waveformPath: null,
+		fileSize: null,
+		fileMtime: null,
+		addedAt: 0,
+		lastPlayedAt: null,
+		playCount: 0,
+		missing: false,
+		...overrides
+	};
+}
+
+function queueAddSong(): (song: Song) => void {
+	const addSong = (window as unknown as { __queue_addSong?: (song: Song) => void }).__queue_addSong;
+	if (!addSong) throw new Error('window.__queue_addSong not set — Queue not mounted?');
+	return addSong;
+}
+
+const { layoutUpdateInstance, instanceUpdate, settingsHolder, layoutInstancesHolder } = vi.hoisted(
+	() => ({
+		layoutUpdateInstance: vi.fn(),
+		instanceUpdate: vi.fn(),
+		settingsHolder: { current: JSON.stringify({ autoplay: false, linkedDeckIds: [] }) },
+		layoutInstancesHolder: { current: [] as Array<{ id: string; moduleId: string }> }
+	})
+);
 
 vi.mock('../instance-store.svelte', () => ({
 	instanceStore: {
@@ -22,7 +56,9 @@ vi.mock('../instance-store.svelte', () => ({
 
 vi.mock('../../layout/store.svelte', () => ({
 	layoutStore: {
-		active: { id: 'L', instances: [] },
+		get active() {
+			return { id: 'L', instances: layoutInstancesHolder.current };
+		},
 		set: vi.fn(),
 		updateInstance: layoutUpdateInstance
 	}
@@ -35,6 +71,8 @@ describe('Queue (component)', () => {
 		layoutUpdateInstance.mockReset();
 		instanceUpdate.mockReset();
 		settingsHolder.current = JSON.stringify({ autoplay: false, linkedDeckIds: [] });
+		layoutInstancesHolder.current = [];
+		_clearEventBusForTesting();
 	});
 
 	it('toggling the autoplay toolbar button persists autoplay in settingsJson', async () => {
@@ -79,5 +117,54 @@ describe('Queue (component)', () => {
 		eventBus.on('deck:d2:state-request', () => stateRequestForD2.push(undefined));
 		render(Queue, { instanceId: 'q4' });
 		expect(stateRequestForD2.length).toBe(0);
+	});
+
+	it('autoplay: on deck:X:ended with conditions met, shifts the first item and emits load-song to the least-recently-pushed deck', () => {
+		settingsHolder.current = JSON.stringify({ autoplay: true, linkedDeckIds: ['d1', 'd2'] });
+		layoutInstancesHolder.current = [
+			{ id: 'd1', moduleId: 'deck' },
+			{ id: 'd2', moduleId: 'deck' }
+		];
+
+		const loadSongCalls: { deckId: string; path: string }[] = [];
+		eventBus.on('deck:d1:load-song', (payload) =>
+			loadSongCalls.push({ deckId: 'd1', path: payload as string })
+		);
+		eventBus.on('deck:d2:load-song', (payload) =>
+			loadSongCalls.push({ deckId: 'd2', path: payload as string })
+		);
+
+		render(Queue, { instanceId: 'q5' });
+		queueAddSong()(makeSong());
+
+		eventBus.emit('deck:d1:state', { state: 'unloaded' as DeckState });
+		eventBus.emit('deck:d2:state', { state: 'unloaded' as DeckState });
+
+		eventBus.emit('deck:d1:ended', undefined);
+
+		// Tie-break is "deck with no prior push wins"; both are at -Infinity, so the
+		// first id in linkedDeckIds (d1) is chosen.
+		expect(loadSongCalls).toEqual([{ deckId: 'd1', path: '/tmp/song1.mp3' }]);
+	});
+
+	it('autoplay: does nothing when any linked deck is still loaded', () => {
+		settingsHolder.current = JSON.stringify({ autoplay: true, linkedDeckIds: ['d1', 'd2'] });
+		layoutInstancesHolder.current = [
+			{ id: 'd1', moduleId: 'deck' },
+			{ id: 'd2', moduleId: 'deck' }
+		];
+
+		const loadSongCalls: unknown[] = [];
+		eventBus.on('deck:d1:load-song', () => loadSongCalls.push('d1'));
+		eventBus.on('deck:d2:load-song', () => loadSongCalls.push('d2'));
+
+		render(Queue, { instanceId: 'q6' });
+		queueAddSong()(makeSong());
+
+		eventBus.emit('deck:d1:state', { state: 'unloaded' as DeckState });
+		eventBus.emit('deck:d2:state', { state: 'loaded' as DeckState });
+		eventBus.emit('deck:d1:ended', undefined);
+
+		expect(loadSongCalls).toEqual([]);
 	});
 });

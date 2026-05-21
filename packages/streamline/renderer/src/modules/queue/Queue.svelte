@@ -17,6 +17,8 @@
 	import { layoutStore } from '../../layout/store.svelte';
 	import { instanceStore } from '../instance-store.svelte';
 	import type { DeckState, DeckStatePayload, DeckRemainingPayload } from '../deck/types';
+	import { shouldAutoplay } from './autoplay-gate';
+	import { pickLeastRecentlyPushedDeck } from './deck-picker';
 
 	interface Props {
 		instanceId: string;
@@ -96,8 +98,48 @@
 		deckEtaBase = Date.now() + maxRemaining * 1000;
 	}
 
+	function activeLinkedDeckIds(): string[] {
+		const layoutInstances = layoutStore.active?.instances ?? [];
+		return currentSettings.linkedDeckIds.filter((id) =>
+			layoutInstances.some((instance) => instance.id === id && instance.moduleId === 'deck')
+		);
+	}
+
+	// Throwaway projections from linkedDecks for the pure gate/picker helpers.
+	// Not reactive state — built once per call, never mutated — so SvelteMap is overkill.
+	function linkedDeckStateMap(): Map<string, DeckState> {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
+		const map = new Map<string, DeckState>();
+		for (const [id, entry] of linkedDecks) map.set(id, entry.state);
+		return map;
+	}
+
+	function linkedDeckLastPushedMap(): Map<string, number> {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
+		const map = new Map<string, number>();
+		for (const [id, entry] of linkedDecks) map.set(id, entry.lastPushedAt);
+		return map;
+	}
+
 	function onLinkedDeckEnded(): void {
-		// Stub for Task 11 (autoplay handler).
+		const linked = activeLinkedDeckIds();
+		if (
+			!shouldAutoplay({
+				autoplay: currentSettings.autoplay,
+				itemsCount: items.length,
+				linkedDeckIds: linked,
+				state: linkedDeckStateMap()
+			})
+		) {
+			return;
+		}
+		const chosen = pickLeastRecentlyPushedDeck(linked, linkedDeckLastPushedMap());
+		if (chosen === null) return;
+		const [first, ...rest] = items;
+		items = rest;
+		reindex();
+		updateLinkedDeck(chosen, { lastPushedAt: Date.now() });
+		eventBus.emit(`deck:${chosen}:load-song`, first.song.path);
 	}
 
 	function subscribeToDeck(deckId: string): void {
@@ -165,6 +207,13 @@
 
 	function addSong(song: Song) {
 		items = [...items, { id: crypto.randomUUID(), song, position: items.length }];
+	}
+
+	if (import.meta.env.MODE === 'test') {
+		// Test-only seeding hook. Production code paths (file picker, drag-drop) are unaffected.
+		// Tests assert autoplay behavior which requires items in the queue; the internal `items`
+		// rune is not externally bindable.
+		(window as unknown as { __queue_addSong?: (song: Song) => void }).__queue_addSong = addSong;
 	}
 
 	function removeSong(id: string) {

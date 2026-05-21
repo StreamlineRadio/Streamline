@@ -18,7 +18,7 @@
 	import { instanceStore } from '../instance-store.svelte';
 	import type { DeckState, DeckStatePayload, DeckRemainingPayload } from '../deck/types';
 	import { shouldAutoplay } from './autoplay-gate';
-	import { pickLeastRecentlyPushedDeck } from './deck-picker';
+	import { pickLeastRecentlyPushedDeck, pickLeastRecentlyPushedUnloadedDeck } from './deck-picker';
 
 	interface Props {
 		instanceId: string;
@@ -100,9 +100,17 @@
 
 	function activeLinkedDeckIds(): string[] {
 		const layoutInstances = layoutStore.active?.instances ?? [];
-		return currentSettings.linkedDeckIds.filter((id) =>
-			layoutInstances.some((instance) => instance.id === id && instance.moduleId === 'deck')
-		);
+		// De-dup: a duplicate id in linkedDeckIds would make the Task 12 reject-and-retry loop
+		// pick the same deck twice and infinite-loop on rejection (indexOf removes the first match).
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
+		const seen = new Set<string>();
+		return currentSettings.linkedDeckIds.filter((id) => {
+			if (seen.has(id)) return false;
+			if (!layoutInstances.some((instance) => instance.id === id && instance.moduleId === 'deck'))
+				return false;
+			seen.add(id);
+			return true;
+		});
 	}
 
 	// Throwaway projections from linkedDecks for the pure gate/picker helpers.
@@ -371,32 +379,27 @@
 	}
 
 	function playOnFirstAvailableDeck(item: QueueItem) {
-		const layout = layoutStore.active;
-		if (!layout) {
-			showToast('No layout active', 'error');
+		const linked = activeLinkedDeckIds();
+		if (linked.length === 0) {
+			showToast('No decks linked to this queue', 'warning');
 			return;
 		}
 
-		// TODO(task-12): placeholder filter drops every deck so double-click is a no-op.
-		// Task 12 replaces this with pickLeastRecentlyPushedUnloadedDeck against linkedDeckIds.
-		const connectedDecks = layout.instances
-			.filter((instance) => instance.moduleId === 'deck')
-			.filter(() => false)
-			.sort((a, b) => a.y - b.y || a.x - b.x);
-
-		if (connectedDecks.length === 0) {
-			showToast('Queue has no linked decks yet', 'warning');
-			return;
-		}
-
-		for (const deck of connectedDecks) {
-			if (tryLoadOnDeck(deck.id, item.song.path)) {
+		const lastPushedAt = linkedDeckLastPushedMap();
+		const stateMap = linkedDeckStateMap();
+		const remaining = [...linked];
+		while (remaining.length > 0) {
+			const chosen = pickLeastRecentlyPushedUnloadedDeck(remaining, lastPushedAt, stateMap);
+			if (chosen === null) break;
+			if (tryLoadOnDeck(chosen, item.song.path)) {
 				removeSong(item.id);
+				updateLinkedDeck(chosen, { lastPushedAt: Date.now() });
 				return;
 			}
+			remaining.splice(remaining.indexOf(chosen), 1);
 		}
 
-		showToast('All decks are busy', 'warning');
+		showToast('All linked decks are busy', 'warning');
 	}
 </script>
 

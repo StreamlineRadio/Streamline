@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, fireEvent } from '@testing-library/svelte';
+import { tick } from 'svelte';
 import Queue from './Queue.svelte';
 import { eventBus, _clearEventBusForTesting } from '../event-bus';
 import type { DeckState } from '../deck/types';
@@ -166,5 +167,68 @@ describe('Queue (component)', () => {
 		eventBus.emit('deck:d1:ended', undefined);
 
 		expect(loadSongCalls).toEqual([]);
+	});
+
+	it('double-click: with linked deck idle, emits load-if-idle and removes the item', async () => {
+		settingsHolder.current = JSON.stringify({ autoplay: false, linkedDeckIds: ['d1'] });
+		layoutInstancesHolder.current = [{ id: 'd1', moduleId: 'deck' }];
+
+		const loadIfIdleCalls: { path: string }[] = [];
+		eventBus.on('deck:d1:load-if-idle', (payload) => {
+			const { path, onAccept } = payload as { path: string; onAccept: () => void };
+			loadIfIdleCalls.push({ path });
+			onAccept();
+		});
+
+		const { container } = render(Queue, { instanceId: 'q7' });
+		eventBus.emit('deck:d1:state', { state: 'unloaded' as DeckState });
+		queueAddSong()(makeSong());
+		await tick();
+
+		const row = container.querySelector('[draggable="true"]') as HTMLElement;
+		expect(row).toBeTruthy();
+		await fireEvent.dblClick(row);
+
+		expect(loadIfIdleCalls).toEqual([{ path: '/tmp/song1.mp3' }]);
+		expect(container.querySelectorAll('[draggable="true"]').length).toBe(0);
+	});
+
+	it('double-click: with no linked decks, shows "No decks linked to this queue" toast', async () => {
+		settingsHolder.current = JSON.stringify({ autoplay: false, linkedDeckIds: [] });
+		const toasts: Array<{ message: string; type: string }> = [];
+		eventBus.on('toast:show', (payload) =>
+			toasts.push(payload as { message: string; type: string })
+		);
+
+		const { container } = render(Queue, { instanceId: 'q8' });
+		queueAddSong()(makeSong());
+		await tick();
+
+		const row = container.querySelector('[draggable="true"]') as HTMLElement;
+		await fireEvent.dblClick(row);
+
+		expect(toasts).toEqual([{ message: 'No decks linked to this queue', type: 'warning' }]);
+		// Item is NOT removed when there's no deck to send to.
+		expect(container.querySelectorAll('[draggable="true"]').length).toBe(1);
+	});
+
+	it('double-click: with all linked decks busy, shows "All linked decks are busy" toast', async () => {
+		settingsHolder.current = JSON.stringify({ autoplay: false, linkedDeckIds: ['d1'] });
+		layoutInstancesHolder.current = [{ id: 'd1', moduleId: 'deck' }];
+		const toasts: Array<{ message: string; type: string }> = [];
+		eventBus.on('toast:show', (payload) =>
+			toasts.push(payload as { message: string; type: string })
+		);
+
+		const { container } = render(Queue, { instanceId: 'q9' });
+		eventBus.emit('deck:d1:state', { state: 'loaded' as DeckState });
+		queueAddSong()(makeSong());
+		await tick();
+
+		const row = container.querySelector('[draggable="true"]') as HTMLElement;
+		await fireEvent.dblClick(row);
+
+		expect(toasts).toEqual([{ message: 'All linked decks are busy', type: 'warning' }]);
+		expect(container.querySelectorAll('[draggable="true"]').length).toBe(1);
 	});
 });

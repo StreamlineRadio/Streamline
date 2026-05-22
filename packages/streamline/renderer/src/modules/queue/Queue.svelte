@@ -8,7 +8,8 @@
 		faArrowRotateRight,
 		faPlay,
 		faTrashCan,
-		faMusic
+		faMusic,
+		faGear
 	} from '@fortawesome/free-solid-svg-icons';
 	import type { Song } from '@streamline/shared';
 	import IconButton from '../../components/IconButton.svelte';
@@ -19,6 +20,7 @@
 	import type { DeckState, DeckStatePayload, DeckRemainingPayload } from '../deck/types';
 	import { shouldAutoplay } from './autoplay-gate';
 	import { pickLeastRecentlyPushedDeck, pickLeastRecentlyPushedUnloadedDeck } from './deck-picker';
+	import QueueSettingsModal from './QueueSettingsModal.svelte';
 
 	interface Props {
 		instanceId: string;
@@ -60,6 +62,7 @@
 
 	let items = $state<QueueItem[]>([]);
 	let dragIndex = $state<number | null>(null);
+	let showSettings = $state(false);
 	// Absolute ms timestamp when the first queue item is expected to start.
 	// Updated by deck emissions so it stays approximately constant during playback,
 	// which avoids flicker from two independent 1-second timers.
@@ -437,6 +440,12 @@
 					</span>
 				</span>
 			</button>
+			<IconButton
+				icon={faGear}
+				title="Queue settings"
+				onclick={() => (showSettings = !showSettings)}
+				active={showSettings}
+			/>
 			<IconButton icon={faTrashCan} title="Clear queue" onclick={clearItems} destructive />
 		</div>
 	</div>
@@ -511,6 +520,19 @@
 		</div>
 	{/if}
 </div>
+
+{#if showSettings}
+	<QueueSettingsModal
+		linkedDeckIds={currentSettings.linkedDeckIds}
+		onToggleDeck={(deckId, linked) => {
+			const next = linked
+				? Array.from(new Set([...currentSettings.linkedDeckIds, deckId]))
+				: currentSettings.linkedDeckIds.filter((id) => id !== deckId);
+			updateSettings({ linkedDeckIds: next });
+		}}
+		onClose={() => (showSettings = false)}
+	/>
+{/if}
 
 <style>
 	.queue-label {

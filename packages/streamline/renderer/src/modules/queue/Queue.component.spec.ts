@@ -212,6 +212,28 @@ describe('Queue (component)', () => {
 		expect(container.querySelectorAll('[draggable="true"]').length).toBe(1);
 	});
 
+	it('settings modal: toggling a deck updates linkedDeckIds in settingsJson', async () => {
+		settingsHolder.current = JSON.stringify({ autoplay: false, linkedDeckIds: [] });
+		layoutInstancesHolder.current = [{ id: 'd1', moduleId: 'deck' }];
+
+		const { container } = render(Queue, { instanceId: 'q10' });
+		const gear = container.querySelector('[title="Queue settings"]') as HTMLButtonElement;
+		expect(gear).toBeTruthy();
+		await fireEvent.click(gear);
+		await tick();
+
+		const checkbox = document.querySelector('input[type="checkbox"]') as HTMLInputElement;
+		expect(checkbox).toBeTruthy();
+		await fireEvent.click(checkbox);
+
+		expect(layoutUpdateInstance).toHaveBeenCalledWith(
+			'q10',
+			expect.objectContaining({
+				settingsJson: expect.stringContaining('"linkedDeckIds":["d1"]')
+			})
+		);
+	});
+
 	it('double-click: with all linked decks busy, shows "All linked decks are busy" toast', async () => {
 		settingsHolder.current = JSON.stringify({ autoplay: false, linkedDeckIds: ['d1'] });
 		layoutInstancesHolder.current = [{ id: 'd1', moduleId: 'deck' }];

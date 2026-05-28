@@ -6,6 +6,7 @@
 	import ToastContainer from './components/ToastContainer.svelte';
 	import { registerBuiltinModules } from './modules/register-builtins';
 	import { initHotkeyBinder } from './hotkeys/binder';
+	import { initResetToDefaultHotkey } from './hotkeys/reset-to-default';
 	import { hotkeyStore } from './hotkeys/store.svelte';
 	import { maybeRunFirstRun } from './first-run/setup';
 
@@ -15,6 +16,7 @@
 		await maybeRunFirstRun();
 		await hotkeyStore.load();
 		initHotkeyBinder();
+		initResetToDefaultHotkey();
 	});
 </script>
 

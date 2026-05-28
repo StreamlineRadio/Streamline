@@ -26,6 +26,26 @@ describe('buildDefaultLayout', () => {
 		expect(JSON.parse(aux!.settingsJson).sendMetadata).toBe(false);
 	});
 
+	it('does not write acceptsFromQueueId on any deck', () => {
+		const layout = buildDefaultLayout();
+		for (const instance of layout.instances) {
+			if (instance.moduleId !== 'deck') continue;
+			const settings = JSON.parse(instance.settingsJson);
+			expect(settings).not.toHaveProperty('acceptsFromQueueId');
+		}
+	});
+
+	it('queue lists the two metadata-sending decks as linkedDeckIds', () => {
+		const layout = buildDefaultLayout();
+		const decks = layout.instances.filter((instance) => instance.moduleId === 'deck');
+		const deckA = decks.find((deck) => deck.title === 'A')!;
+		const deckB = decks.find((deck) => deck.title === 'B')!;
+		const queue = layout.instances.find((instance) => instance.moduleId === 'queue')!;
+		const settings = JSON.parse(queue.settingsJson);
+		expect(settings.linkedDeckIds).toEqual(expect.arrayContaining([deckA.id, deckB.id]));
+		expect(settings.linkedDeckIds).toHaveLength(2);
+	});
+
 	it('has isActive=true', () => {
 		expect(buildDefaultLayout().isActive).toBe(true);
 	});

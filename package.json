@@ -1,34 +1,27 @@
 {
-	"name": "streamline",
-	"version": "0.0.1",
-	"private": true,
-	"scripts": {
-		"dev": "pnpm --filter streamline dev",
-		"package": "pnpm --filter streamline make",
-		"package:deb": "pnpm --filter streamline make --targets @electron-forge/maker-deb",
-		"package:rpm": "pnpm --filter streamline make --targets @electron-forge/maker-rpm",
-		"package:appimage": "pnpm --filter streamline make --targets @reforged/maker-appimage",
-		"package:win": "pnpm --filter streamline make --targets @electron-forge/maker-squirrel",
-		"package:mac": "pnpm --filter streamline make --targets @electron-forge/maker-dmg",
-		"package:linux": "pnpm --filter streamline make --targets @electron-forge/maker-deb,@electron-forge/maker-rpm,@reforged/maker-appimage",
-		"check": "pnpm -r --parallel --if-present check",
-		"lint": "pnpm -r --parallel --if-present lint",
-		"lint:fix": "pnpm -r --parallel --if-present lint:fix",
-		"test": "pnpm -r --parallel --if-present test",
-		"prepare": "husky"
-	},
-	"packageManager": "pnpm@10.4.1",
-	"pnpm": {
-		"onlyBuiltDependencies": [
-			"electron",
-			"electron-winstaller",
-			"esbuild"
-		]
-	},
-	"devDependencies": {
-		"@commitlint/cli": "^20.5.3",
-		"@commitlint/config-conventional": "^20.5.3",
-		"husky": "^9.1.7",
-		"lint-staged": "^16.4.0"
-	}
+  "name": "streamline",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --filter streamline dev",
+    "package": "pnpm --filter streamline make",
+    "package:deb": "pnpm --filter streamline make --targets @electron-forge/maker-deb",
+    "package:rpm": "pnpm --filter streamline make --targets @electron-forge/maker-rpm",
+    "package:appimage": "pnpm --filter streamline make --targets @reforged/maker-appimage",
+    "package:win": "pnpm --filter streamline make --targets @electron-forge/maker-squirrel",
+    "package:mac": "pnpm --filter streamline make --targets @electron-forge/maker-dmg",
+    "package:linux": "pnpm --filter streamline make --targets @electron-forge/maker-deb,@electron-forge/maker-rpm,@reforged/maker-appimage",
+    "check": "pnpm -r --parallel --if-present check",
+    "lint": "pnpm -r --parallel --if-present lint",
+    "lint:fix": "pnpm -r --parallel --if-present lint:fix",
+    "test": "pnpm -r --parallel --if-present test",
+    "prepare": "husky"
+  },
+  "packageManager": "pnpm@11.4.0+sha512.f0febc7e37552ab485494a914241b338e0b3580b93d54ce31f00933015880863129038a1b4ae4e414a0ee63ac35bf21197e990172c4a68256450b5636310968f",
+  "devDependencies": {
+    "@commitlint/cli": "^20.5.3",
+    "@commitlint/config-conventional": "^20.5.3",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0"
+  }
 }

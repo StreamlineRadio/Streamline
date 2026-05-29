@@ -104,7 +104,8 @@
 		});
 
 		unsubLoad = eventBus.on(`deck:${instanceId}:load-song`, async (path) => {
-			await loadSong(path as string);
+			const ok = await loadSong(path as string);
+			if (!ok) return;
 			audio.play();
 			isPlaying = true;
 		});
@@ -113,7 +114,8 @@
 			const { path, onAccept } = payload as { path: string; onAccept: () => void };
 			if (song !== null) return;
 			onAccept();
-			await loadSong(path);
+			const ok = await loadSong(path);
+			if (!ok) return;
 			audio.play();
 			isPlaying = true;
 		});
@@ -177,7 +179,7 @@
 		isPlaying = false;
 	}
 
-	async function loadSong(path: string) {
+	async function loadSong(path: string): Promise<boolean> {
 		const generation = ++loadGeneration;
 		const filename = path.split('/').pop() ?? path;
 		artworkDataUrl = null;
@@ -206,16 +208,16 @@
 
 		try {
 			const arrayBuffer = await window.streamline.api.library.readAudioFile(path);
-			if (generation !== loadGeneration) return;
+			if (generation !== loadGeneration) return false;
 			await audio.load(arrayBuffer);
-			if (generation !== loadGeneration) return;
+			if (generation !== loadGeneration) return false;
 			duration = audio.getDuration();
 			position = 0;
 			isPlaying = false;
 			peaks = null;
 			emitState('loaded');
 		} catch (error) {
-			if (generation !== loadGeneration) return;
+			if (generation !== loadGeneration) return false;
 			song = null;
 			artworkDataUrl = null;
 			duration = 0;
@@ -227,11 +229,14 @@
 				path,
 				error: String(error)
 			} satisfies DeckLoadFailedPayload);
+			// Queue advancement contract: treat a failed load as "ended without starting"
+			// so the linked queue's autoplay handler pushes the next song.
+			eventBus.emit(`deck:${instanceId}:ended`, undefined);
 			eventBus.emit('toast:show', {
 				message: `Failed to load song: ${filename}`,
 				type: 'error'
 			});
-			return;
+			return false;
 		}
 
 		window.streamline.api.library.getCoverArt(path).then((dataUrl) => {
@@ -263,6 +268,7 @@
 				}
 			});
 		}
+		return true;
 	}
 
 	async function computeHash(path: string): Promise<string> {

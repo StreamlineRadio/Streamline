@@ -153,6 +153,57 @@ describe('Deck (component) — state emits', () => {
 		expect(events).toContain('unloaded');
 	});
 
+	it('emits ended after load-failed so the queue can autoplay the next song', async () => {
+		const ordered: string[] = [];
+		eventBus.on('deck:d3a:load-failed', () => ordered.push('load-failed'));
+		eventBus.on('deck:d3a:ended', () => ordered.push('ended'));
+		(window as unknown as { streamline: unknown }).streamline = {
+			api: {
+				library: {
+					readAudioFile: vi.fn().mockRejectedValue(new Error('boom')),
+					getCoverArt: vi.fn(),
+					getSongByPath: vi.fn(),
+					getFileMetadata: vi.fn(),
+					loadWaveform: vi.fn(),
+					saveWaveform: vi.fn()
+				}
+			},
+			getPathForFile: vi.fn()
+		};
+
+		render(Deck, { instanceId: 'd3a' });
+		eventBus.emit('deck:d3a:load-song', '/tmp/bad.mp3');
+		await waitFor(() => expect(ordered).toContain('ended'));
+		expect(ordered).toEqual(['load-failed', 'ended']);
+	});
+
+	it('does not call audio.play() after a failed load (no zombie state)', async () => {
+		(window as unknown as { streamline: unknown }).streamline = {
+			api: {
+				library: {
+					readAudioFile: vi.fn().mockRejectedValue(new Error('boom')),
+					getCoverArt: vi.fn(),
+					getSongByPath: vi.fn(),
+					getFileMetadata: vi.fn(),
+					loadWaveform: vi.fn(),
+					saveWaveform: vi.fn()
+				}
+			},
+			getPathForFile: vi.fn()
+		};
+		const failedEvents: unknown[] = [];
+		eventBus.on('deck:d3b:load-failed', (payload) => failedEvents.push(payload));
+
+		render(Deck, { instanceId: 'd3b' });
+		eventBus.emit('deck:d3b:load-song', '/tmp/bad.mp3');
+		await waitFor(() => expect(failedEvents.length).toBe(1));
+
+		const handle = (
+			globalThis as unknown as { __deckAudio?: { play: { mock: { calls: unknown[] } } } }
+		).__deckAudio;
+		expect(handle?.play.mock.calls.length ?? 0).toBe(0);
+	});
+
 	it('re-emits current state on state-request', () => {
 		const events: string[] = [];
 		eventBus.on('deck:d4:state', (payload) => {

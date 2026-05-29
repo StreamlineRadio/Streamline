@@ -350,6 +350,9 @@
 
 	async function handleRowDrop(e: DragEvent, targetIndex: number) {
 		e.preventDefault();
+		// Drops bubble: without stopping propagation, handleDrop on the queue container
+		// would also fire, double-adding files dropped on a row.
+		e.stopPropagation();
 		wasIntraQueueDrop = true;
 		if (e.dataTransfer && e.dataTransfer.files.length > 0) {
 			for (const file of Array.from(e.dataTransfer.files)) {

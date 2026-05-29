@@ -261,6 +261,32 @@ describe('Queue (component)', () => {
 		expect(rowsAfter[1].textContent).toContain('A');
 	});
 
+	it('dropping an external file on a row only adds it once (no double-trigger via bubbling)', async () => {
+		(window as unknown as { streamline: unknown }).streamline = {
+			api: {
+				library: {
+					getSongByPath: vi.fn().mockResolvedValue(null),
+					getFileMetadata: vi.fn().mockResolvedValue(null)
+				}
+			},
+			getPathForFile: (file: File) => `/tmp/${file.name}`
+		};
+
+		const { container } = render(Queue, { instanceId: 'q-doubleadd' });
+		queueAddSong()(makeSong({ id: 's1', path: '/tmp/existing.mp3', title: 'Existing' }));
+		await tick();
+		expect(container.querySelectorAll('[draggable="true"]').length).toBe(1);
+
+		const row = container.querySelector('[draggable="true"]') as HTMLElement;
+		const file = new File(['fake'], 'dropped.mp3', { type: 'audio/mpeg' });
+		await fireEvent.drop(row, { dataTransfer: { files: [file] } });
+		// addSong is async (songFromPath awaits IPC); flush microtasks until DOM updates.
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		await tick();
+
+		expect(container.querySelectorAll('[draggable="true"]').length).toBe(2);
+	});
+
 	it('drag out of the queue (drop accepted elsewhere) still removes the dragged item', async () => {
 		const { container } = render(Queue, { instanceId: 'q-dragout' });
 		queueAddSong()(makeSong({ id: 's1', path: '/tmp/a.mp3', title: 'A' }));

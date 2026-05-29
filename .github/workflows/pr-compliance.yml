@@ -27,8 +27,8 @@ jobs:
             core.setOutput('passed', passed);
             if (!passed) core.setFailed('PR description is empty');
 
-  check-conventional-commits:
-    name: Conventional commits
+  check-pr-title:
+    name: PR title
     runs-on: ubuntu-latest
     outputs:
       passed: ${{ steps.check.outputs.passed }}
@@ -38,35 +38,27 @@ jobs:
         id: check
         with:
           script: |
-            const { data: commits } = await github.rest.pulls.listCommits({
+            const { data: pr } = await github.rest.pulls.get({
               owner: context.repo.owner,
               repo: context.repo.repo,
               pull_number: context.issue.number,
-              per_page: 100,
             });
 
             const CC_REGEX = /^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\(.+\))?(!)?: .+/;
-            const SKIP_REGEX = /^(Merge |fixup! |squash! )/;
 
-            const bad = [];
-            for (const { commit, sha } of commits) {
-              const firstLine = commit.message.split('\n')[0];
-              if (!SKIP_REGEX.test(firstLine) && !CC_REGEX.test(firstLine)) {
-                bad.push(`- \`${sha.slice(0, 7)}\` ${firstLine}`);
-              }
-            }
-
-            const passed = bad.length === 0;
+            const title = (pr.title || '').trim();
+            const passed = CC_REGEX.test(title);
             core.setOutput('passed', passed);
             if (!passed) {
               core.setOutput('detail', [
-                'The following commits need to be reformatted:',
-                bad.join('\n'),
+                `The PR title \`${title}\` does not follow Conventional Commits.`,
+                '',
+                'Because PRs are squash-merged, the title becomes the squash commit message and is used to generate the changelog — so it must be a valid Conventional Commit.',
                 '',
                 'Valid formats: `feat: add thing`, `fix(scope): correct bug`, `chore!: breaking change`',
                 'See [conventionalcommits.org](https://www.conventionalcommits.org/) for the full spec.',
               ].join('\n'));
-              core.setFailed('Some commits do not follow Conventional Commits');
+              core.setFailed('PR title does not follow Conventional Commits');
             }
 
   check-dco:
@@ -118,15 +110,15 @@ jobs:
 
   report:
     name: Report results
-    needs: [check-description, check-conventional-commits, check-dco]
+    needs: [check-description, check-pr-title, check-dco]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - uses: actions/github-script@v7
         env:
           DESC_PASSED: ${{ needs.check-description.outputs.passed }}
-          CC_PASSED: ${{ needs.check-conventional-commits.outputs.passed }}
-          CC_DETAIL: ${{ needs.check-conventional-commits.outputs.detail }}
+          TITLE_PASSED: ${{ needs.check-pr-title.outputs.passed }}
+          TITLE_DETAIL: ${{ needs.check-pr-title.outputs.detail }}
           DCO_PASSED: ${{ needs.check-dco.outputs.passed }}
           DCO_DETAIL: ${{ needs.check-dco.outputs.detail }}
         with:
@@ -143,10 +135,10 @@ jobs:
                 detail: 'Please add a description explaining **what** changed and **why**.',
               });
             }
-            if (process.env.CC_PASSED !== 'true') {
+            if (process.env.TITLE_PASSED !== 'true') {
               failures.push({
-                title: 'Commits do not follow Conventional Commits',
-                detail: process.env.CC_DETAIL,
+                title: 'PR title does not follow Conventional Commits',
+                detail: process.env.TITLE_DETAIL,
               });
             }
             if (process.env.DCO_PASSED !== 'true') {

@@ -256,11 +256,17 @@
 		});
 
 		const hash = await computeHash(path);
+		if (generation !== loadGeneration) return false;
 		const cached = await window.streamline.api.library.loadWaveform(hash);
+		if (generation !== loadGeneration) return false;
 		if (cached) {
 			peaks = cached;
 		} else {
 			requestIdleCallback(() => {
+				// requestIdleCallback fires after a deferred delay; without this guard a
+				// superseded load could compute peaks from the *current* audio buffer and
+				// save them under the *old* path's hash, corrupting the waveform cache.
+				if (generation !== loadGeneration) return;
 				const computedPeaks = audio.getPeaks(600);
 				if (computedPeaks.length > 0) {
 					peaks = computedPeaks;

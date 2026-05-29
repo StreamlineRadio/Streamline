@@ -318,7 +318,13 @@
 	function fadeOut() {
 		audio.fadeOut(3000);
 		if (fadeOutTimer !== null) clearTimeout(fadeOutTimer);
-		fadeOutTimer = setTimeout(unload, 3500);
+		fadeOutTimer = setTimeout(() => {
+			unload();
+			// Queue advancement contract: fade-out completion is treated like a natural
+			// end so the linked queue's autoplay handler pushes the next song. Manual
+			// eject (which also calls unload) intentionally stays silent.
+			eventBus.emit(`deck:${instanceId}:ended`, undefined);
+		}, 3500);
 	}
 
 	const formatTime = (seconds: number) => {

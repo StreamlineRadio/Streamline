@@ -204,6 +204,56 @@ describe('Deck (component) — state emits', () => {
 		expect(handle?.play.mock.calls.length ?? 0).toBe(0);
 	});
 
+	it('emits ended after fade-out completes so the queue can autoplay the next song', async () => {
+		const order: string[] = [];
+		eventBus.on('deck:d6:state', (payload) => {
+			order.push(`state:${(payload as DeckStatePayload).state}`);
+		});
+		eventBus.on('deck:d6:ended', () => {
+			order.push('ended');
+		});
+
+		const { container } = render(Deck, { instanceId: 'd6' });
+		eventBus.emit('deck:d6:load-song', '/tmp/song.mp3');
+		await waitFor(() => expect(order).toContain('state:loaded'));
+
+		vi.useFakeTimers();
+		try {
+			const fadeButton = container.querySelector('[title="Fade out"]') as HTMLButtonElement;
+			expect(fadeButton).toBeTruthy();
+			await fireEvent.click(fadeButton);
+			vi.advanceTimersByTime(3500);
+		} finally {
+			vi.useRealTimers();
+		}
+
+		const unloadedIdx = order.findIndex((e) => e === 'state:unloaded');
+		const endedIdx = order.findIndex((e) => e === 'ended');
+		expect(unloadedIdx).toBeGreaterThan(-1);
+		expect(endedIdx).toBeGreaterThan(-1);
+		expect(unloadedIdx).toBeLessThan(endedIdx);
+	});
+
+	it('does NOT emit ended on manual unload (eject button) so autoplay does not resume', async () => {
+		const order: string[] = [];
+		eventBus.on('deck:d7:state', (payload) => {
+			order.push(`state:${(payload as DeckStatePayload).state}`);
+		});
+		eventBus.on('deck:d7:ended', () => {
+			order.push('ended');
+		});
+
+		const { container } = render(Deck, { instanceId: 'd7' });
+		eventBus.emit('deck:d7:load-song', '/tmp/song.mp3');
+		await waitFor(() => expect(order).toContain('state:loaded'));
+
+		const ejectButton = container.querySelector('[title="Unload"]') as HTMLButtonElement;
+		await fireEvent.click(ejectButton);
+
+		expect(order).toContain('state:unloaded');
+		expect(order).not.toContain('ended');
+	});
+
 	it('re-emits current state on state-request', () => {
 		const events: string[] = [];
 		eventBus.on('deck:d4:state', (payload) => {

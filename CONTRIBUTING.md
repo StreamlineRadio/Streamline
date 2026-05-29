@@ -63,7 +63,7 @@ Formatting is enforced by the linter. Don't spend time on manual formatting deba
 
 Because every PR is squashed into one commit, **the PR title becomes that commit's message** and is what drives the changelog. So the title — not your individual commits — must follow [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/):
 
-```
+```text
 feat: add crossfade support
 fix(ipc): handle null device on reconnect
 chore!: drop support for Node 22

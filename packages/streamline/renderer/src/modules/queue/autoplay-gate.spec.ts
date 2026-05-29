@@ -1,79 +1,152 @@
 import { describe, it, expect } from 'vitest';
-import { shouldAutoplay } from './autoplay-gate';
+import { autoplayDecision } from './autoplay-gate';
 import type { DeckState } from '../deck/types';
 
 const allUnloaded = (ids: string[]) =>
 	new Map<string, DeckState>(ids.map((id) => [id, 'unloaded' as DeckState]));
 
-describe('shouldAutoplay', () => {
-	it('returns false when autoplay is disabled', () => {
+describe('autoplayDecision', () => {
+	it('silent when autoplay is disabled', () => {
 		expect(
-			shouldAutoplay({
+			autoplayDecision({
 				autoplay: false,
 				itemsCount: 1,
-				linkedDeckIds: ['a'],
-				state: allUnloaded(['a'])
+				linkedDeckIds: ['a', 'b'],
+				endedDeckId: 'a',
+				state: allUnloaded(['a', 'b'])
 			})
-		).toBe(false);
+		).toEqual({ kind: 'silent' });
 	});
 
-	it('returns false when itemsCount is 0', () => {
+	it('silent when itemsCount is 0', () => {
 		expect(
-			shouldAutoplay({
+			autoplayDecision({
 				autoplay: true,
 				itemsCount: 0,
-				linkedDeckIds: ['a'],
-				state: allUnloaded(['a'])
+				linkedDeckIds: ['a', 'b'],
+				endedDeckId: 'a',
+				state: allUnloaded(['a', 'b'])
 			})
-		).toBe(false);
+		).toEqual({ kind: 'silent' });
 	});
 
-	it('returns false when linkedDeckIds is empty', () => {
+	it('silent when no decks are linked', () => {
 		expect(
-			shouldAutoplay({
+			autoplayDecision({
 				autoplay: true,
 				itemsCount: 1,
 				linkedDeckIds: [],
+				endedDeckId: 'a',
 				state: new Map()
 			})
-		).toBe(false);
+		).toEqual({ kind: 'silent' });
 	});
 
-	it('returns false when any linked deck is loaded', () => {
+	it('no-other-deck when only the ended deck is linked', () => {
+		expect(
+			autoplayDecision({
+				autoplay: true,
+				itemsCount: 1,
+				linkedDeckIds: ['a'],
+				endedDeckId: 'a',
+				state: allUnloaded(['a'])
+			})
+		).toEqual({ kind: 'no-other-deck' });
+	});
+
+	it('no-other-deck when only one deck is linked, even if it is not the ended one', () => {
+		// Edge: deck X (not in linkedDeckIds) emits :ended through some race. Treat the same:
+		// there is still only one linked deck, so autoplay cannot push to "another" deck.
+		expect(
+			autoplayDecision({
+				autoplay: true,
+				itemsCount: 1,
+				linkedDeckIds: ['a'],
+				endedDeckId: 'x',
+				state: allUnloaded(['a'])
+			})
+		).toEqual({ kind: 'no-other-deck' });
+	});
+
+	it('all-busy when every other linked deck is loaded', () => {
 		const state = new Map<string, DeckState>([
 			['a', 'unloaded'],
 			['b', 'loaded']
 		]);
 		expect(
-			shouldAutoplay({ autoplay: true, itemsCount: 1, linkedDeckIds: ['a', 'b'], state })
-		).toBe(false);
+			autoplayDecision({
+				autoplay: true,
+				itemsCount: 1,
+				linkedDeckIds: ['a', 'b'],
+				endedDeckId: 'a',
+				state
+			})
+		).toEqual({ kind: 'all-busy' });
 	});
 
-	it('returns false when any linked deck is loading', () => {
+	it('all-busy when every other linked deck is loading', () => {
 		const state = new Map<string, DeckState>([
 			['a', 'unloaded'],
 			['b', 'loading']
 		]);
 		expect(
-			shouldAutoplay({ autoplay: true, itemsCount: 1, linkedDeckIds: ['a', 'b'], state })
-		).toBe(false);
-	});
-
-	it('returns false when any linked deck has no state entry (conservative default)', () => {
-		const state = new Map<string, DeckState>([['a', 'unloaded']]);
-		expect(
-			shouldAutoplay({ autoplay: true, itemsCount: 1, linkedDeckIds: ['a', 'b'], state })
-		).toBe(false);
-	});
-
-	it('returns true when autoplay on, items > 0, all linked decks unloaded', () => {
-		expect(
-			shouldAutoplay({
+			autoplayDecision({
 				autoplay: true,
-				itemsCount: 3,
+				itemsCount: 1,
 				linkedDeckIds: ['a', 'b'],
+				endedDeckId: 'a',
+				state
+			})
+		).toEqual({ kind: 'all-busy' });
+	});
+
+	it('all-busy when an other linked deck has no state entry (conservative default)', () => {
+		const state = new Map<string, DeckState>([['a', 'unloaded']]);
+		// b has no state entry → treated as not-unloaded → blocking
+		expect(
+			autoplayDecision({
+				autoplay: true,
+				itemsCount: 1,
+				linkedDeckIds: ['a', 'b'],
+				endedDeckId: 'a',
+				state
+			})
+		).toEqual({ kind: 'all-busy' });
+	});
+
+	it('ok with the unloaded other deck as the single candidate', () => {
+		expect(
+			autoplayDecision({
+				autoplay: true,
+				itemsCount: 1,
+				linkedDeckIds: ['a', 'b'],
+				endedDeckId: 'a',
 				state: allUnloaded(['a', 'b'])
 			})
-		).toBe(true);
+		).toEqual({ kind: 'ok', candidates: ['b'] });
+	});
+
+	it('ok with multiple unloaded candidates, excluding the ended deck', () => {
+		expect(
+			autoplayDecision({
+				autoplay: true,
+				itemsCount: 1,
+				linkedDeckIds: ['a', 'b', 'c'],
+				endedDeckId: 'a',
+				state: allUnloaded(['a', 'b', 'c'])
+			})
+		).toEqual({ kind: 'ok', candidates: ['b', 'c'] });
+	});
+
+	it('ok preserves linkedDeckIds order among candidates (for downstream tie-breaks)', () => {
+		expect(
+			autoplayDecision({
+				autoplay: true,
+				itemsCount: 1,
+				linkedDeckIds: ['c', 'a', 'b'],
+				endedDeckId: 'a',
+				state: allUnloaded(['c', 'a', 'b'])
+			})
+		).toEqual({ kind: 'ok', candidates: ['c', 'b'] });
 	});
 });

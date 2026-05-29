@@ -112,6 +112,39 @@ describe('Queue (component)', () => {
 		expect(queue).toBeTruthy();
 	});
 
+	it('ETA returns to the now-driven fallback after the loaded deck unloads', async () => {
+		vi.useFakeTimers();
+		try {
+			const t0 = new Date('2026-05-29T12:00:00.000Z').getTime();
+			vi.setSystemTime(t0);
+
+			settingsHolder.current = JSON.stringify({ autoplay: false, linkedDeckIds: ['d1'] });
+			layoutInstancesHolder.current = [{ id: 'd1', moduleId: 'deck' }];
+			const { container } = render(Queue, { instanceId: 'q-eta-unload' });
+			queueAddSong()(makeSong({ durationSec: 60 }));
+			await tick();
+
+			eventBus.emit('deck:d1:state', { state: 'loaded' as DeckState });
+			eventBus.emit('deck:d1:remaining', { remaining: 90 });
+			await tick();
+			const etaWhileLoaded = container.querySelector('.font-mono')?.textContent;
+
+			// Advancing time while a deck is loaded must not change ETA (deckEtaBase is locked).
+			vi.setSystemTime(t0 + 30_000);
+			vi.advanceTimersByTime(30_000);
+			await tick();
+			expect(container.querySelector('.font-mono')?.textContent).toBe(etaWhileLoaded);
+
+			// Unload should reset deckEtaBase so the now-driven fallback resumes ticking.
+			eventBus.emit('deck:d1:state', { state: 'unloaded' as DeckState });
+			vi.advanceTimersByTime(1000);
+			await tick();
+			expect(container.querySelector('.font-mono')?.textContent).not.toBe(etaWhileLoaded);
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
 	it('does not subscribe to decks outside linkedDeckIds', () => {
 		settingsHolder.current = JSON.stringify({ autoplay: false, linkedDeckIds: ['d1'] });
 		const stateRequestForD2: unknown[] = [];
@@ -120,7 +153,7 @@ describe('Queue (component)', () => {
 		expect(stateRequestForD2.length).toBe(0);
 	});
 
-	it('autoplay: on deck:X:ended with conditions met, shifts the first item and emits load-song to the least-recently-pushed deck', () => {
+	it('autoplay: on deck:X:ended pushes the next song to a DIFFERENT linked deck', () => {
 		settingsHolder.current = JSON.stringify({ autoplay: true, linkedDeckIds: ['d1', 'd2'] });
 		layoutInstancesHolder.current = [
 			{ id: 'd1', moduleId: 'deck' },
@@ -143,12 +176,11 @@ describe('Queue (component)', () => {
 
 		eventBus.emit('deck:d1:ended', undefined);
 
-		// Tie-break is "deck with no prior push wins"; both are at -Infinity, so the
-		// first id in linkedDeckIds (d1) is chosen.
-		expect(loadSongCalls).toEqual([{ deckId: 'd1', path: '/tmp/song1.mp3' }]);
+		// d1 is the just-ended deck; autoplay must push to a different deck (d2).
+		expect(loadSongCalls).toEqual([{ deckId: 'd2', path: '/tmp/song1.mp3' }]);
 	});
 
-	it('autoplay: does nothing when any linked deck is still loaded', () => {
+	it('autoplay: shows "All linked decks are busy" toast when the other linked deck is loaded', () => {
 		settingsHolder.current = JSON.stringify({ autoplay: true, linkedDeckIds: ['d1', 'd2'] });
 		layoutInstancesHolder.current = [
 			{ id: 'd1', moduleId: 'deck' },
@@ -158,6 +190,10 @@ describe('Queue (component)', () => {
 		const loadSongCalls: unknown[] = [];
 		eventBus.on('deck:d1:load-song', () => loadSongCalls.push('d1'));
 		eventBus.on('deck:d2:load-song', () => loadSongCalls.push('d2'));
+		const toasts: Array<{ message: string; type: string }> = [];
+		eventBus.on('toast:show', (payload) =>
+			toasts.push(payload as { message: string; type: string })
+		);
 
 		render(Queue, { instanceId: 'q6' });
 		queueAddSong()(makeSong());
@@ -167,6 +203,30 @@ describe('Queue (component)', () => {
 		eventBus.emit('deck:d1:ended', undefined);
 
 		expect(loadSongCalls).toEqual([]);
+		expect(toasts).toEqual([
+			{ message: 'Queue autoplay failed: all linked decks are busy', type: 'warning' }
+		]);
+	});
+
+	it('autoplay: shows "second linked deck" toast and cancels when only one deck is linked', () => {
+		settingsHolder.current = JSON.stringify({ autoplay: true, linkedDeckIds: ['d1'] });
+		layoutInstancesHolder.current = [{ id: 'd1', moduleId: 'deck' }];
+
+		const loadSongCalls: unknown[] = [];
+		eventBus.on('deck:d1:load-song', () => loadSongCalls.push('d1'));
+		const toasts: Array<{ message: string; type: string }> = [];
+		eventBus.on('toast:show', (payload) =>
+			toasts.push(payload as { message: string; type: string })
+		);
+
+		render(Queue, { instanceId: 'q6b' });
+		queueAddSong()(makeSong());
+
+		eventBus.emit('deck:d1:state', { state: 'unloaded' as DeckState });
+		eventBus.emit('deck:d1:ended', undefined);
+
+		expect(loadSongCalls).toEqual([]);
+		expect(toasts).toEqual([{ message: 'Autoplay needs a second linked deck', type: 'warning' }]);
 	});
 
 	it('double-click: with linked deck idle, emits load-if-idle and removes the item', async () => {

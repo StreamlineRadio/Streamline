@@ -18,7 +18,7 @@
 	import { layoutStore } from '../../layout/store.svelte';
 	import { instanceStore } from '../instance-store.svelte';
 	import type { DeckState, DeckStatePayload, DeckRemainingPayload } from '../deck/types';
-	import { shouldAutoplay } from './autoplay-gate';
+	import { autoplayDecision } from './autoplay-gate';
 	import { pickLeastRecentlyPushedDeck, pickLeastRecentlyPushedUnloadedDeck } from './deck-picker';
 	import QueueSettingsModal from './QueueSettingsModal.svelte';
 
@@ -102,8 +102,15 @@
 	}
 
 	function recomputeDeckEtaBase(): void {
-		const remainings = Array.from(linkedDecks.values()).map((entry) => entry.remaining);
-		const maxRemaining = remainings.length > 0 ? Math.max(...remainings) : 0;
+		// When no linked deck is loaded, return to the timer-driven `now` fallback so the
+		// ETA column keeps ticking. Otherwise base ETA on the longest remaining time.
+		const entries = Array.from(linkedDecks.values());
+		const anyLoaded = entries.some((entry) => entry.state !== 'unloaded');
+		if (!anyLoaded) {
+			deckEtaBase = null;
+			return;
+		}
+		const maxRemaining = Math.max(...entries.map((entry) => entry.remaining));
 		deckEtaBase = Date.now() + maxRemaining * 1000;
 	}
 
@@ -138,19 +145,26 @@
 		return map;
 	}
 
-	function onLinkedDeckEnded(): void {
-		const linked = activeLinkedDeckIds();
-		if (
-			!shouldAutoplay({
-				autoplay: currentSettings.autoplay,
-				itemsCount: items.length,
-				linkedDeckIds: linked,
-				state: linkedDeckStateMap()
-			})
-		) {
+	function onLinkedDeckEnded(endedDeckId: string): void {
+		const outcome = autoplayDecision({
+			autoplay: currentSettings.autoplay,
+			itemsCount: items.length,
+			linkedDeckIds: activeLinkedDeckIds(),
+			endedDeckId,
+			state: linkedDeckStateMap()
+		});
+
+		if (outcome.kind === 'silent') return;
+		if (outcome.kind === 'no-other-deck') {
+			showToast('Autoplay needs a second linked deck', 'warning');
 			return;
 		}
-		const chosen = pickLeastRecentlyPushedDeck(linked, linkedDeckLastPushedMap());
+		if (outcome.kind === 'all-busy') {
+			showToast('Queue autoplay failed: all linked decks are busy', 'warning');
+			return;
+		}
+
+		const chosen = pickLeastRecentlyPushedDeck(outcome.candidates, linkedDeckLastPushedMap());
 		if (chosen === null) return;
 		const [first, ...rest] = items;
 		items = rest;
@@ -167,6 +181,12 @@
 				const patch: Partial<LinkedDeckEntry> = { state: next };
 				if (next === 'unloaded') patch.remaining = 0;
 				updateLinkedDeck(deckId, patch);
+				// Only recompute on unload: that's the transition that needs to reset
+				// deckEtaBase to null. For loaded/loading transitions, the upcoming
+				// :remaining events drive the recompute — recomputing here with stale
+				// remaining=0 would briefly snap ETA to wall-clock instead of the
+				// timer-driven `now` fallback.
+				if (next === 'unloaded') recomputeDeckEtaBase();
 			})
 		);
 		unsubs.push(
@@ -177,7 +197,7 @@
 		);
 		unsubs.push(
 			eventBus.on(`deck:${deckId}:ended`, () => {
-				onLinkedDeckEnded();
+				onLinkedDeckEnded(deckId);
 			})
 		);
 		linkedDecks.set(deckId, {

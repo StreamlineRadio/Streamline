@@ -62,6 +62,12 @@
 
 	let items = $state<QueueItem[]>([]);
 	let dragIndex = $state<number | null>(null);
+	// Tracks whether the current drag landed on a drop target within THIS queue.
+	// Browsers set dropEffect='move' on the source's dragend after any successful drop
+	// (including same-queue reorders), and that signal alone would cause dragend to
+	// remove the dragged row. The flag distinguishes intra-queue drops (reorder/no-op,
+	// keep row) from cross-component drops (deck accepted it, remove row).
+	let wasIntraQueueDrop = false;
 	let showSettings = $state(false);
 	// Absolute ms timestamp when the first queue item is expected to start.
 	// Updated by deck emissions so it stays approximately constant during playback,
@@ -333,6 +339,7 @@
 
 	async function handleDrop(e: DragEvent) {
 		e.preventDefault();
+		wasIntraQueueDrop = true;
 		dragIndex = null;
 		if (e.dataTransfer && e.dataTransfer.files.length > 0) {
 			for (const file of Array.from(e.dataTransfer.files)) {
@@ -343,12 +350,12 @@
 
 	async function handleRowDrop(e: DragEvent, targetIndex: number) {
 		e.preventDefault();
+		wasIntraQueueDrop = true;
 		if (e.dataTransfer && e.dataTransfer.files.length > 0) {
 			for (const file of Array.from(e.dataTransfer.files)) {
 				addSong(await songFromPath(window.streamline.getPathForFile(file)));
 			}
 		} else if (dragIndex !== null && dragIndex !== targetIndex) {
-			if (e.dataTransfer) e.dataTransfer.dropEffect = 'none';
 			moveItem(dragIndex, targetIndex);
 		}
 		dragIndex = null;
@@ -356,14 +363,16 @@
 
 	function handleRowDragStart(e: DragEvent, item: QueueItem, index: number) {
 		dragIndex = index;
+		wasIntraQueueDrop = false;
 		setSongDragData(e, item.song);
 	}
 
 	function handleRowDragEnd(e: DragEvent, item: QueueItem) {
-		if (e.dataTransfer?.dropEffect === 'move') {
+		if (!wasIntraQueueDrop && e.dataTransfer?.dropEffect === 'move') {
 			removeSong(item.id);
 		}
 		dragIndex = null;
+		wasIntraQueueDrop = false;
 	}
 
 	function showToast(message: string, type: 'error' | 'warning' | 'info' = 'info') {

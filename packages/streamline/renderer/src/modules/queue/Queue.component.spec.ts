@@ -234,6 +234,50 @@ describe('Queue (component)', () => {
 		);
 	});
 
+	it('drag-to-reorder within the queue does not delete the dragged item', async () => {
+		const { container } = render(Queue, { instanceId: 'q-reorder' });
+		queueAddSong()(makeSong({ id: 's1', path: '/tmp/a.mp3', title: 'A' }));
+		queueAddSong()(makeSong({ id: 's2', path: '/tmp/b.mp3', title: 'B' }));
+		await tick();
+
+		const rowsBefore = container.querySelectorAll('[draggable="true"]');
+		expect(rowsBefore.length).toBe(2);
+		expect(rowsBefore[0].textContent).toContain('A');
+		expect(rowsBefore[1].textContent).toContain('B');
+
+		const source = rowsBefore[0] as HTMLElement;
+		const target = rowsBefore[1] as HTMLElement;
+
+		await fireEvent.dragStart(source);
+		await fireEvent.drop(target);
+		// Browsers set dropEffect='move' on dragend after a successful intra-queue drop;
+		// without the wasIntraQueueDrop flag this would incorrectly remove the dragged row.
+		await fireEvent.dragEnd(source, { dataTransfer: { dropEffect: 'move' } });
+		await tick();
+
+		const rowsAfter = container.querySelectorAll('[draggable="true"]');
+		expect(rowsAfter.length).toBe(2);
+		expect(rowsAfter[0].textContent).toContain('B');
+		expect(rowsAfter[1].textContent).toContain('A');
+	});
+
+	it('drag out of the queue (drop accepted elsewhere) still removes the dragged item', async () => {
+		const { container } = render(Queue, { instanceId: 'q-dragout' });
+		queueAddSong()(makeSong({ id: 's1', path: '/tmp/a.mp3', title: 'A' }));
+		queueAddSong()(makeSong({ id: 's2', path: '/tmp/b.mp3', title: 'B' }));
+		await tick();
+
+		const source = container.querySelector('[draggable="true"]') as HTMLElement;
+
+		await fireEvent.dragStart(source);
+		// No drop fires on this queue — simulating the dragged item landing on an external target.
+		await fireEvent.dragEnd(source, { dataTransfer: { dropEffect: 'move' } });
+		await tick();
+
+		const rowsAfter = container.querySelectorAll('[draggable="true"]');
+		expect(rowsAfter.length).toBe(1);
+	});
+
 	it('double-click: with all linked decks busy, shows "All linked decks are busy" toast', async () => {
 		settingsHolder.current = JSON.stringify({ autoplay: false, linkedDeckIds: ['d1'] });
 		layoutInstancesHolder.current = [{ id: 'd1', moduleId: 'deck' }];

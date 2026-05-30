@@ -8,13 +8,19 @@
 		faArrowRotateRight,
 		faPlay,
 		faTrashCan,
-		faMusic
+		faMusic,
+		faGear
 	} from '@fortawesome/free-solid-svg-icons';
 	import type { Song } from '@streamline/shared';
 	import IconButton from '../../components/IconButton.svelte';
 	import { setSongDragData } from '../../drag-drop/song-drag';
 	import { eventBus } from '../event-bus';
 	import { layoutStore } from '../../layout/store.svelte';
+	import { instanceStore } from '../instance-store.svelte';
+	import type { DeckState, DeckStatePayload, DeckRemainingPayload } from '../deck/types';
+	import { autoplayDecision } from './autoplay-gate';
+	import { pickLeastRecentlyPushedDeck, pickLeastRecentlyPushedUnloadedDeck } from './deck-picker';
+	import QueueSettingsModal from './QueueSettingsModal.svelte';
 
 	interface Props {
 		instanceId: string;
@@ -28,9 +34,41 @@
 		position: number;
 	}
 
+	interface QueueSettings {
+		autoplay: boolean;
+		linkedDeckIds: string[];
+	}
+
+	const defaultQueueSettings: QueueSettings = { autoplay: false, linkedDeckIds: [] };
+
+	const currentSettings = $derived(
+		(() => {
+			const record = instanceStore.get(instanceId)?.record;
+			if (!record?.settingsJson) return defaultQueueSettings;
+			try {
+				return { ...defaultQueueSettings, ...JSON.parse(record.settingsJson) } as QueueSettings;
+			} catch {
+				return defaultQueueSettings;
+			}
+		})()
+	);
+
+	function updateSettings(patch: Partial<QueueSettings>) {
+		const next = { ...currentSettings, ...patch };
+		const json = JSON.stringify(next);
+		instanceStore.update(instanceId, { settingsJson: json });
+		layoutStore.updateInstance(instanceId, { settingsJson: json });
+	}
+
 	let items = $state<QueueItem[]>([]);
-	let autoplay = $state(false);
 	let dragIndex = $state<number | null>(null);
+	// Tracks whether the current drag landed on a drop target within THIS queue.
+	// Browsers set dropEffect='move' on the source's dragend after any successful drop
+	// (including same-queue reorders), and that signal alone would cause dragend to
+	// remove the dragged row. The flag distinguishes intra-queue drops (reorder/no-op,
+	// keep row) from cross-component drops (deck accepted it, remove row).
+	let wasIntraQueueDrop = false;
+	let showSettings = $state(false);
 	// Absolute ms timestamp when the first queue item is expected to start.
 	// Updated by deck emissions so it stays approximately constant during playback,
 	// which avoids flicker from two independent 1-second timers.
@@ -38,56 +76,181 @@
 	// Updated every second when no deck is connected so ETA still ticks forward.
 	let now = $state(Date.now());
 
-	const deckRemainingPerDeck = new SvelteMap<string, number>();
-	let loadingInProgress = false;
+	interface LinkedDeckEntry {
+		state: DeckState;
+		remaining: number;
+		// Reserved for Task 11/12 (LRU autoplay deck pick).
+		lastPushedAt: number;
+		unsubs: Array<() => void>;
+	}
+
+	const linkedDecks = new SvelteMap<string, LinkedDeckEntry>();
+	// Tracks the previous linkedDeckIds across $effect runs so the reconcile
+	// effect does not read the SvelteMap it mutates (which would self-cycle).
+	let previouslyLinkedDeckIds: string[] = [];
 
 	let nowTimer: ReturnType<typeof setInterval>;
-	let unsubNext: (() => void) | null = null;
-	let unsubDeckState: (() => void) | null = null;
 
 	const totalDurationSec = $derived(
 		items.reduce((sum, item) => sum + (item.song.durationSec ?? 0), 0)
 	);
+
+	function updateLinkedDeck(deckId: string, patch: Partial<LinkedDeckEntry>): void {
+		const entry = linkedDecks.get(deckId);
+		if (!entry) return;
+		linkedDecks.set(deckId, { ...entry, ...patch });
+	}
+
+	function recomputeDeckEtaBase(): void {
+		// When no linked deck is loaded, return to the timer-driven `now` fallback so the
+		// ETA column keeps ticking. Otherwise base ETA on the longest remaining time.
+		const entries = Array.from(linkedDecks.values());
+		const anyLoaded = entries.some((entry) => entry.state !== 'unloaded');
+		if (!anyLoaded) {
+			deckEtaBase = null;
+			return;
+		}
+		const maxRemaining = Math.max(...entries.map((entry) => entry.remaining));
+		deckEtaBase = Date.now() + maxRemaining * 1000;
+	}
+
+	function activeLinkedDeckIds(): string[] {
+		const layoutInstances = layoutStore.active?.instances ?? [];
+		// De-dup: a duplicate id in linkedDeckIds would make the Task 12 reject-and-retry loop
+		// pick the same deck twice and infinite-loop on rejection (indexOf removes the first match).
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
+		const seen = new Set<string>();
+		return currentSettings.linkedDeckIds.filter((id) => {
+			if (seen.has(id)) return false;
+			if (!layoutInstances.some((instance) => instance.id === id && instance.moduleId === 'deck'))
+				return false;
+			seen.add(id);
+			return true;
+		});
+	}
+
+	// Throwaway projections from linkedDecks for the pure gate/picker helpers.
+	// Not reactive state — built once per call, never mutated — so SvelteMap is overkill.
+	function linkedDeckStateMap(): Map<string, DeckState> {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
+		const map = new Map<string, DeckState>();
+		for (const [id, entry] of linkedDecks) map.set(id, entry.state);
+		return map;
+	}
+
+	function linkedDeckLastPushedMap(): Map<string, number> {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
+		const map = new Map<string, number>();
+		for (const [id, entry] of linkedDecks) map.set(id, entry.lastPushedAt);
+		return map;
+	}
+
+	function onLinkedDeckEnded(endedDeckId: string): void {
+		const outcome = autoplayDecision({
+			autoplay: currentSettings.autoplay,
+			itemsCount: items.length,
+			linkedDeckIds: activeLinkedDeckIds(),
+			endedDeckId,
+			state: linkedDeckStateMap()
+		});
+
+		if (outcome.kind === 'silent') return;
+		if (outcome.kind === 'no-other-deck') {
+			showToast('Autoplay needs a second linked deck', 'warning');
+			return;
+		}
+		if (outcome.kind === 'all-busy') {
+			showToast('Queue autoplay failed: all linked decks are busy', 'warning');
+			return;
+		}
+
+		const chosen = pickLeastRecentlyPushedDeck(outcome.candidates, linkedDeckLastPushedMap());
+		if (chosen === null) return;
+		const [first, ...rest] = items;
+		items = rest;
+		reindex();
+		updateLinkedDeck(chosen, { lastPushedAt: Date.now() });
+		eventBus.emit(`deck:${chosen}:load-song`, first.song.path);
+	}
+
+	function subscribeToDeck(deckId: string): void {
+		const unsubs: Array<() => void> = [];
+		unsubs.push(
+			eventBus.on(`deck:${deckId}:state`, (payload) => {
+				const next = (payload as DeckStatePayload).state;
+				const patch: Partial<LinkedDeckEntry> = { state: next };
+				if (next === 'unloaded') patch.remaining = 0;
+				updateLinkedDeck(deckId, patch);
+				// Only recompute on unload: that's the transition that needs to reset
+				// deckEtaBase to null. For loaded/loading transitions, the upcoming
+				// :remaining events drive the recompute — recomputing here with stale
+				// remaining=0 would briefly snap ETA to wall-clock instead of the
+				// timer-driven `now` fallback.
+				if (next === 'unloaded') recomputeDeckEtaBase();
+			})
+		);
+		unsubs.push(
+			eventBus.on(`deck:${deckId}:remaining`, (payload) => {
+				updateLinkedDeck(deckId, { remaining: (payload as DeckRemainingPayload).remaining });
+				recomputeDeckEtaBase();
+			})
+		);
+		unsubs.push(
+			eventBus.on(`deck:${deckId}:ended`, () => {
+				onLinkedDeckEnded(deckId);
+			})
+		);
+		linkedDecks.set(deckId, {
+			state: 'unloaded',
+			remaining: 0,
+			lastPushedAt: 0,
+			unsubs
+		});
+		eventBus.emit(`deck:${deckId}:state-request`, undefined);
+	}
+
+	function unsubscribeFromDeck(deckId: string): void {
+		linkedDecks.get(deckId)?.unsubs.forEach((fn) => fn());
+		linkedDecks.delete(deckId);
+	}
 
 	onMount(() => {
 		nowTimer = setInterval(() => {
 			// Skip when a deck is connected — deckEtaBase updates drive ETA instead
 			if (deckEtaBase === null) now = Date.now();
 		}, 1000);
+	});
 
-		unsubNext = eventBus.on(`queue:${instanceId}:request-next`, (deckId) => {
-			if (!autoplay || items.length === 0) return;
-			if (loadingInProgress) return;
-			// Only fire when ALL connected decks have finished (remaining = 0)
-			const allFinished = Array.from(deckRemainingPerDeck.values()).every((r) => r === 0);
-			if (!allFinished) return;
-			loadingInProgress = true;
-			const [first, ...rest] = items;
-			items = rest;
-			reindex();
-			eventBus.emit(`deck:${deckId as string}:load-song`, first.song.path);
-		});
-
-		unsubDeckState = eventBus.on(`queue:${instanceId}:deck-remaining`, (payload) => {
-			const { deckId, remaining } = payload as { deckId: string; remaining: number };
-			deckRemainingPerDeck.set(deckId, remaining);
-			// Deck started playing — the load completed, allow future autoplay triggers
-			if (remaining > 0) loadingInProgress = false;
-			const maxRemaining =
-				deckRemainingPerDeck.size > 0 ? Math.max(...Array.from(deckRemainingPerDeck.values())) : 0;
-			// Store as absolute future timestamp — stays ~constant during playback
-			deckEtaBase = Date.now() + maxRemaining * 1000;
-		});
+	// Reconciles per-deck subscriptions with currentSettings.linkedDeckIds.
+	// Runs on mount (initial subscribe) and whenever the list changes.
+	$effect(() => {
+		const wanted = new Set(currentSettings.linkedDeckIds);
+		const previous = new Set(previouslyLinkedDeckIds);
+		for (const deckId of previous) {
+			if (!wanted.has(deckId)) unsubscribeFromDeck(deckId);
+		}
+		for (const deckId of wanted) {
+			if (!previous.has(deckId)) subscribeToDeck(deckId);
+		}
+		previouslyLinkedDeckIds = [...currentSettings.linkedDeckIds];
 	});
 
 	onDestroy(() => {
 		clearInterval(nowTimer);
-		unsubNext?.();
-		unsubDeckState?.();
+		for (const deckId of Array.from(linkedDecks.keys())) {
+			unsubscribeFromDeck(deckId);
+		}
 	});
 
 	function addSong(song: Song) {
 		items = [...items, { id: crypto.randomUUID(), song, position: items.length }];
+	}
+
+	if (import.meta.env.MODE === 'test') {
+		// Test-only seeding hook. Production code paths (file picker, drag-drop) are unaffected.
+		// Tests assert autoplay behavior which requires items in the queue; the internal `items`
+		// rune is not externally bindable.
+		(window as unknown as { __queue_addSong?: (song: Song) => void }).__queue_addSong = addSong;
 	}
 
 	function removeSong(id: string) {
@@ -196,6 +359,7 @@
 
 	async function handleDrop(e: DragEvent) {
 		e.preventDefault();
+		wasIntraQueueDrop = true;
 		dragIndex = null;
 		if (e.dataTransfer && e.dataTransfer.files.length > 0) {
 			for (const file of Array.from(e.dataTransfer.files)) {
@@ -206,12 +370,15 @@
 
 	async function handleRowDrop(e: DragEvent, targetIndex: number) {
 		e.preventDefault();
+		// Drops bubble: without stopping propagation, handleDrop on the queue container
+		// would also fire, double-adding files dropped on a row.
+		e.stopPropagation();
+		wasIntraQueueDrop = true;
 		if (e.dataTransfer && e.dataTransfer.files.length > 0) {
 			for (const file of Array.from(e.dataTransfer.files)) {
 				addSong(await songFromPath(window.streamline.getPathForFile(file)));
 			}
 		} else if (dragIndex !== null && dragIndex !== targetIndex) {
-			if (e.dataTransfer) e.dataTransfer.dropEffect = 'none';
 			moveItem(dragIndex, targetIndex);
 		}
 		dragIndex = null;
@@ -219,14 +386,16 @@
 
 	function handleRowDragStart(e: DragEvent, item: QueueItem, index: number) {
 		dragIndex = index;
+		wasIntraQueueDrop = false;
 		setSongDragData(e, item.song);
 	}
 
 	function handleRowDragEnd(e: DragEvent, item: QueueItem) {
-		if (e.dataTransfer?.dropEffect === 'move') {
+		if (!wasIntraQueueDrop && e.dataTransfer?.dropEffect === 'move') {
 			removeSong(item.id);
 		}
 		dragIndex = null;
+		wasIntraQueueDrop = false;
 	}
 
 	function showToast(message: string, type: 'error' | 'warning' | 'info' = 'info') {
@@ -245,39 +414,27 @@
 	}
 
 	function playOnFirstAvailableDeck(item: QueueItem) {
-		const layout = layoutStore.active;
-		if (!layout) {
-			showToast('No layout active', 'error');
+		const linked = activeLinkedDeckIds();
+		if (linked.length === 0) {
+			showToast('No decks linked to this queue', 'warning');
 			return;
 		}
 
-		const connectedDecks = layout.instances
-			.filter((instance) => instance.moduleId === 'deck')
-			.filter((instance) => {
-				try {
-					const settings = JSON.parse(instance.settingsJson) as {
-						acceptsFromQueueId?: string | null;
-					};
-					return settings.acceptsFromQueueId === instanceId;
-				} catch {
-					return false;
-				}
-			})
-			.sort((a, b) => a.y - b.y || a.x - b.x);
-
-		if (connectedDecks.length === 0) {
-			showToast('No deck connected to this queue', 'warning');
-			return;
-		}
-
-		for (const deck of connectedDecks) {
-			if (tryLoadOnDeck(deck.id, item.song.path)) {
+		const lastPushedAt = linkedDeckLastPushedMap();
+		const stateMap = linkedDeckStateMap();
+		const remaining = [...linked];
+		while (remaining.length > 0) {
+			const chosen = pickLeastRecentlyPushedUnloadedDeck(remaining, lastPushedAt, stateMap);
+			if (chosen === null) break;
+			if (tryLoadOnDeck(chosen, item.song.path)) {
 				removeSong(item.id);
+				updateLinkedDeck(chosen, { lastPushedAt: Date.now() });
 				return;
 			}
+			remaining.splice(remaining.indexOf(chosen), 1);
 		}
 
-		showToast('All decks are busy', 'warning');
+		showToast('All linked decks are busy', 'warning');
 	}
 </script>
 
@@ -296,11 +453,11 @@
 
 		<div class="flex items-center gap-1">
 			<button
-				title={autoplay ? 'Autoplay on' : 'Autoplay off'}
-				onclick={() => (autoplay = !autoplay)}
+				title={currentSettings.autoplay ? 'Autoplay on' : 'Autoplay off'}
+				onclick={() => updateSettings({ autoplay: !currentSettings.autoplay })}
 				class={[
 					'flex h-10 w-10 items-center justify-center rounded border text-base transition-colors',
-					autoplay
+					currentSettings.autoplay
 						? 'border-secondary-600 bg-primary-800 text-secondary-400'
 						: 'border-primary-700 bg-primary-800 text-primary-200 hover:border-primary-600 hover:bg-primary-700 hover:text-primary-50'
 				]}
@@ -315,6 +472,12 @@
 					</span>
 				</span>
 			</button>
+			<IconButton
+				icon={faGear}
+				title="Queue settings"
+				onclick={() => (showSettings = !showSettings)}
+				active={showSettings}
+			/>
 			<IconButton icon={faTrashCan} title="Clear queue" onclick={clearItems} destructive />
 		</div>
 	</div>
@@ -389,6 +552,19 @@
 		</div>
 	{/if}
 </div>
+
+{#if showSettings}
+	<QueueSettingsModal
+		linkedDeckIds={currentSettings.linkedDeckIds}
+		onToggleDeck={(deckId, linked) => {
+			const next = linked
+				? Array.from(new Set([...currentSettings.linkedDeckIds, deckId]))
+				: currentSettings.linkedDeckIds.filter((id) => id !== deckId);
+			updateSettings({ linkedDeckIds: next });
+		}}
+		onClose={() => (showSettings = false)}
+	/>
+{/if}
 
 <style>
 	.queue-label {

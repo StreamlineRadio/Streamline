@@ -12,12 +12,19 @@
 	import DbMeter from '../../components/DbMeter.svelte';
 	import IconButton from '../../components/IconButton.svelte';
 	import WaveformDisplay from './WaveformDisplay.svelte';
+	import DeckSettingsModal from './DeckSettingsModal.svelte';
 	import type { Song } from '@streamline/shared';
 	import { eventBus } from '../event-bus';
 	import { instanceStore } from '../instance-store.svelte';
 	import { layoutStore } from '../../layout/store.svelte';
 	import logoUrl from '../../assets/favicon.svg?url';
 	import { getSongDragData } from '../../drag-drop/song-drag';
+	import type {
+		DeckState,
+		DeckStatePayload,
+		DeckRemainingPayload,
+		DeckLoadFailedPayload
+	} from './types';
 
 	interface Props {
 		instanceId: string;
@@ -26,10 +33,9 @@
 
 	interface DeckSettings {
 		sendMetadata: boolean;
-		acceptsFromQueueId: string | null;
 	}
 
-	const defaultSettings: DeckSettings = { sendMetadata: true, acceptsFromQueueId: null };
+	const defaultSettings: DeckSettings = { sendMetadata: true };
 
 	let showSettings = $state(false);
 
@@ -38,7 +44,7 @@
 			const record = instanceStore.get(instanceId)?.record;
 			if (!record?.settingsJson) return defaultSettings;
 			try {
-				return JSON.parse(record.settingsJson) as DeckSettings;
+				return { ...defaultSettings, ...JSON.parse(record.settingsJson) } as DeckSettings;
 			} catch {
 				return defaultSettings;
 			}
@@ -61,6 +67,7 @@
 	let duration = $state(0);
 	let volume = $state(1.0);
 	let peaks = $state<number[] | null>(null);
+	let currentState = $state<DeckState>('unloaded');
 
 	let volTrackHeight = $state(0);
 
@@ -69,43 +76,36 @@
 	let unsubVolume: (() => void) | null = null;
 	let unsubLoad: (() => void) | null = null;
 	let unsubLoadIfIdle: (() => void) | null = null;
+	let unsubStateRequest: (() => void) | null = null;
 	let fadeOutTimer: ReturnType<typeof setTimeout> | null = null;
 	let loadGeneration = 0;
+
+	function emitState(next: DeckState): void {
+		currentState = next;
+		eventBus.emit(`deck:${instanceId}:state`, { state: next } satisfies DeckStatePayload);
+	}
 
 	const remaining = $derived(Math.max(0, duration - position));
 
 	function emitDeckRemaining() {
-		const queueId = currentSettings.acceptsFromQueueId;
-		if (!queueId) return;
+		if (currentState !== 'loaded') return;
 		const dur = audio.getDuration();
 		const pos = audio.getPosition();
 		const trackRemaining = dur > 0 ? Math.max(0, dur - pos) : 0;
-		eventBus.emit(`queue:${queueId}:deck-remaining`, {
-			deckId: instanceId,
+		eventBus.emit(`deck:${instanceId}:remaining`, {
 			remaining: trackRemaining
-		});
+		} satisfies DeckRemainingPayload);
 	}
-
-	$effect(() => {
-		const queueId = currentSettings.acceptsFromQueueId;
-		return () => {
-			if (queueId) {
-				eventBus.emit(`queue:${queueId}:deck-remaining`, { deckId: instanceId, remaining: 0 });
-			}
-		};
-	});
 
 	onMount(() => {
 		audio.onEnded(() => {
-			const queueId = currentSettings.acceptsFromQueueId;
 			unload();
-			if (queueId) {
-				eventBus.emit(`queue:${queueId}:request-next`, instanceId);
-			}
+			eventBus.emit(`deck:${instanceId}:ended`, undefined);
 		});
 
 		unsubLoad = eventBus.on(`deck:${instanceId}:load-song`, async (path) => {
-			await loadSong(path as string);
+			const ok = await loadSong(path as string);
+			if (!ok) return;
 			audio.play();
 			isPlaying = true;
 		});
@@ -114,9 +114,16 @@
 			const { path, onAccept } = payload as { path: string; onAccept: () => void };
 			if (song !== null) return;
 			onAccept();
-			await loadSong(path);
+			const ok = await loadSong(path);
+			if (!ok) return;
 			audio.play();
 			isPlaying = true;
+		});
+
+		unsubStateRequest = eventBus.on(`deck:${instanceId}:state-request`, () => {
+			eventBus.emit(`deck:${instanceId}:state`, {
+				state: currentState
+			} satisfies DeckStatePayload);
 		});
 
 		const trackPosition = () => {
@@ -128,12 +135,15 @@
 
 		deckStateTimer = setInterval(emitDeckRemaining, 1000);
 
-		unsubVolume = eventBus.on(`${instanceId}:setVolume`, (payload) => {
+		unsubVolume = eventBus.on(`deck:${instanceId}:setVolume`, (payload) => {
 			updateVolume(payload as number);
 		});
 	});
 
 	onDestroy(() => {
+		// Invalidate any in-flight loadSong so its async callbacks bail out instead of
+		// emitting 'loaded'/restoring state after this deck has emitted 'unloaded'.
+		loadGeneration++;
 		cancelAnimationFrame(positionAnimationFrameId);
 		clearInterval(deckStateTimer);
 		if (fadeOutTimer !== null) clearTimeout(fadeOutTimer);
@@ -141,10 +151,10 @@
 		unsubVolume?.();
 		unsubLoad?.();
 		unsubLoadIfIdle?.();
-		const queueId = currentSettings.acceptsFromQueueId;
-		if (queueId) {
-			eventBus.emit(`queue:${queueId}:deck-remaining`, { deckId: instanceId, remaining: 0 });
-		}
+		unsubStateRequest?.();
+		eventBus.emit(`deck:${instanceId}:state`, {
+			state: 'unloaded'
+		} satisfies DeckStatePayload);
 	});
 
 	function unload() {
@@ -159,6 +169,7 @@
 		position = 0;
 		duration = 0;
 		isPlaying = false;
+		emitState('unloaded');
 	}
 
 	function stopPlayback() {
@@ -171,7 +182,7 @@
 		isPlaying = false;
 	}
 
-	async function loadSong(path: string) {
+	async function loadSong(path: string): Promise<boolean> {
 		const generation = ++loadGeneration;
 		const filename = path.split('/').pop() ?? path;
 		artworkDataUrl = null;
@@ -196,12 +207,43 @@
 			missing: false
 		};
 
-		const arrayBuffer = await window.streamline.api.library.readAudioFile(path);
-		await audio.load(arrayBuffer);
-		duration = audio.getDuration();
-		position = 0;
-		isPlaying = false;
-		peaks = null;
+		emitState('loading');
+
+		try {
+			const arrayBuffer = await window.streamline.api.library.readAudioFile(path);
+			if (generation !== loadGeneration) return false;
+			await audio.load(arrayBuffer);
+			if (generation !== loadGeneration) return false;
+			duration = audio.getDuration();
+			position = 0;
+			isPlaying = false;
+			peaks = null;
+			emitState('loaded');
+		} catch (error) {
+			if (generation !== loadGeneration) return false;
+			// If readAudioFile threw, audio.load (which stops the previous source) never
+			// ran, so the prior track would keep playing under the now-empty deck. Stop it.
+			audio.stop();
+			song = null;
+			artworkDataUrl = null;
+			duration = 0;
+			position = 0;
+			peaks = null;
+			isPlaying = false;
+			emitState('unloaded');
+			eventBus.emit(`deck:${instanceId}:load-failed`, {
+				path,
+				error: String(error)
+			} satisfies DeckLoadFailedPayload);
+			// Queue advancement contract: treat a failed load as "ended without starting"
+			// so the linked queue's autoplay handler pushes the next song.
+			eventBus.emit(`deck:${instanceId}:ended`, undefined);
+			eventBus.emit('toast:show', {
+				message: `Failed to load song: ${filename}`,
+				type: 'error'
+			});
+			return false;
+		}
 
 		window.streamline.api.library.getCoverArt(path).then((dataUrl) => {
 			if (generation !== loadGeneration) return;
@@ -220,11 +262,17 @@
 		});
 
 		const hash = await computeHash(path);
+		if (generation !== loadGeneration) return false;
 		const cached = await window.streamline.api.library.loadWaveform(hash);
+		if (generation !== loadGeneration) return false;
 		if (cached) {
 			peaks = cached;
 		} else {
 			requestIdleCallback(() => {
+				// requestIdleCallback fires after a deferred delay; without this guard a
+				// superseded load could compute peaks from the *current* audio buffer and
+				// save them under the *old* path's hash, corrupting the waveform cache.
+				if (generation !== loadGeneration) return;
 				const computedPeaks = audio.getPeaks(600);
 				if (computedPeaks.length > 0) {
 					peaks = computedPeaks;
@@ -232,6 +280,7 @@
 				}
 			});
 		}
+		return true;
 	}
 
 	async function computeHash(path: string): Promise<string> {
@@ -281,7 +330,13 @@
 	function fadeOut() {
 		audio.fadeOut(3000);
 		if (fadeOutTimer !== null) clearTimeout(fadeOutTimer);
-		fadeOutTimer = setTimeout(unload, 3500);
+		fadeOutTimer = setTimeout(() => {
+			unload();
+			// Queue advancement contract: fade-out completion is treated like a natural
+			// end so the linked queue's autoplay handler pushes the next song. Manual
+			// eject (which also calls unload) intentionally stays silent.
+			eventBus.emit(`deck:${instanceId}:ended`, undefined);
+		}, 3500);
 	}
 
 	const formatTime = (seconds: number) => {
@@ -405,39 +460,6 @@
 			</div>
 		</div>
 
-		<!-- Settings panel -->
-		{#if showSettings}
-			<div
-				class="mx-2 mb-1.5 flex flex-col gap-2 rounded border border-primary-700 bg-primary-900 p-2 text-xs"
-			>
-				<label class="flex cursor-pointer items-center gap-2 text-primary-200">
-					<input
-						type="checkbox"
-						checked={currentSettings.sendMetadata}
-						onchange={(e) =>
-							updateSettings({ sendMetadata: (e.target as HTMLInputElement).checked })}
-						class="accent-secondary-500"
-					/>
-					Send metadata
-				</label>
-				<label class="flex flex-col gap-1">
-					<span class="tracking-wide text-primary-500 uppercase" style="font-size: 0.625rem">
-						Queue ID
-					</span>
-					<input
-						type="text"
-						value={currentSettings.acceptsFromQueueId ?? ''}
-						oninput={(e) => {
-							const value = (e.target as HTMLInputElement).value.trim();
-							updateSettings({ acceptsFromQueueId: value || null });
-						}}
-						placeholder="none"
-						class="rounded border border-primary-600 bg-primary-800 px-2 py-1 text-primary-100 outline-none focus:border-secondary-500"
-					/>
-				</label>
-			</div>
-		{/if}
-
 		<!-- Waveform (flex-1, takes all remaining vertical space) -->
 		<div class="min-h-0 flex-1 px-2 pb-2">
 			<div class="h-full overflow-hidden rounded bg-primary-900">
@@ -474,6 +496,14 @@
 		</div>
 	</div>
 </div>
+
+{#if showSettings}
+	<DeckSettingsModal
+		sendMetadata={currentSettings.sendMetadata}
+		onChange={(next) => updateSettings(next)}
+		onClose={() => (showSettings = false)}
+	/>
+{/if}
 
 <style>
 	.time-label {

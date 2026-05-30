@@ -30,20 +30,24 @@ export function buildDefaultLayout(): Layout {
 	const now = Date.now();
 	const queueId = crypto.randomUUID();
 
+	const deckA = makeInstance('deck', 'A', 20, 60, 420, 280, 1, { sendMetadata: true });
+	const deckB = makeInstance('deck', 'B', 460, 60, 420, 280, 2, { sendMetadata: true });
+	const deckAux = makeInstance('deck', 'Aux', 900, 60, 420, 280, 3, { sendMetadata: false });
+
+	const queueInstance: ModuleInstanceRecord = {
+		...makeInstance('queue', 'Main Queue', 20, 360, 320, 320, 4, {
+			autoplay: false,
+			linkedDeckIds: [deckA.id, deckB.id]
+		}),
+		id: queueId,
+		layoutId: id
+	};
+
 	const instances: ModuleInstanceRecord[] = [
-		makeInstance('deck', 'A', 20, 60, 420, 280, 1, {
-			sendMetadata: true,
-			acceptsFromQueueId: queueId
-		}),
-		makeInstance('deck', 'B', 460, 60, 420, 280, 2, {
-			sendMetadata: true,
-			acceptsFromQueueId: queueId
-		}),
-		makeInstance('deck', 'Aux', 900, 60, 420, 280, 3, {
-			sendMetadata: false,
-			acceptsFromQueueId: null
-		}),
-		{ ...makeInstance('queue', 'Main Queue', 20, 360, 320, 320, 4), id: queueId, layoutId: id },
+		deckA,
+		deckB,
+		deckAux,
+		queueInstance,
 		makeInstance('crossfader', '', 360, 360, 360, 220, 5),
 		makeInstance('microphone', '', 740, 360, 280, 220, 6),
 		makeInstance('encoders', '', 20, 700, 480, 260, 7),

@@ -27,8 +27,8 @@
 
 	$effect(() => {
 		const [gainA, gainB] = applyCurve(position, curve);
-		if (leftDeckId) eventBus.emit(`${leftDeckId}:setVolume`, gainA);
-		if (rightDeckId) eventBus.emit(`${rightDeckId}:setVolume`, gainB);
+		if (leftDeckId) eventBus.emit(`deck:${leftDeckId}:setVolume`, gainA);
+		if (rightDeckId) eventBus.emit(`deck:${rightDeckId}:setVolume`, gainB);
 	});
 
 	function startCrossfade() {

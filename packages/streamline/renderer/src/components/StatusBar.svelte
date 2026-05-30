@@ -6,6 +6,7 @@
 
 	let cpuUsage = $state(0);
 	let time = $state(formatTime(new Date()));
+	let version = $state('');
 	const encoderStatuses = new SvelteMap<string, EncoderStatus>();
 
 	let cpuTimer: ReturnType<typeof setInterval>;
@@ -14,6 +15,9 @@
 	onMount(() => {
 		window.streamline.onEncoderStatus((id, status) => {
 			encoderStatuses.set(id, status as EncoderStatus);
+		});
+		window.streamline.api.system.getAppVersion().then((v) => {
+			version = v;
 		});
 		cpuTimer = setInterval(async () => {
 			cpuUsage = await window.streamline.api.system.getCpuUsage();
@@ -48,10 +52,19 @@
 </script>
 
 <div
-	class="flex items-center gap-4 border-t border-primary-800 bg-primary-950 px-4 py-1.5 text-xs text-primary-400 select-none"
+	class="flex items-center border-t border-primary-800 bg-primary-950 px-4 py-1.5 text-xs text-primary-400 select-none"
 >
-	<OnAirIndicator active={activeEncoders > 0} />
-	<span class={encoderColor}>{activeEncoders} encoder{activeEncoders !== 1 ? 's' : ''} active</span>
-	<span class="ml-auto">CPU: {Math.round(cpuUsage)}%</span>
-	<span class="font-mono">{time}</span>
+	<div class="flex flex-1 items-center gap-4">
+		<OnAirIndicator active={activeEncoders > 0} />
+		<span class={encoderColor}
+			>{activeEncoders} encoder{activeEncoders !== 1 ? 's' : ''} active</span
+		>
+	</div>
+	<div class="flex flex-1 justify-center">
+		<span>Streamline <span class="text-primary-600">&bull;</span> v{version}</span>
+	</div>
+	<div class="flex flex-1 items-center justify-end gap-4">
+		<span>CPU: {Math.round(cpuUsage)}%</span>
+		<span class="font-mono">{time}</span>
+	</div>
 </div>

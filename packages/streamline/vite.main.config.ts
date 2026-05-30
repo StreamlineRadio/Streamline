@@ -15,6 +15,9 @@ function copyMigrations(): Plugin {
 }
 
 export default defineConfig({
+	define: {
+		__UPDATE_CHANNEL__: JSON.stringify(process.env.STREAMLINE_CHANNEL ?? 'stable')
+	},
 	build: {
 		rollupOptions: {
 			external: ['better-sqlite3']

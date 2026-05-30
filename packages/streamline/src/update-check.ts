@@ -52,21 +52,27 @@ export function resolveUpdate(args: {
 export async function checkForUpdates(): Promise<void> {
 	if (!app.isPackaged) return;
 
+	const channel: Channel = __UPDATE_CHANNEL__;
+	const api =
+		channel === 'nightly'
+			? 'https://api.github.com/repos/StreamlineRadio/Streamline/releases/tags/nightly'
+			: RELEASES_API;
+
 	try {
-		const releaseResponse = await fetch(RELEASES_API, {
+		const releaseResponse = await fetch(api, {
 			headers: { 'User-Agent': 'Streamline-App' }
 		});
 		if (!releaseResponse.ok) return;
 
-		const { tag_name } = (await releaseResponse.json()) as { tag_name: string };
-		if (!tag_name || !isNewerVersion(tag_name, app.getVersion())) return;
+		const release = (await releaseResponse.json()) as ReleaseInfo;
+		const notice = resolveUpdate({ channel, currentVersion: app.getVersion(), release });
+		if (!notice) return;
 
-		const version = tag_name.replace(/^v/, '');
 		const notification = new Notification({
 			title: 'Streamline update available',
-			body: `Version ${version} is available. Click to download.`
+			body: `Version ${notice.version} is available. Click to download.`
 		});
-		notification.on('click', () => shell.openExternal(RELEASES_PAGE));
+		notification.on('click', () => shell.openExternal(notice.url));
 		notification.show();
 	} catch {
 		// silently ignore - a failed check must never crash the app

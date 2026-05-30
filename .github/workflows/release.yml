@@ -46,9 +46,11 @@ jobs:
       - run: pnpm install
 
       - run: pnpm package
+        env:
+          STREAMLINE_CHANNEL: stable
 
       - name: Upload artifacts to release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.release-please.outputs.tag_name }}
-          files: packages/electron/out/make/**/*
+          files: packages/streamline/out/make/**/*

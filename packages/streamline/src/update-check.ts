@@ -16,6 +16,11 @@ export interface UpdateNotice {
 	url: string;
 }
 
+function parseNightlySha(version: string): string | null {
+	const match = /-nightly\.([0-9a-f]+)/.exec(version);
+	return match ? match[1] : null;
+}
+
 function isNewerVersion(remote: string, current: string): boolean {
 	const parse = (v: string) => v.replace(/^v/, '').split('.').map(Number);
 	const [rMaj, rMin, rPat] = parse(remote);
@@ -38,7 +43,10 @@ export function resolveUpdate(args: {
 		return { version: release.tag_name.replace(/^v/, ''), url: RELEASES_PAGE };
 	}
 
-	return null; // nightly branch implemented in Task 3
+	const localSha = parseNightlySha(currentVersion);
+	const remoteSha = release.name ? parseNightlySha(release.name) : null;
+	if (!localSha || !remoteSha || localSha === remoteSha) return null;
+	return { version: release.name as string, url: release.html_url };
 }
 
 export async function checkForUpdates(): Promise<void> {

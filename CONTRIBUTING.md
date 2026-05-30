@@ -9,7 +9,7 @@ Thanks for your interest in contributing! Streamline is a pnpm monorepo — read
 **Prerequisites:**
 
 - Node 24 — use [nvm](https://github.com/nvm-sh/nvm) with the `.nvmrc` in the repo root (`nvm use`)
-- pnpm 10.4.1 or later — `npm install -g pnpm`
+- pnpm 11 or later — `npm install -g pnpm` (the repo pins `pnpm@11.4.0` via `packageManager`)
 
 **Install dependencies:**
 
@@ -53,12 +53,25 @@ Formatting is enforced by the linter. Don't spend time on manual formatting deba
 
 ## Submitting Changes
 
-- Branch off `main`
-- Keep commits focused — one logical change per commit
-- No issue required before opening a PR
+`main` is protected — you can't push to it directly. **All changes go through a pull request**, and every PR is **squash-merged**: your branch collapses into a single commit on `main`.
+
+- Branch off `main` and open a PR — no issue required first
 - Your PR description should explain **what** changed and **why**
-- Follow [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) for commit messages
 - If applicable, add tests and update documentation
+
+### PR titles must follow Conventional Commits
+
+Because every PR is squashed into one commit, **the PR title becomes that commit's message** and is what drives the changelog. So the title — not your individual commits — must follow [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/):
+
+```text
+feat: add crossfade support
+fix(ipc): handle null device on reconnect
+chore!: drop support for Node 22
+```
+
+Allowed types: `feat`, `fix`, `chore`, `docs`, `style`, `refactor`, `test`, `build`, `ci`, `perf`, `revert`. A CI check enforces this on the PR title.
+
+Your **commit messages on the branch don't need to follow this format** — they're discarded when the PR is squashed, so commit however helps you work. (They still need a DCO sign-off — see below.)
 
 ---
 

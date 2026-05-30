@@ -1,0 +1,102 @@
+name: Nightly
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nightly
+  cancel-in-progress: true
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      short_sha: ${{ steps.meta.outputs.short_sha }}
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute metadata
+        id: meta
+        run: |
+          # Short commit sha used for the nightly version and release title
+          echo "short_sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Generate changelog since last stable tag
+        run: |
+          # Newest stable tag (vX.Y.Z); empty if none exists yet
+          last_tag="$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || true)"
+          if [ -n "$last_tag" ]; then
+            # Diff from the last stable release up to HEAD
+            npx --yes git-cliff@latest "${last_tag}..HEAD" --output NIGHTLY_NOTES.md
+          else
+            # No stable release yet: changelog over full history
+            npx --yes git-cliff@latest --output NIGHTLY_NOTES.md
+          fi
+
+      - name: Replace the nightly pre-release (draft)
+        run: |
+          # Remove the previous nightly release and its tag, ignore if absent
+          gh release delete nightly --cleanup-tag --yes || true
+          # Recreate as a draft pre-release targeting this commit
+          gh release create nightly \
+            --prerelease \
+            --draft \
+            --target "$GITHUB_SHA" \
+            --title "0.0.1-nightly.${{ steps.meta.outputs.short_sha }}" \
+            --notes-file NIGHTLY_NOTES.md
+
+  build:
+    name: Build (${{ matrix.os }})
+    needs: prepare
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install Linux build dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get install -y rpm
+
+      - run: pnpm install
+
+      - name: Set nightly version
+        run: pnpm --filter streamline exec npm version --no-git-tag-version "0.0.1-nightly.${{ needs.prepare.outputs.short_sha }}"
+
+      - name: Package
+        run: pnpm package
+        env:
+          STREAMLINE_CHANNEL: nightly
+
+      - name: Upload artifacts to the nightly release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: nightly
+          files: packages/streamline/out/make/**/*
+
+  finalize:
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Publish the nightly release
+        run: gh release edit nightly --draft=false

@@ -141,6 +141,9 @@
 	});
 
 	onDestroy(() => {
+		// Invalidate any in-flight loadSong so its async callbacks bail out instead of
+		// emitting 'loaded'/restoring state after this deck has emitted 'unloaded'.
+		loadGeneration++;
 		cancelAnimationFrame(positionAnimationFrameId);
 		clearInterval(deckStateTimer);
 		if (fadeOutTimer !== null) clearTimeout(fadeOutTimer);
@@ -218,6 +221,9 @@
 			emitState('loaded');
 		} catch (error) {
 			if (generation !== loadGeneration) return false;
+			// If readAudioFile threw, audio.load (which stops the previous source) never
+			// ran, so the prior track would keep playing under the now-empty deck. Stop it.
+			audio.stop();
 			song = null;
 			artworkDataUrl = null;
 			duration = 0;

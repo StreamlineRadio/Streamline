@@ -51,7 +51,7 @@ jobs:
             --prerelease \
             --draft \
             --target "$GITHUB_SHA" \
-            --title "0.0.1-nightly.${{ steps.meta.outputs.short_sha }}" \
+            --title "0.0.1-nightly.g${{ steps.meta.outputs.short_sha }}" \
             --notes-file NIGHTLY_NOTES.md
 
   build:
@@ -78,7 +78,7 @@ jobs:
       - run: pnpm install
 
       - name: Set nightly version
-        run: pnpm --filter streamline exec npm version --no-git-tag-version "0.0.1-nightly.${{ needs.prepare.outputs.short_sha }}"
+        run: pnpm --filter streamline exec npm version --no-git-tag-version "0.0.1-nightly.g${{ needs.prepare.outputs.short_sha }}"
 
       - name: Package
         run: pnpm package

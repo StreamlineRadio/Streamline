@@ -17,7 +17,7 @@ export interface UpdateNotice {
 }
 
 function parseNightlySha(version: string): string | null {
-	const match = /-nightly\.([0-9a-f]+)/.exec(version);
+	const match = /-nightly\.g([0-9a-f]+)/.exec(version);
 	return match ? match[1] : null;
 }
 

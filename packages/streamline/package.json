@@ -6,7 +6,7 @@
 	"main": ".vite/build/main.js",
 	"private": true,
 	"scripts": {
-		"postinstall": "cd ../.. && electron-rebuild -f -w better-sqlite3",
+		"pretest": "pnpm rebuild better-sqlite3",
 		"dev": "electron-forge start",
 		"start": "electron-forge start",
 		"make": "electron-forge make",

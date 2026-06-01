@@ -7,8 +7,25 @@ import { MakerAppImage } from '@reforged/maker-appimage';
 import { VitePlugin } from '@electron-forge/plugin-vite';
 import { FusesPlugin } from '@electron-forge/plugin-fuses';
 import { FuseV1Options, FuseVersion } from '@electron/fuses';
+import { cpSync } from 'node:fs';
+import { join } from 'node:path';
+
+const WORKSPACE_ROOT = join(__dirname, '..', '..');
 
 const config: ForgeConfig = {
+	hooks: {
+		packageAfterCopy: async (_forgeConfig, buildPath) => {
+			for (const moduleName of ['better-sqlite3', 'ffmpeg-static']) {
+				cpSync(
+					join(WORKSPACE_ROOT, 'node_modules', moduleName),
+					join(buildPath, 'node_modules', moduleName),
+					{
+						recursive: true
+					}
+				);
+			}
+		}
+	},
 	packagerConfig: {
 		asar: { unpack: '{node_modules/better-sqlite3/**,node_modules/ffmpeg-static/**}' },
 		name: 'Streamline',

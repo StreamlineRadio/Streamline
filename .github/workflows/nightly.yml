@@ -3,7 +3,7 @@ name: Nightly
 on:
   push:
     branches:
-      - main
+      - feat/nightly-releases # Testing,  for now.
 
 permissions:
   contents: write

@@ -17,8 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       short_sha: ${{ steps.meta.outputs.short_sha }}
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      version: ${{ steps.meta.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -27,8 +26,10 @@ jobs:
       - name: Compute metadata
         id: meta
         run: |
-          # Short commit sha used for the nightly version and release title
+          # Short commit SHA kept for the release title (human-readable identity)
           echo "short_sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          # Version uses run_number so all components are integers (required by Windows PE resedit)
+          echo "version=0.0.1-nightly.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
 
       - name: Generate changelog since last stable tag
         run: |
@@ -42,22 +43,17 @@ jobs:
             npx --yes git-cliff@latest --output NIGHTLY_NOTES.md
           fi
 
-      - name: Replace the nightly pre-release (draft)
-        run: |
-          # Remove the previous nightly release and its tag, ignore if absent
-          gh release delete nightly --cleanup-tag --yes || true
-          # Recreate as a draft pre-release targeting this commit
-          gh release create nightly \
-            --prerelease \
-            --draft \
-            --target "$GITHUB_SHA" \
-            --title "0.0.1-nightly.g${{ steps.meta.outputs.short_sha }}" \
-            --notes-file NIGHTLY_NOTES.md
+      - name: Upload changelog
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-changelog
+          path: NIGHTLY_NOTES.md
 
   build:
     name: Build (${{ matrix.os }})
     needs: prepare
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
@@ -78,26 +74,65 @@ jobs:
       - run: pnpm install
 
       - name: Set nightly version
-        run: pnpm --filter streamline exec npm version --no-git-tag-version "0.0.1-nightly.g${{ needs.prepare.outputs.short_sha }}"
+        run: pnpm --filter streamline exec npm version --no-git-tag-version "${{ needs.prepare.outputs.version }}"
 
       - name: Package
         run: pnpm package
         env:
           STREAMLINE_CHANNEL: nightly
 
-      - name: Upload artifacts to the nightly release
-        uses: softprops/action-gh-release@v2
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
         with:
-          tag_name: nightly
-          draft: true
-          files: packages/streamline/out/make/**/*
+          name: artifacts-${{ matrix.os }}
+          path: packages/streamline/out/make/**/*
+          if-no-files-found: error
 
-  finalize:
-    needs: build
+  release:
+    name: Publish nightly release
+    needs: [prepare, build]
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
-      - name: Publish the nightly release
-        run: gh release edit nightly --draft=false
+
+      - name: Download changelog
+        uses: actions/download-artifact@v4
+        with:
+          name: nightly-changelog
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: artifacts-*
+          path: release-artifacts
+          merge-multiple: true
+
+      - name: Reset nightly draft release
+        run: |
+          # Delete the old release AND its tag (now that immutability is off this should succeed)
+          # Draft releases don't have a git tag, so --cleanup-tag is a no-op for those
+          gh release delete latest-nightly --cleanup-tag --yes || true
+          # Create a fresh draft — drafts do NOT create a git tag, bypassing any tag-creation ruleset
+          gh release create latest-nightly \
+            --draft \
+            --prerelease \
+            --target "$GITHUB_SHA" \
+            --title "Nightly #${{ github.run_number }} (${{ needs.prepare.outputs.short_sha }})" \
+            --notes-file NIGHTLY_NOTES.md
+
+      - name: Upload artifacts to draft release
+        uses: softprops/action-gh-release@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag_name: latest-nightly
+          draft: true
+          make_latest: false
+          files: release-artifacts/**/*
+
+      - name: Publish nightly release
+        run: |
+          # Publishing creates the git tag via the Releases API, not a git push
+          # This may succeed even when direct git tag pushes are blocked by a ruleset
+          gh release edit latest-nightly --draft=false

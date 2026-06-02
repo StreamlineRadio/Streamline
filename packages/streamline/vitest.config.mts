@@ -10,6 +10,30 @@ export default defineConfig({
 		environment: 'node',
 		include: ['renderer/src/**/*.{test,spec}.{js,ts}', 'src/**/*.{test,spec}.{js,ts}'],
 		setupFiles: ['./vitest.setup.ts'],
-		environmentMatchGlobs: [['renderer/src/**/*.component.spec.ts', 'jsdom']]
+		environmentMatchGlobs: [['renderer/src/**/*.component.spec.ts', 'jsdom']],
+		coverage: {
+			provider: 'v8',
+			thresholds: { lines: 0, functions: 0, branches: 0, statements: 0 },
+			include: ['src/**/*.ts', 'renderer/src/**/*.ts', 'renderer/src/**/*.svelte'],
+			exclude: [
+				'src/main.ts',
+				'src/preload.ts',
+				'src/logging/index.ts',
+				'src/ipc/register.ts',
+				'src/globals.d.ts',
+				'renderer/src/main.ts',
+				'renderer/src/env.d.ts',
+				'renderer/src/App.svelte',
+				'renderer/src/modules/manifest.ts',
+				'renderer/src/modules/crossfader/manifest.ts',
+				'renderer/src/modules/deck/manifest.ts',
+				'renderer/src/modules/deck/types.ts',
+				'renderer/src/modules/encoders/manifest.ts',
+				'renderer/src/modules/local-output/manifest.ts',
+				'renderer/src/modules/microphone/manifest.ts',
+				'renderer/src/modules/mixer/manifest.ts',
+				'renderer/src/modules/queue/manifest.ts'
+			]
+		}
 	}
 });

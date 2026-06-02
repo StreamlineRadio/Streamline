@@ -7,23 +7,30 @@ import { MakerAppImage } from '@reforged/maker-appimage';
 import { VitePlugin } from '@electron-forge/plugin-vite';
 import { FusesPlugin } from '@electron-forge/plugin-fuses';
 import { FuseV1Options, FuseVersion } from '@electron/fuses';
-import { cpSync } from 'node:fs';
+import { cpSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 
 const WORKSPACE_ROOT = join(__dirname, '..', '..');
+const HOISTED_NATIVE_MODULES = ['better-sqlite3', 'bindings', 'file-uri-to-path', 'ffmpeg-static'];
 
 const config: ForgeConfig = {
 	hooks: {
 		packageAfterCopy: async (_forgeConfig, buildPath) => {
-			for (const moduleName of ['better-sqlite3', 'ffmpeg-static']) {
+			for (const moduleName of HOISTED_NATIVE_MODULES) {
 				cpSync(
 					join(WORKSPACE_ROOT, 'node_modules', moduleName),
 					join(buildPath, 'node_modules', moduleName),
-					{
-						recursive: true
-					}
+					{ recursive: true }
 				);
 			}
+			// The workspace root's better-sqlite3 may have a .forge-meta left from a previous `pnpm dev`
+			// run that claims the correct Electron ABI — but the .node itself was subsequently recompiled
+			// for system Node by the `pretest` hook. Forge's rebuildConfig sees the stale marker and skips
+			// recompilation, leaving an ABI-mismatched binary in the package. Removing it forces a fresh
+			// rebuild against the correct Electron headers.
+			rmSync(join(buildPath, 'node_modules', 'better-sqlite3', 'build', 'Release', '.forge-meta'), {
+				force: true
+			});
 		}
 	},
 	packagerConfig: {

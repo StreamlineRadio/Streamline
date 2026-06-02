@@ -9,6 +9,7 @@ let tapNode: AudioWorkletNode | null = null;
 
 export function getMasterBus(): GainNode {
 	if (!masterBus) throw new Error('Mixer not initialized — call initMixer() first');
+	/* v8 ignore next 2 — masterBus is always null in jsdom; initMixer is already ignored */
 	return masterBus;
 }
 

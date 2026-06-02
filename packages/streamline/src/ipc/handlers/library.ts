@@ -108,6 +108,7 @@ export function registerLibraryHandlers(): void {
 			const meta = await parseAudioFile(filePath, { skipCovers: false, duration: false });
 			const picture = meta.common.picture?.[0];
 			if (!picture) return null;
+			/* v8 ignore next — base64 artwork return path requires a real audio file with embedded art */
 			return `data:${picture.format};base64,${Buffer.from(picture.data).toString('base64')}`;
 		} catch {
 			return null;

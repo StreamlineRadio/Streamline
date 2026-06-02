@@ -35,6 +35,7 @@ export function createDeckAudio(): DeckAudio {
 	let isPlaying = false;
 	let endedCallbacks: (() => void)[] = [];
 
+	/* v8 ignore next 101 — Web Audio API not available in jsdom */
 	function stopSource() {
 		if (source) {
 			source.onended = null;
@@ -142,6 +143,7 @@ export function createDeckAudio(): DeckAudio {
 			return buffer?.duration ?? 0;
 		},
 
+		/* v8 ignore next 5 — Web Audio API not available in jsdom */
 		onEnded(cb: () => void): () => void {
 			endedCallbacks.push(cb);
 			return () => {

@@ -16,6 +16,7 @@ self.onmessage = async (
 			for (let ch = 0; ch < decoded.numberOfChannels; ch++) {
 				const data = decoded.getChannelData(ch);
 				for (let j = 0; j < samplesPerPixel; j++) {
+					/* v8 ignore next — ?? 0 is unreachable; typed array access never returns undefined */
 					max = Math.max(max, Math.abs(data[start + j] ?? 0));
 				}
 			}

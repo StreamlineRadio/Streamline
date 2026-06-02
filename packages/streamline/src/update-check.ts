@@ -49,6 +49,7 @@ export function resolveUpdate(args: {
 	return { version: release.name as string, url: release.html_url };
 }
 
+/* v8 ignore next 30 — requires packaged Electron app, network access, and Notification API */
 export async function checkForUpdates(): Promise<void> {
 	if (!app.isPackaged) return;
 

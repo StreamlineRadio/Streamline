@@ -13,13 +13,16 @@ export default defineConfig({
 		environmentMatchGlobs: [['renderer/src/**/*.component.spec.ts', 'jsdom']],
 		coverage: {
 			provider: 'v8',
-			thresholds: { lines: 0, functions: 0, branches: 0, statements: 0 },
+			thresholds: { lines: 100, functions: 100, branches: 100, statements: 100 },
 			include: ['src/**/*.ts', 'renderer/src/**/*.ts', 'renderer/src/**/*.svelte'],
 			exclude: [
+				'**/*.spec.ts',
 				'src/main.ts',
 				'src/preload.ts',
 				'src/logging/index.ts',
 				'src/ipc/register.ts',
+				'src/db/index.ts',
+				'src/db/schema.ts',
 				'src/globals.d.ts',
 				'renderer/src/main.ts',
 				'renderer/src/env.d.ts',

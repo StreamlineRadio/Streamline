@@ -318,11 +318,13 @@
 		items = [];
 	}
 
+	/* v8 ignore next 4 — Electron file dialog not available in jsdom */
 	async function addFolder() {
 		const folder = await window.streamline.api.system.selectFolder();
 		if (folder) await window.streamline.api.library.addFolder(folder);
 	}
 
+	/* v8 ignore next 26 — requires Electron IPC and file system */
 	async function songFromPath(path: string): Promise<Song> {
 		const match = await window.streamline.api.library.getSongByPath(path);
 		if (match) return match;
@@ -350,6 +352,7 @@
 		};
 	}
 
+	/* v8 ignore next 6 — requires Electron IPC and file system */
 	async function addSongFile() {
 		const path = await window.streamline.api.system.selectFile([
 			{ name: 'Audio Files', extensions: ['mp3', 'flac', 'wav', 'aac', 'ogg', 'm4a', 'opus'] }
@@ -357,6 +360,7 @@
 		if (path) addSong(await songFromPath(path));
 	}
 
+	/* v8 ignore next 10 — drag-and-drop events not triggered in jsdom */
 	async function handleDrop(e: DragEvent) {
 		e.preventDefault();
 		wasIntraQueueDrop = true;
@@ -368,6 +372,7 @@
 		}
 	}
 
+	/* v8 ignore next 16 — drag-and-drop events not triggered in jsdom */
 	async function handleRowDrop(e: DragEvent, targetIndex: number) {
 		e.preventDefault();
 		// Drops bubble: without stopping propagation, handleDrop on the queue container
@@ -384,12 +389,14 @@
 		dragIndex = null;
 	}
 
+	/* v8 ignore next 5 — drag-and-drop events not triggered in jsdom */
 	function handleRowDragStart(e: DragEvent, item: QueueItem, index: number) {
 		dragIndex = index;
 		wasIntraQueueDrop = false;
 		setSongDragData(e, item.song);
 	}
 
+	/* v8 ignore next 7 — drag-and-drop events not triggered in jsdom */
 	function handleRowDragEnd(e: DragEvent, item: QueueItem) {
 		if (!wasIntraQueueDrop && e.dataTransfer?.dropEffect === 'move') {
 			removeSong(item.id);

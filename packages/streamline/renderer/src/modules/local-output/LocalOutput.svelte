@@ -30,6 +30,7 @@
 		try {
 			await audioEl.play();
 		} catch (err) {
+			/* v8 ignore next 2 — Web Audio + setSinkId not available in jsdom */
 			console.error('[LocalOutput] audioEl.play() failed:', err);
 		}
 
@@ -52,6 +53,7 @@
 		devices = all.filter((d) => d.kind === 'audiooutput');
 	}
 
+	/* v8 ignore next 17 — Web Audio + setSinkId not available in jsdom */
 	async function changeDevice(deviceId: string) {
 		const previousDeviceId = selectedDeviceId;
 		selectedDeviceId = deviceId;

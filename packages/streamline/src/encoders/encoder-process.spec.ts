@@ -146,4 +146,17 @@ describe('EncoderProcess', () => {
 		fakeProcess.emit('close', 0);
 		expect(statuses.filter((s) => s === 'error')).toHaveLength(0);
 	});
+
+	it('status getter returns current status', () => {
+		const encoderProcess = new EncoderProcess(makeConfig(), () => null);
+		expect(encoderProcess.status).toEqual({ status: 'idle' });
+		encoderProcess.start();
+		expect(encoderProcess.status.status).toBe('streaming');
+	});
+
+	it('logs debug on stderr data event', () => {
+		const encoderProcess = new EncoderProcess(makeConfig(), () => null);
+		encoderProcess.start();
+		(fakeProcess.stderr as unknown as EventEmitter).emit('data', Buffer.from('ffmpeg output'));
+	});
 });

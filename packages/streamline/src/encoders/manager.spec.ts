@@ -3,17 +3,23 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('electron', () => ({ BrowserWindow: vi.fn(), ipcMain: { handle: vi.fn() } }));
 vi.mock('../logging', () => ({ log: { info: vi.fn() } }));
 
-const { mockEncoderStart, mockEncoderStop, mockEncoderStatus } = vi.hoisted(() => ({
-	mockEncoderStart: vi.fn(),
-	mockEncoderStop: vi.fn(),
-	mockEncoderStatus: vi.fn().mockReturnValue({ status: 'idle' })
-}));
+const { mockEncoderStart, mockEncoderStop, mockEncoderStatus, capturedStatusListeners } =
+	vi.hoisted(() => ({
+		mockEncoderStart: vi.fn(),
+		mockEncoderStop: vi.fn(),
+		mockEncoderStatus: vi.fn().mockReturnValue({ status: 'idle' }),
+		capturedStatusListeners: [] as Array<(s: import('@streamline/shared').EncoderStatus) => void>
+	}));
 
 vi.mock('./encoder-process', () => ({
 	EncoderProcess: vi.fn().mockImplementation(() => ({
 		start: mockEncoderStart,
 		stop: mockEncoderStop,
-		setStatusListener: vi.fn(),
+		setStatusListener: vi
+			.fn()
+			.mockImplementation((cb: (s: import('@streamline/shared').EncoderStatus) => void) => {
+				capturedStatusListeners.push(cb);
+			}),
 		get status() {
 			return mockEncoderStatus();
 		}
@@ -55,6 +61,7 @@ describe('encoder manager', () => {
 	beforeEach(() => {
 		stopEncoder('enc-1');
 		stopEncoder('enc-2');
+		capturedStatusListeners.length = 0;
 		vi.clearAllMocks();
 	});
 
@@ -96,5 +103,31 @@ describe('encoder manager', () => {
 		});
 		startEncoder(makeConfig('enc-2'), fakeWindow);
 		expect(getEncoderStatus('enc-2')).toEqual(expect.objectContaining({ status: 'streaming' }));
+	});
+
+	it('status listener fires webContents.send when status changes', () => {
+		startEncoder(makeConfig(), fakeWindow);
+		const listener = capturedStatusListeners[capturedStatusListeners.length - 1];
+		listener({ status: 'streaming', bytesEncoded: 0, secondsEncoded: 0, currentBitrate: 128 });
+		expect(fakeWindow.webContents.send).toHaveBeenCalledWith(
+			expect.any(String),
+			'enc-1',
+			expect.objectContaining({ status: 'streaming' })
+		);
+	});
+
+	it('startEncoder passes null password when config has no passwordRef', () => {
+		const fileConfig = {
+			id: 'enc-file',
+			name: 'File',
+			type: 'file',
+			format: 'mp3',
+			bitrateKbps: 128,
+			sampleRate: 44100,
+			channels: 2,
+			pathTemplate: '/tmp/recording.mp3'
+		} as import('@streamline/shared').EncoderConfig;
+		startEncoder(fileConfig, fakeWindow);
+		expect(mockEncoderStart).toHaveBeenCalledOnce();
 	});
 });

@@ -6,6 +6,7 @@ import { createHash } from 'node:crypto';
 
 const SUPPORTED_EXTENSIONS = new Set(['.mp3', '.m4a', '.aac', '.flac', '.wav', '.ogg', '.opus']);
 
+/* v8 ignore next 9 — runs inside a Worker thread; filesystem traversal tested by integration */
 async function* walk(directory: string): AsyncGenerator<string> {
 	const entries = await readdir(directory, { withFileTypes: true });
 	for (const entry of entries) {
@@ -20,6 +21,7 @@ export function songId(filePath: string, size: number, mtime: number): string {
 	return createHash('sha256').update(`${filePath}|${size}|${mtime}`).digest('hex').slice(0, 32);
 }
 
+/* v8 ignore next 44 — entire worker execution runs only in Worker thread context */
 async function run() {
 	const { folder } = workerData as { folder: string };
 	let count = 0;

@@ -36,6 +36,7 @@ export function createTripleTapHandler(onFire: () => void): (event: KeyboardEven
 	};
 }
 
+/* v8 ignore next 32 — complex IPC flow that resets stores; covered by integration/E2E */
 export async function resetToDefault(): Promise<void> {
 	const existingLayoutId = layoutStore.active?.id;
 

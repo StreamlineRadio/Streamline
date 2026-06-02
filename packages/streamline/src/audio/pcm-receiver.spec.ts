@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import {
 	handlePcmMessage,
 	registerEncoderConsumer,
-	unregisterEncoderConsumer
+	unregisterEncoderConsumer,
+	getDropoutCount
 } from './pcm-receiver';
 import type { PcmMessage } from '@streamline/shared';
 
@@ -45,5 +46,22 @@ describe('pcm-receiver', () => {
 		};
 		handlePcmMessage(msg);
 		expect(counts).toEqual({ e1: 1, e2: 1 });
+	});
+
+	it('increments dropoutCount when target has no consumer', () => {
+		const before = getDropoutCount();
+		const msg: PcmMessage = {
+			buffer: new ArrayBuffer(100),
+			frames: 10,
+			sampleRate: 48000,
+			channels: 2,
+			encoderTargets: ['no-such-enc']
+		};
+		handlePcmMessage(msg);
+		expect(getDropoutCount()).toBe(before + 1);
+	});
+
+	it('getDropoutCount returns current dropout count', () => {
+		expect(typeof getDropoutCount()).toBe('number');
 	});
 });

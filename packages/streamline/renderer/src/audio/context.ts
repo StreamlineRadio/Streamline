@@ -2,6 +2,7 @@ let _audioCtx: AudioContext | null = null;
 
 export function getAudioContext(): AudioContext {
 	if (!_audioCtx) {
+		/* v8 ignore next — AudioContext constructor only available in browser */
 		_audioCtx = new AudioContext({ sampleRate: 48000, latencyHint: 'interactive' });
 	}
 	return _audioCtx;

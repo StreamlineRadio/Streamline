@@ -1,8 +1,11 @@
+export {};
+
 self.onmessage = async (
 	e: MessageEvent<{ arrayBuffer: ArrayBuffer; hash: string; pixelWidth: number }>
 ) => {
 	const { arrayBuffer, hash, pixelWidth } = e.data;
 	try {
+		/* v8 ignore next — OfflineAudioContext is browser-only; tested with a stub */
 		const offlineAudioCtx = new OfflineAudioContext(1, 1, 44100);
 		const decoded = await offlineAudioCtx.decodeAudioData(arrayBuffer.slice(0));
 		const samplesPerPixel = Math.floor(decoded.length / pixelWidth);

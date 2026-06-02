@@ -31,6 +31,7 @@
 		if (rightDeckId) eventBus.emit(`deck:${rightDeckId}:setVolume`, gainB);
 	});
 
+	/* v8 ignore next 19 — requestAnimationFrame not available in jsdom */
 	function startCrossfade() {
 		if (isAnimating) return;
 		const from = position;
@@ -51,6 +52,7 @@
 		animRaf = requestAnimationFrame(tick);
 	}
 
+	/* v8 ignore next 6 — requestAnimationFrame not available in jsdom */
 	function cancelAnimation() {
 		if (animRaf) {
 			cancelAnimationFrame(animRaf);

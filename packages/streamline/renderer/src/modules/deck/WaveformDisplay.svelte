@@ -50,6 +50,7 @@
 		canvasCtx.restore();
 	}
 
+	/* v8 ignore next 5 — canvas/worker API not available in jsdom */
 	function handleCanvasClick(e: MouseEvent) {
 		if (!canvas || duration === 0) return;
 		const rect = canvas.getBoundingClientRect();

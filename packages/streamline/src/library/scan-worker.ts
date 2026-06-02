@@ -65,6 +65,7 @@ async function run() {
 	parentPort!.postMessage({ type: 'done', total: count });
 }
 
+/* v8 ignore next 3 — worker bootstrap; only runs in Worker thread context */
 if (parentPort !== null) {
 	run().catch((err) => parentPort!.postMessage({ type: 'fatal', error: String(err) }));
 }

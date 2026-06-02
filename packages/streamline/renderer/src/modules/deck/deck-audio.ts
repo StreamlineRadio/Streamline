@@ -143,7 +143,7 @@ export function createDeckAudio(): DeckAudio {
 			return buffer?.duration ?? 0;
 		},
 
-		/* v8 ignore next 5 — Web Audio API not available in jsdom */
+		/* v8 ignore next 6 — Web Audio API not available in jsdom */
 		onEnded(cb: () => void): () => void {
 			endedCallbacks.push(cb);
 			return () => {

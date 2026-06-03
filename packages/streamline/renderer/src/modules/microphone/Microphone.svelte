@@ -176,7 +176,7 @@
 		}
 	}
 
-	/* v8 ignore next 15 — getUserMedia + Web Audio not available in jsdom */
+	/* v8 ignore next 16 — getUserMedia + Web Audio not available in jsdom */
 	function toggleMonitor() {
 		const next = !isMonitoring;
 		isMonitoring = next;

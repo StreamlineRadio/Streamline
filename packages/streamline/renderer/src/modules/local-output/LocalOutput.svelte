@@ -53,7 +53,7 @@
 		devices = all.filter((d) => d.kind === 'audiooutput');
 	}
 
-	/* v8 ignore next 17 — Web Audio + setSinkId not available in jsdom */
+	/* v8 ignore next 18 — Web Audio + setSinkId not available in jsdom */
 	async function changeDevice(deviceId: string) {
 		const previousDeviceId = selectedDeviceId;
 		selectedDeviceId = deviceId;

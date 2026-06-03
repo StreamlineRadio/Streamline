@@ -33,4 +33,20 @@ describe('NumberField', () => {
 		await fireEvent.blur(input);
 		expect(input.value).toBe('5');
 	});
+
+	it('parses decimal value when decimal prop is true', async () => {
+		const { container } = render(NumberField, { label: 'L', value: 1, decimal: true });
+		const input = container.querySelector('input') as HTMLInputElement;
+		expect(input.getAttribute('inputmode')).toBe('decimal');
+		await fireEvent.input(input, { target: { value: '1.5' } });
+		expect(input.value).toBe('1.5');
+	});
+
+	it('clamps to max when input exceeds max', async () => {
+		const { container } = render(NumberField, { label: 'L', value: 5, max: 10 });
+		const input = container.querySelector('input') as HTMLInputElement;
+		await fireEvent.input(input, { target: { value: '20' } });
+		await fireEvent.blur(input);
+		expect(input.value).toBe('10');
+	});
 });

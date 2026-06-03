@@ -46,6 +46,14 @@ describe('StatusBar', () => {
 		expect(getByText('1 encoder active')).toBeTruthy();
 	});
 
+	it('shows green color when encoders are active with no error', async () => {
+		const { container } = render((await import('./StatusBar.svelte')).default);
+		await tick();
+		encoderStatusCallback('enc-1', { status: 'streaming' });
+		await tick();
+		expect(container.querySelector('.text-green-500')).toBeTruthy();
+	});
+
 	it('shows error color when an encoder has error status', async () => {
 		const { container } = render((await import('./StatusBar.svelte')).default);
 		await tick();
@@ -62,5 +70,14 @@ describe('StatusBar', () => {
 		await tick();
 		await Promise.resolve();
 		expect(getByText('CPU: 42%')).toBeTruthy();
+	});
+
+	it('shows plural encoders when more than one active', async () => {
+		const { getByText } = render((await import('./StatusBar.svelte')).default);
+		await tick();
+		encoderStatusCallback('enc-1', { status: 'streaming' });
+		encoderStatusCallback('enc-2', { status: 'streaming' });
+		await tick();
+		expect(getByText('2 encoders active')).toBeTruthy();
 	});
 });

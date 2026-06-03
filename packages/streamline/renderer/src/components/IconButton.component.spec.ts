@@ -40,4 +40,24 @@ describe('IconButton', () => {
 		});
 		expect(getByRole('button').className).toContain('hover:bg-danger-950');
 	});
+
+	it('applies success active classes when active and activeVariant is success', () => {
+		const { getByRole } = render(IconButton, {
+			icon: fakeIcon,
+			title: 'On Air',
+			active: true,
+			activeVariant: 'success'
+		});
+		expect(getByRole('button').className).toContain('bg-success-900');
+	});
+
+	it('applies danger active classes when active and activeVariant is danger', () => {
+		const { getByRole } = render(IconButton, {
+			icon: fakeIcon,
+			title: 'Rec',
+			active: true,
+			activeVariant: 'danger'
+		});
+		expect(getByRole('button').className).toContain('bg-danger-700');
+	});
 });

@@ -92,4 +92,12 @@ describe('ComboField', () => {
 		await tick();
 		expect(container.querySelectorAll('div.absolute button').length).toBe(0);
 	});
+
+	it('updates value when user types a valid option value', async () => {
+		const { container } = render(ComboField, { label: 'L', value: 64, options: [64, 128, 256] });
+		const input = container.querySelector('input') as HTMLInputElement;
+		await fireEvent.input(input, { target: { value: '128' } });
+		await tick();
+		expect(input.value).toBe('128');
+	});
 });

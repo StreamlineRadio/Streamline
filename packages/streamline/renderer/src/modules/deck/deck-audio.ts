@@ -139,6 +139,7 @@ export function createDeckAudio(): DeckAudio {
 			return pauseOffset;
 		},
 
+		/* v8 ignore next 3 — buffer always null in tests; Web Audio decodeAudioData not available in jsdom */
 		getDuration(): number {
 			return buffer?.duration ?? 0;
 		},

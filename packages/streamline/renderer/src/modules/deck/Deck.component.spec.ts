@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, waitFor, fireEvent } from '@testing-library/svelte';
+import { render, waitFor, fireEvent, act } from '@testing-library/svelte';
+import { tick } from 'svelte';
 import Deck from './Deck.svelte';
 import { eventBus } from '../event-bus';
 import type { DeckStatePayload } from './types';
@@ -264,6 +265,21 @@ describe('Deck (component) — state emits', () => {
 		expect(events).toContain('unloaded');
 	});
 
+	it('shows artwork image when artworkDataUrl is set via test hook', async () => {
+		const { container } = render(Deck, { instanceId: 'd-artwork' });
+		expect(container.querySelector('img[alt="cover"]')).toBeNull();
+
+		const setArtwork = (window as unknown as { __deck_setArtwork?: (url: string | null) => void })
+			.__deck_setArtwork;
+		expect(setArtwork).toBeDefined();
+		await act(() => {
+			setArtwork?.('/test/cover.jpg');
+		});
+		await tick();
+
+		expect(container.querySelector('img[alt="cover"]')).toBeTruthy();
+	});
+
 	it('opens settings modal via gear button and toggles sendMetadata', async () => {
 		const { container } = render(Deck, { instanceId: 'd5' });
 		const gearButton = container.querySelector('[title="Settings"]') as HTMLButtonElement;
@@ -282,5 +298,18 @@ describe('Deck (component) — state emits', () => {
 				settingsJson: expect.stringContaining('"sendMetadata":false')
 			})
 		);
+	});
+
+	it('closes the settings modal when the close button is clicked', async () => {
+		const { container } = render(Deck, { instanceId: 'd5b' });
+		const gearButton = container.querySelector('[title="Settings"]') as HTMLButtonElement;
+		await fireEvent.click(gearButton);
+		await waitFor(() => {
+			if (!document.querySelector('[role="dialog"]')) throw new Error('modal not open');
+		});
+		const closeButton = document.querySelector('[title="Close"]') as HTMLButtonElement;
+		expect(closeButton).toBeTruthy();
+		await fireEvent.click(closeButton);
+		expect(document.querySelector('[role="dialog"]')).toBeNull();
 	});
 });

@@ -383,4 +383,108 @@ describe('Queue (component)', () => {
 		expect(toasts).toEqual([{ message: 'All linked decks are busy', type: 'warning' }]);
 		expect(container.querySelectorAll('[draggable="true"]').length).toBe(1);
 	});
+
+	it('falls back to default settings when settingsJson is malformed JSON', () => {
+		settingsHolder.current = 'not valid json {{{}';
+		const { container } = render(Queue, { instanceId: 'q-malformed' });
+		// Default settings: autoplay=false. Autoplay button should show "Autoplay off" title.
+		expect(container.querySelector('[title="Autoplay off"]')).toBeTruthy();
+	});
+
+	it('filters out linkedDeckIds not present in the layout (line 126: return false path)', async () => {
+		settingsHolder.current = JSON.stringify({ autoplay: true, linkedDeckIds: ['d-ghost'] });
+		// d-ghost is in linkedDeckIds but NOT in layoutInstances → activeLinkedDeckIds returns []
+		layoutInstancesHolder.current = [];
+		const toasts: Array<{ message: string; type: string }> = [];
+		eventBus.on('toast:show', (payload) =>
+			toasts.push(payload as { message: string; type: string })
+		);
+		const loadSongCalls: unknown[] = [];
+		eventBus.on('deck:d-ghost:load-song', () => loadSongCalls.push('d-ghost'));
+
+		render(Queue, { instanceId: 'q-ghost' });
+		queueAddSong()(makeSong());
+
+		eventBus.emit('deck:d-ghost:state', { state: 'unloaded' as DeckState });
+		eventBus.emit('deck:d-ghost:ended', undefined);
+
+		// activeLinkedDeckIds() returns [] because d-ghost is not in layoutInstances (line 126: return false).
+		// autoplayDecision({ linkedDeckIds: [] }) → 'silent' → no toast, no load.
+		expect(toasts).toEqual([]);
+		expect(loadSongCalls).toEqual([]);
+	});
+
+	it('falls back to default settings when settingsJson is empty string (missing branch)', () => {
+		settingsHolder.current = '';
+		const { container } = render(Queue, { instanceId: 'q-empty-settings' });
+		expect(container.querySelector('[title="Autoplay off"]')).toBeTruthy();
+	});
+
+	it('deduplicates linked deck IDs when filtering active decks', () => {
+		settingsHolder.current = JSON.stringify({ autoplay: true, linkedDeckIds: ['d1', 'd1'] });
+		layoutInstancesHolder.current = [{ id: 'd1', moduleId: 'deck' }];
+		const loadSongCalls: unknown[] = [];
+		eventBus.on('deck:d1:load-song', () => loadSongCalls.push('d1'));
+
+		render(Queue, { instanceId: 'q-dedup' });
+		queueAddSong()(makeSong());
+
+		eventBus.emit('deck:d1:state', { state: 'unloaded' as DeckState });
+		eventBus.emit('deck:d1:ended', undefined);
+
+		// With deduplicated deck IDs, there's only one linked deck → 'no-other-deck'.
+		// The second 'd1' in seen.has(id) fires the return false (line 124).
+		expect(loadSongCalls).toEqual([]);
+	});
+
+	it('displays artist - title label when song has both title and artist', async () => {
+		const { container } = render(Queue, { instanceId: 'q-artist-title' });
+		queueAddSong()(makeSong({ title: 'My Song', artist: 'My Artist' }));
+		await tick();
+		const row = container.querySelector('[draggable="true"]') as HTMLElement;
+		expect(row?.textContent).toContain('My Artist - My Song');
+	});
+
+	it('shows singular "1 track" in the toolbar when queue has exactly one item', async () => {
+		const { container } = render(Queue, { instanceId: 'q-singular' });
+		queueAddSong()(makeSong());
+		await tick();
+		expect(container.textContent).toContain('1 track');
+		expect(container.textContent).not.toContain('1 tracks');
+	});
+
+	it('settings modal: close button hides the modal', async () => {
+		const { container } = render(Queue, { instanceId: 'q-close-modal' });
+		const gear = container.querySelector('[title="Queue settings"]') as HTMLButtonElement;
+		await fireEvent.click(gear);
+		await tick();
+
+		expect(document.querySelector('[role="dialog"]')).toBeTruthy();
+		const closeButton = document.querySelector('[title="Close"]') as HTMLButtonElement;
+		await fireEvent.click(closeButton);
+		expect(document.querySelector('[role="dialog"]')).toBeNull();
+	});
+
+	it('settings modal: unchecking a deck removes it from linkedDeckIds', async () => {
+		settingsHolder.current = JSON.stringify({ autoplay: false, linkedDeckIds: ['d1'] });
+		layoutInstancesHolder.current = [{ id: 'd1', moduleId: 'deck' }];
+
+		const { container } = render(Queue, { instanceId: 'q-uncheck' });
+		const gear = container.querySelector('[title="Queue settings"]') as HTMLButtonElement;
+		await fireEvent.click(gear);
+		await tick();
+
+		const checkbox = document.querySelector('input[type="checkbox"]') as HTMLInputElement;
+		expect(checkbox).toBeTruthy();
+		// Checkbox is checked (d1 is in linkedDeckIds). Click to uncheck.
+		expect(checkbox.checked).toBe(true);
+		await fireEvent.click(checkbox);
+
+		expect(layoutUpdateInstance).toHaveBeenCalledWith(
+			'q-uncheck',
+			expect.objectContaining({
+				settingsJson: expect.stringContaining('"linkedDeckIds":[]')
+			})
+		);
+	});
 });

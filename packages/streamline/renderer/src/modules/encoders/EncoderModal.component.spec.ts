@@ -119,4 +119,56 @@ describe('EncoderModal', () => {
 		expect(getByText('Folder')).toBeTruthy();
 		expect(getByText('Filename')).toBeTruthy();
 	});
+
+	it('calls onSave with generated id when no config provided', async () => {
+		const onSave = vi.fn();
+		const { getByText } = render((await import('./EncoderModal.svelte')).default, {
+			onSave,
+			onCancel: vi.fn()
+		});
+		await tick();
+		await Promise.resolve();
+		await fireEvent.click(getByText('Save'));
+		await tick();
+		expect(onSave).toHaveBeenCalledOnce();
+		const savedConfig = onSave.mock.calls[0][0] as EncoderConfig;
+		expect(savedConfig.id).toMatch(
+			/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+		);
+	});
+
+	it('shows (unchanged) password placeholder when config has passwordRef', async () => {
+		const configWithPassword: EncoderConfig = {
+			...existingConfig,
+			passwordRef: 'encoder-pw-enc-1'
+		};
+		const { container } = render((await import('./EncoderModal.svelte')).default, {
+			config: configWithPassword,
+			onSave: vi.fn(),
+			onCancel: vi.fn()
+		});
+		await tick();
+		const passwordInput = container.querySelector('input[type="password"]') as HTMLInputElement;
+		expect(passwordInput?.placeholder).toBe('(unchanged)');
+	});
+
+	it('uses existing passwordRef when saving without changing password', async () => {
+		const configWithPassword: EncoderConfig = {
+			...existingConfig,
+			passwordRef: 'encoder-pw-enc-1'
+		};
+		const onSave = vi.fn();
+		const { getByText } = render((await import('./EncoderModal.svelte')).default, {
+			config: configWithPassword,
+			onSave,
+			onCancel: vi.fn()
+		});
+		await tick();
+		await Promise.resolve();
+		await fireEvent.click(getByText('Save'));
+		await tick();
+		expect(onSave).toHaveBeenCalledOnce();
+		const savedConfig = onSave.mock.calls[0][0] as EncoderConfig;
+		expect(savedConfig.type !== 'file' && savedConfig.passwordRef).toBe('encoder-pw-enc-1');
+	});
 });

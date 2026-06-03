@@ -117,4 +117,53 @@ describe('Encoders', () => {
 		await Promise.resolve();
 		expect(streamlineMock.api.encoder.start).toHaveBeenCalled();
 	});
+
+	it('applies stored order from valid JSON when configs loaded', async () => {
+		const configA: EncoderConfig = { ...fakeConfig, id: 'enc-a', name: 'Encoder A' };
+		const configB: EncoderConfig = { ...fakeConfig, id: 'enc-b', name: 'Encoder B' };
+		const streamlineMock = makeStreamline([configA, configB]);
+		streamlineMock.api.settings.get = vi.fn().mockResolvedValue(JSON.stringify(['enc-b', 'enc-a']));
+		(window as unknown as Record<string, unknown>).streamline = streamlineMock;
+		const { getAllByText } = render((await import('./Encoders.svelte')).default, {
+			instanceId: 'enc-inst'
+		});
+		await tick();
+		await Promise.resolve();
+		await tick();
+		const names = getAllByText(/Encoder [AB]/);
+		expect(names[0].textContent).toBe('Encoder B');
+		expect(names[1].textContent).toBe('Encoder A');
+	});
+
+	it('activeCount includes connecting-status encoders', async () => {
+		let statusCallback: ((id: string, status: unknown) => void) | undefined;
+		const streamlineMock = makeStreamline([fakeConfig]);
+		streamlineMock.onEncoderStatus = vi.fn().mockImplementation((cb) => {
+			statusCallback = cb;
+		});
+		(window as unknown as Record<string, unknown>).streamline = streamlineMock;
+		const { container } = render((await import('./Encoders.svelte')).default, {
+			instanceId: 'enc-inst'
+		});
+		await tick();
+		await Promise.resolve();
+		await tick();
+		statusCallback!('enc-1', { status: 'connecting' });
+		await tick();
+		expect(container.textContent).toContain('1 live');
+	});
+
+	it('opens edit modal when Edit encoder button clicked', async () => {
+		const streamlineMock = makeStreamline([fakeConfig]);
+		(window as unknown as Record<string, unknown>).streamline = streamlineMock;
+		const { getByTitle, getByText } = render((await import('./Encoders.svelte')).default, {
+			instanceId: 'enc-inst'
+		});
+		await tick();
+		await Promise.resolve();
+		await tick();
+		await fireEvent.click(getByTitle('Edit encoder'));
+		await tick();
+		expect(getByText('Edit Output')).toBeTruthy();
+	});
 });

@@ -191,6 +191,11 @@
 		showModal = false;
 		editingConfig = undefined;
 	}
+
+	function handleEditConfig(config: EncoderConfig) {
+		editingConfig = config;
+		showModal = true;
+	}
 </script>
 
 <div
@@ -371,10 +376,7 @@
 					<IconButton
 						icon={faGear}
 						title="Edit encoder"
-						onclick={() => {
-							editingConfig = config;
-							showModal = true;
-						}}
+						onclick={() => handleEditConfig(config)}
 						size="sm"
 					/>
 					<IconButton

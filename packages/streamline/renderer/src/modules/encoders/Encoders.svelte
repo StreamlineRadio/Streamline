@@ -185,7 +185,7 @@
 		dragOverIndex = null;
 	}
 
-	/* v8 ignore next 3 — isDragTarget: drag-state only reachable during drag events, not fireable in jsdom */
+	/* v8 ignore next 7 — isDragTarget: drag-state only reachable during drag events, not fireable in jsdom */
 	function computeIsDragTarget(
 		overIndex: number | null,
 		sourceIndex: number | null,

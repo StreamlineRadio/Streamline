@@ -46,13 +46,12 @@
 				: 'text-green-500'
 	);
 
-	/* v8 ignore next 2 — Svelte text interpolation null-safety branches */
 	const encoderCountText = $derived(
 		`${activeEncoders} encoder${activeEncoders !== 1 ? 's' : ''} active`
 	);
 
-	/* v8 ignore next — Svelte text interpolation null-safety branch */
 	const versionLabel = $derived(`v${version}`);
+	const cpuText = $derived(`CPU: ${Math.round(cpuUsage)}%`);
 
 	function formatTime(date: Date): string {
 		return date.toLocaleTimeString('en-US', { hour12: false });
@@ -67,10 +66,10 @@
 		<span class={encoderColor}>{encoderCountText}</span>
 	</div>
 	<div class="flex flex-1 justify-center">
-		<span>Streamline <span class="text-primary-600">&bull;</span> {versionLabel}</span>
+		<span>Streamline <span class="text-primary-600">&bull; </span>{versionLabel}</span>
 	</div>
 	<div class="flex flex-1 items-center justify-end gap-4">
-		<span>CPU: {Math.round(cpuUsage)}%</span>
+		<span>{cpuText}</span>
 		<span class="font-mono">{time}</span>
 	</div>
 </div>

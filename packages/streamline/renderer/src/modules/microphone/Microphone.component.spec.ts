@@ -66,6 +66,24 @@ describe('Microphone', () => {
 		expect(getByRole('button', { name: 'Hold to talk' })).toBeTruthy();
 	});
 
+	it('renders only System Default when no mic devices exist', async () => {
+		Object.defineProperty(navigator, 'mediaDevices', {
+			value: {
+				enumerateDevices: vi.fn().mockResolvedValue([]),
+				addEventListener: vi.fn(),
+				removeEventListener: vi.fn()
+			},
+			configurable: true,
+			writable: true
+		});
+		const { container } = render(Microphone, { instanceId: 'mic-empty' });
+		await tick();
+		await Promise.resolve();
+		await tick();
+		const systemDefaultOption = container.querySelector('select option[value=""]');
+		expect(systemDefaultOption).toBeTruthy();
+	});
+
 	it('shows device select with System Default option', async () => {
 		const { getByText } = render(Microphone, { instanceId: 'mic-inst' });
 		await tick();
@@ -75,16 +93,37 @@ describe('Microphone', () => {
 	});
 
 	it('shows listed microphone devices', async () => {
-		const { getByText } = render(Microphone, { instanceId: 'mic-inst' });
+		const { container } = render(Microphone, { instanceId: 'mic-inst' });
 		await tick();
 		await Promise.resolve();
 		await tick();
-		expect(getByText('Built-in Mic')).toBeTruthy();
+		const option = container.querySelector('option[value="mic1"]') as HTMLOptionElement;
+		expect(option?.getAttribute('label')).toBe('Built-in Mic');
 	});
 
 	it('renders lock button', () => {
 		const { getByTitle } = render(Microphone, { instanceId: 'mic-inst' });
 		expect(getByTitle('Lock talk on')).toBeTruthy();
+	});
+
+	it('uses deviceId as label when device has no label', async () => {
+		Object.defineProperty(navigator, 'mediaDevices', {
+			value: {
+				enumerateDevices: vi
+					.fn()
+					.mockResolvedValue([{ kind: 'audioinput', deviceId: 'mic-nolabel', label: '' }]),
+				addEventListener: vi.fn(),
+				removeEventListener: vi.fn()
+			},
+			configurable: true,
+			writable: true
+		});
+		const { container } = render(Microphone, { instanceId: 'mic-nl' });
+		await tick();
+		await Promise.resolve();
+		await tick();
+		const option = container.querySelector('option[value="mic-nolabel"]') as HTMLOptionElement;
+		expect(option?.getAttribute('label')).toBe('mic-nolabel');
 	});
 
 	it('PTT button aria-pressed is true when pointer held down', async () => {

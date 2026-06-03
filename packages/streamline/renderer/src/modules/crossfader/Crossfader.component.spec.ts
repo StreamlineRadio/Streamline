@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, fireEvent } from '@testing-library/svelte';
+import { tick } from 'svelte';
 import Crossfader from './Crossfader.svelte';
 import { eventBus } from '../event-bus';
 import { instanceStore } from '../instance-store.svelte';
@@ -26,6 +27,25 @@ describe('Crossfader (component)', () => {
 		for (const id of [...instanceStore.all.keys()]) instanceStore.remove(id);
 		instanceStore.add(makeDeckRecord('left-id', 'L'));
 		instanceStore.add(makeDeckRecord('right-id', 'R'));
+	});
+
+	it('renders without deck options when no deck instances exist', () => {
+		for (const id of [...instanceStore.all.keys()]) instanceStore.remove(id);
+		const { container } = render(Crossfader, { instanceId: 'cf-empty' });
+		const selects = container.querySelectorAll('select');
+		expect(selects.length).toBe(2);
+		const noneOptions = container.querySelectorAll('select option[value=""]');
+		expect(noneOptions.length).toBe(2);
+	});
+
+	it('falls back to id-based label when deck title is empty', async () => {
+		for (const id of [...instanceStore.all.keys()]) instanceStore.remove(id);
+		instanceStore.add(makeDeckRecord('abcdef12', ''));
+		const { container } = render(Crossfader, { instanceId: 'cf-fall' });
+		await tick();
+		const options = container.querySelectorAll('select option[value="abcdef12"]');
+		expect(options.length).toBeGreaterThan(0);
+		expect(options[0].getAttribute('label')).toBe('Deck abcd');
 	});
 
 	it('emits deck:${leftDeckId}:setVolume and deck:${rightDeckId}:setVolume when slider moves', async () => {

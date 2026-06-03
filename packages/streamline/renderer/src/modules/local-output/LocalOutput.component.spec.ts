@@ -47,6 +47,24 @@ describe('LocalOutput', () => {
 		fakeGainNode.gain.value = 0;
 	});
 
+	it('renders only System Default when no devices exist', async () => {
+		Object.defineProperty(navigator, 'mediaDevices', {
+			value: {
+				enumerateDevices: vi.fn().mockResolvedValue([]),
+				addEventListener: vi.fn(),
+				removeEventListener: vi.fn()
+			},
+			configurable: true,
+			writable: true
+		});
+		const { container } = render(LocalOutput, { instanceId: 'lo-empty' });
+		await tick();
+		await Promise.resolve();
+		await tick();
+		const systemDefaultOption = container.querySelector('select option[value=""]');
+		expect(systemDefaultOption).toBeTruthy();
+	});
+
 	it('renders "System Default" option', async () => {
 		const { getByText } = render(LocalOutput, { instanceId: 'lo-1' });
 		await tick();
@@ -56,16 +74,37 @@ describe('LocalOutput', () => {
 	});
 
 	it('renders listed audio output devices', async () => {
-		const { getByText } = render(LocalOutput, { instanceId: 'lo-1' });
+		const { container } = render(LocalOutput, { instanceId: 'lo-1' });
 		await tick();
 		await Promise.resolve();
 		await tick();
-		expect(getByText('Speakers')).toBeTruthy();
+		const option = container.querySelector('option[value="dev1"]') as HTMLOptionElement;
+		expect(option?.getAttribute('label')).toBe('Speakers');
 	});
 
 	it('renders volume slider', () => {
 		const { container } = render(LocalOutput, { instanceId: 'lo-1' });
 		expect(container.querySelector('input[type="range"]')).toBeTruthy();
+	});
+
+	it('renders device id as label when device has no label', async () => {
+		Object.defineProperty(navigator, 'mediaDevices', {
+			value: {
+				enumerateDevices: vi
+					.fn()
+					.mockResolvedValue([{ kind: 'audiooutput', deviceId: 'dev-nolabel', label: '' }]),
+				addEventListener: vi.fn(),
+				removeEventListener: vi.fn()
+			},
+			configurable: true,
+			writable: true
+		});
+		const { container } = render(LocalOutput, { instanceId: 'lo-nl' });
+		await tick();
+		await Promise.resolve();
+		await tick();
+		const option = container.querySelector('option[value="dev-nolabel"]') as HTMLOptionElement;
+		expect(option?.getAttribute('label')).toBe('dev-nolabel');
 	});
 
 	it('updates gain on volume slider input', async () => {

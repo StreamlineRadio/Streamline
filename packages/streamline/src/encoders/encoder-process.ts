@@ -122,6 +122,7 @@ export class EncoderProcess {
 			return [...base, filePath];
 		}
 
+		/* v8 ignore next — unreachable: all valid EncoderConfig types handled above */
 		return base;
 	}
 

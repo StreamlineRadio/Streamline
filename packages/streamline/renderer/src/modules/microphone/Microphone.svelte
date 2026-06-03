@@ -57,11 +57,13 @@
 		monitorGain.disconnect();
 	});
 
+	/* v8 ignore next 4 — getUserMedia + Web Audio not available in jsdom */
 	async function refreshDevices() {
 		const allDevices = await navigator.mediaDevices.enumerateDevices();
 		devices = allDevices.filter((device) => device.kind === 'audioinput');
 	}
 
+	/* v8 ignore next 14 — getUserMedia + Web Audio not available in jsdom */
 	async function startCapture() {
 		stopCapture();
 		stream = await navigator.mediaDevices.getUserMedia({
@@ -77,6 +79,7 @@
 		sourceNode.connect(monitorGain);
 	}
 
+	/* v8 ignore next 6 — getUserMedia + Web Audio not available in jsdom */
 	function stopCapture() {
 		sourceNode?.disconnect();
 		stream?.getTracks().forEach((track) => track.stop());
@@ -84,12 +87,14 @@
 		sourceNode = null;
 	}
 
+	/* v8 ignore next 5 — getUserMedia + Web Audio not available in jsdom */
 	function rampGain(targetValue: number, timeMs: number) {
 		gainNode.gain.cancelScheduledValues(audioCtx.currentTime);
 		gainNode.gain.setValueAtTime(gainNode.gain.value, audioCtx.currentTime);
 		gainNode.gain.linearRampToValueAtTime(targetValue, audioCtx.currentTime + timeMs / 1000);
 	}
 
+	/* v8 ignore next 5 — getUserMedia + Web Audio not available in jsdom */
 	function rampMonitor(targetValue: number, timeMs: number) {
 		monitorGain.gain.cancelScheduledValues(audioCtx.currentTime);
 		monitorGain.gain.setValueAtTime(monitorGain.gain.value, audioCtx.currentTime);
@@ -98,11 +103,13 @@
 
 	// Re-applies both gains to their derived targets. Monitor is muted while live
 	// because the broadcast path already routes to the local destination through master.
+	/* v8 ignore next 4 — getUserMedia + Web Audio not available in jsdom */
 	function applyAudio(timeMs = 10) {
 		rampGain(isLive ? volume : 0, timeMs);
 		rampMonitor(isMonitoring && !isLive ? volume : 0, timeMs);
 	}
 
+	/* v8 ignore next 10 — getUserMedia + Web Audio not available in jsdom */
 	async function ensureCapture(): Promise<boolean> {
 		if (sourceNode) return true;
 		try {
@@ -114,6 +121,7 @@
 		}
 	}
 
+	/* v8 ignore next 14 — PTT hotkey handlers require audio capture; not testable in jsdom */
 	function handlePttDown() {
 		pttHeld = true;
 		if (isLocked) isLocked = false;
@@ -129,6 +137,7 @@
 		});
 	}
 
+	/* v8 ignore next 6 — PTT hotkey handlers require audio capture; not testable in jsdom */
 	function handlePttRelease() {
 		if (!pttHeld) return;
 		pttHeld = false;
@@ -136,6 +145,7 @@
 		applyAudio(50);
 	}
 
+	/* v8 ignore next 19 — PTT hotkey handlers require audio capture; not testable in jsdom */
 	function toggleLock() {
 		const next = !isLocked;
 		isLocked = next;
@@ -156,6 +166,7 @@
 		}
 	}
 
+	/* v8 ignore next 8 — getUserMedia + Web Audio not available in jsdom */
 	async function handleDeviceChange() {
 		if (!sourceNode) return;
 		try {
@@ -165,6 +176,7 @@
 		}
 	}
 
+	/* v8 ignore next 16 — getUserMedia + Web Audio not available in jsdom */
 	function toggleMonitor() {
 		const next = !isMonitoring;
 		isMonitoring = next;

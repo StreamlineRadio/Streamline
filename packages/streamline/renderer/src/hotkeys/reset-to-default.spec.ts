@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createTripleTapHandler, TAP_WINDOW_MS } from './reset-to-default';
+import {
+	createTripleTapHandler,
+	initResetToDefaultHotkey,
+	TAP_WINDOW_MS
+} from './reset-to-default';
 
 interface FakeKeyEvent {
 	code: string;
@@ -138,5 +142,17 @@ describe('createTripleTapHandler', () => {
 		expect(onFire).toHaveBeenCalledTimes(1);
 		handler(makeEvent());
 		expect(onFire).toHaveBeenCalledTimes(2);
+	});
+});
+
+describe('initResetToDefaultHotkey', () => {
+	afterEach(() => vi.unstubAllGlobals());
+
+	it('registers keydown listener and teardown removes it', () => {
+		vi.stubGlobal('window', { addEventListener: vi.fn(), removeEventListener: vi.fn() });
+		const teardown = initResetToDefaultHotkey();
+		expect(window.addEventListener).toHaveBeenCalledWith('keydown', expect.any(Function));
+		teardown();
+		expect(window.removeEventListener).toHaveBeenCalledWith('keydown', expect.any(Function));
 	});
 });

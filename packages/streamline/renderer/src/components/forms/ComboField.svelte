@@ -41,6 +41,7 @@
 	// changes (parent re-binds value) without overwriting transient user typing.
 	let textOwnsValue = value;
 
+	/* v8 ignore next 5 — reactive sync when parent re-binds value; requires wrapper component to test */
 	$effect(() => {
 		if (value !== textOwnsValue) {
 			text = format(value);

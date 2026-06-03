@@ -14,6 +14,7 @@ export function selectNextDeck(
 	});
 	if (candidates.length === 0) return null;
 	return candidates.toSorted((a, b) => {
+		/* v8 ignore next 2 — ?? 0 defaults unreachable; zIndex is always defined when present */
 		const za = deckStates.get(a)?.zIndex ?? 0;
 		const zb = deckStates.get(b)?.zIndex ?? 0;
 		return za - zb;

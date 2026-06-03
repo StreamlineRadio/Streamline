@@ -36,6 +36,7 @@ export function createTripleTapHandler(onFire: () => void): (event: KeyboardEven
 	};
 }
 
+/* v8 ignore next 32 — complex IPC flow that resets stores; covered by integration/E2E */
 export async function resetToDefault(): Promise<void> {
 	const existingLayoutId = layoutStore.active?.id;
 
@@ -70,6 +71,7 @@ export async function resetToDefault(): Promise<void> {
 
 export function initResetToDefaultHotkey(): () => void {
 	const onKeyDown = createTripleTapHandler(() => {
+		/* v8 ignore next — resetToDefault IPC flow not exercised in unit tests */
 		void resetToDefault();
 	});
 	window.addEventListener('keydown', onKeyDown);

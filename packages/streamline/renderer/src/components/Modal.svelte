@@ -36,6 +36,7 @@
 	function handleWindowKeydown(event: KeyboardEvent) {
 		if (event.key !== 'Escape') return;
 		// Only the top-most modal responds to ESC so stacked dialogs don't all close.
+		/* v8 ignore next — stacked modal guard; only top-most responds to ESC */
 		if (modalStack[modalStack.length - 1] !== onClose) return;
 		event.stopPropagation();
 		onClose();

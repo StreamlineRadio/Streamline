@@ -120,6 +120,32 @@ describe('EncoderModal', () => {
 		expect(getByText('Filename')).toBeTruthy();
 	});
 
+	it('calls onSave for file config with undefined passwordRef', async () => {
+		const fileConfig: EncoderConfig = {
+			id: 'enc-2',
+			name: 'Recording',
+			type: 'file',
+			format: 'mp3',
+			bitrateKbps: 128,
+			sampleRate: 44100,
+			channels: 2,
+			pathTemplate: '/recordings/recording-{date}-{time}.mp3'
+		};
+		const onSave = vi.fn();
+		const { getByText } = render((await import('./EncoderModal.svelte')).default, {
+			config: fileConfig,
+			onSave,
+			onCancel: vi.fn()
+		});
+		await tick();
+		await Promise.resolve();
+		await fireEvent.click(getByText('Save'));
+		await tick();
+		expect(onSave).toHaveBeenCalledOnce();
+		const savedConfig = onSave.mock.calls[0][0] as EncoderConfig;
+		expect(savedConfig.type).toBe('file');
+	});
+
 	it('calls onSave with generated id when no config provided', async () => {
 		const onSave = vi.fn();
 		const { getByText } = render((await import('./EncoderModal.svelte')).default, {

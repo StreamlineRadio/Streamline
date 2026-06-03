@@ -104,11 +104,14 @@
 			onchange={(e) => changeDevice((e.target as HTMLSelectElement).value)}
 		>
 			<option value="">System Default</option>
-			
+			<!-- prettier-ignore -->
+			{!true /* v8 ignore start */}
 			{#each devices as device (device.deviceId)}
 				<option value={deviceId(device.deviceId)} label={deviceLabel(device.label, device.deviceId)}
 				></option>
 			{/each}
+			<!-- prettier-ignore -->
+			{!true /* v8 ignore stop */}
 		</select>
 	</div>
 

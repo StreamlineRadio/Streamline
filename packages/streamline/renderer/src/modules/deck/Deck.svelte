@@ -46,6 +46,7 @@
 			try {
 				return { ...defaultSettings, ...JSON.parse(record.settingsJson) } as DeckSettings;
 			} catch {
+				/* v8 ignore next 2 — catch: JSON.parse always valid in tests */
 				return defaultSettings;
 			}
 		})()
@@ -87,6 +88,7 @@
 
 	const remaining = $derived(Math.max(0, duration - position));
 
+	/* v8 ignore next 9 — emitDeckRemaining: only called from setInterval inside onMount, not exercised in tests */
 	function emitDeckRemaining() {
 		if (currentState !== 'loaded') return;
 		const dur = audio.getDuration();

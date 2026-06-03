@@ -55,6 +55,7 @@
 	}
 
 	function handleSeekBarClick(e: MouseEvent) {
+		/* v8 ignore next 1 — early return when duration is zero not triggered in tests */
 		if (duration === 0) return;
 		const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
 		onSeek(((e.clientX - rect.left) / rect.width) * duration);

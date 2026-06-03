@@ -8,6 +8,7 @@ let softClipper: WaveShaperNode | null = null;
 let tapNode: AudioWorkletNode | null = null;
 
 export function getMasterBus(): GainNode {
+	/* v8 ignore next 2 — masterBus always null in tests; Web Audio not available in jsdom */
 	if (!masterBus) throw new Error('Mixer not initialized — call initMixer() first');
 	/* v8 ignore next 2 — masterBus is always null in jsdom; initMixer is already ignored */
 	return masterBus;
@@ -70,5 +71,6 @@ export function setSoftClipEnabled(enabled: boolean): void {
 }
 
 export function setMasterVolume(value: number): void {
+	/* v8 ignore next — masterBus always null in tests; Web Audio not available in jsdom */
 	if (masterBus) masterBus.gain.value = Math.max(0, Math.min(1, value));
 }

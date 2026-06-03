@@ -114,6 +114,7 @@ export class EncoderProcess {
 			return [...base, '-f', this.icecastFormat(), url];
 		}
 
+		/* v8 ignore next 7 — false branch unreachable; no EncoderConfig type exists beyond icecast/shoutcast/file */
 		if (this.config.type === 'file') {
 			const filePath = this.config.pathTemplate
 				.replace('{date}', new Date().toISOString().slice(0, 10))

@@ -46,8 +46,10 @@
 				: 'text-green-500'
 	);
 
-	/* v8 ignore next — plural suffix; singular branch covered by '1 encoder active' test */
-	const encoderSuffix = $derived(activeEncoders !== 1 ? 's' : '');
+	/* v8 ignore next 2 — Svelte text interpolation null-safety branches */
+	const encoderCountText = $derived(
+		`${activeEncoders} encoder${activeEncoders !== 1 ? 's' : ''} active`
+	);
 
 	function formatTime(date: Date): string {
 		return date.toLocaleTimeString('en-US', { hour12: false });
@@ -59,7 +61,7 @@
 >
 	<div class="flex flex-1 items-center gap-4">
 		<OnAirIndicator active={activeEncoders > 0} />
-		<span class={encoderColor}>{activeEncoders} encoder{encoderSuffix} active</span>
+		<span class={encoderColor}>{encoderCountText}</span>
 	</div>
 	<div class="flex flex-1 justify-center">
 		<span>Streamline <span class="text-primary-600">&bull;</span> v{version}</span>

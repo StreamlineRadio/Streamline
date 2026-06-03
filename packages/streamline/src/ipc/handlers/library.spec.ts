@@ -125,6 +125,34 @@ describe('library IPC handlers', () => {
 		expect(result).toMatchObject({ title: 'Test', artist: 'Artist', durationSec: 60 });
 	});
 
+	it('LIBRARY_GET_FILE_METADATA returns nulls for missing metadata fields', async () => {
+		const { parseFile } = await import('music-metadata');
+		vi.mocked(parseFile).mockResolvedValueOnce({
+			common: { title: undefined, artist: undefined, album: undefined },
+			format: {
+				duration: undefined,
+				sampleRate: undefined,
+				numberOfChannels: undefined,
+				bitrate: undefined,
+				codec: undefined
+			}
+		} as Awaited<ReturnType<typeof parseFile>>);
+		const result = await (getHandler('library:getFileMetadata')(
+			null,
+			'/music/song.mp3'
+		) as Promise<unknown>);
+		expect(result).toMatchObject({
+			title: null,
+			artist: null,
+			album: null,
+			durationSec: null,
+			sampleRate: null,
+			channels: null,
+			bitrateKbps: null,
+			codec: null
+		});
+	});
+
 	it('LIBRARY_GET_FILE_METADATA returns null on parse error', async () => {
 		const { parseFile } = await import('music-metadata');
 		vi.mocked(parseFile).mockRejectedValueOnce(new Error('bad file'));
@@ -156,6 +184,21 @@ describe('library IPC handlers', () => {
 			'/music/song.mp3'
 		) as Promise<unknown>);
 		expect(result).toBeNull();
+	});
+
+	it('LIBRARY_GET_COVER_ART returns data URI when picture is present', async () => {
+		const { parseFile } = await import('music-metadata');
+		vi.mocked(parseFile).mockResolvedValueOnce({
+			common: {
+				picture: [{ format: 'image/jpeg', data: Buffer.from('fake-image-data') }]
+			},
+			format: {}
+		} as unknown as Awaited<ReturnType<typeof parseFile>>);
+		const result = await (getHandler('library:getCoverArt')(
+			null,
+			'/music/song.mp3'
+		) as Promise<unknown>);
+		expect(result as string).toMatch(/^data:image\/jpeg;base64,/);
 	});
 
 	it('LIBRARY_READ_AUDIO_FILE returns ArrayBuffer', async () => {

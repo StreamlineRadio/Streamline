@@ -27,7 +27,7 @@
 		gainNode.connect(destNode);
 		audioEl = new Audio();
 		audioEl.srcObject = destNode.stream;
-		/* v8 ignore next 4 — audioEl.play() always resolves in test mock; catch branch unreachable */
+		/* v8 ignore next 5 — audioEl.play() always resolves in test mock; catch branch unreachable */
 		try {
 			await audioEl.play();
 		} catch (err) {
@@ -104,6 +104,7 @@
 			onchange={(e) => changeDevice((e.target as HTMLSelectElement).value)}
 		>
 			<option value="">System Default</option>
+			
 			{#each devices as device (device.deviceId)}
 				<option value={deviceId(device.deviceId)} label={deviceLabel(device.label, device.deviceId)}
 				></option>

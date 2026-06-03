@@ -94,6 +94,7 @@
 				class="w-full rounded border border-primary-700 bg-primary-800 px-2 py-1 text-primary-100"
 			>
 				<option value="">-- None --</option>
+				
 				{#each decks as d (d.id)}<option value={deckId(d.id)} label={deckLabel(d.title, d.id)}
 					></option>{/each}
 			</select>
@@ -106,6 +107,7 @@
 				class="w-full rounded border border-primary-700 bg-primary-800 px-2 py-1 text-primary-100"
 			>
 				<option value="">-- None --</option>
+				
 				{#each decks as d (d.id)}<option value={deckId(d.id)} label={deckLabel(d.title, d.id)}
 					></option>{/each}
 			</select>

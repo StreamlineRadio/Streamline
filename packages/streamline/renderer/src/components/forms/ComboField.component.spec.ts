@@ -100,4 +100,21 @@ describe('ComboField', () => {
 		await tick();
 		expect(input.value).toBe('128');
 	});
+
+	it('does not update value when empty string typed', async () => {
+		const { container } = render(ComboField, { label: 'L', value: 64, options: [64, 128] });
+		const input = container.querySelector('input') as HTMLInputElement;
+		await fireEvent.input(input, { target: { value: '' } });
+		await tick();
+		await fireEvent.blur(input);
+		await tick();
+		expect(input.value).toBe('64');
+	});
+
+	it('mousedown outside does nothing when dropdown already closed', async () => {
+		const { container } = render(ComboField, { label: 'L', value: 128, options: [64, 128] });
+		await fireEvent.mouseDown(document.body);
+		await tick();
+		expect(container.querySelectorAll('div.absolute button').length).toBe(0);
+	});
 });

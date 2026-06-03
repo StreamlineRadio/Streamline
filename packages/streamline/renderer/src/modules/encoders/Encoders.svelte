@@ -118,7 +118,6 @@
 		}
 	}
 
-	/* v8 ignore next 6 — formatDuration: only called in template when status=streaming, not reached in jsdom tests */
 	function formatDuration(seconds: number): string {
 		const hours = Math.floor(seconds / 3600);
 		const minutes = Math.floor((seconds % 3600) / 60);
@@ -126,7 +125,6 @@
 		return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 	}
 
-	/* v8 ignore next 6 — formatBytes: only called in template when status=streaming, not reached in jsdom tests */
 	function formatBytes(bytes: number): string {
 		if (bytes < 1024) return `${bytes} B`;
 		if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -134,7 +132,6 @@
 		return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
 	}
 
-	/* v8 ignore next 4 — destinationTitle: called as tooltip in template, not exercised in jsdom tests */
 	function destinationTitle(config: EncoderConfig): string {
 		if (config.type === 'file') return config.pathTemplate;
 		return `${config.host}:${config.port}${config.mount}`;
@@ -184,6 +181,15 @@
 	function handleDragEnd() {
 		dragIndex = null;
 		dragOverIndex = null;
+	}
+
+	/* v8 ignore next 3 — isDragTarget: drag-state only reachable during drag events, not fireable in jsdom */
+	function computeIsDragTarget(
+		overIndex: number | null,
+		sourceIndex: number | null,
+		index: number
+	) {
+		return overIndex === index && sourceIndex !== null && sourceIndex !== index;
 	}
 
 	/* v8 ignore next 4 — handleModalCancel: modal cancel only reachable when showModal=true, not exercised in jsdom tests */
@@ -242,7 +248,7 @@
 			{@const isError = status.status === 'error'}
 			{@const isActive = isStreaming || isConnecting}
 			{@const isDragSource = dragIndex === index}
-			{@const isDragTarget = dragOverIndex === index && dragIndex !== null && dragIndex !== index}
+			{@const isDragTarget = computeIsDragTarget(dragOverIndex, dragIndex, index)}
 			<!-- svelte-ignore a11y_no_static_element_interactions -->
 			<div
 				ondragover={(event) => handleDragOver(event, index)}

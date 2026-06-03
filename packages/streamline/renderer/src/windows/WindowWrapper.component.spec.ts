@@ -37,6 +37,7 @@ vi.mock('../layout/store.svelte', () => ({
 	layoutStore: { updateInstance: updateInstanceMock }
 }));
 
+import { instanceStore } from '../modules/instance-store.svelte';
 import WindowWrapper from './WindowWrapper.svelte';
 
 const childrenSnippet = createRawSnippet(() => ({ render: () => '<span>content</span>' }));
@@ -87,6 +88,63 @@ describe('WindowWrapper', () => {
 		});
 		await fireEvent.click(getByRole('button', { name: 'Minimize' }));
 		expect(updateMock).toHaveBeenCalledWith('inst-1', { minimized: true });
+	});
+
+	it('renders auto height when minimized', () => {
+		const mockContext = {
+			instanceId: 'inst-1',
+			moduleId: 'deck',
+			emit: vi.fn(),
+			on: vi.fn().mockReturnValue(() => {}),
+			log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() }
+		};
+		vi.mocked(instanceStore.get).mockReturnValueOnce({
+			record: {
+				id: 'inst-1',
+				x: 10,
+				y: 20,
+				width: 300,
+				height: 200,
+				zIndex: 1,
+				title: 'Deck A',
+				minimized: true,
+				moduleId: 'deck',
+				layoutId: 'layout-1',
+				settingsJson: '{}'
+			},
+			context: mockContext
+		});
+		const { container } = render(WindowWrapper, {
+			instanceId: 'inst-1',
+			moduleDisplayName: 'Deck',
+			children: childrenSnippet
+		});
+		const region = container.querySelector('[role="region"]') as HTMLElement;
+		expect(region.style.height).toBe('auto');
+	});
+
+	it('renders nothing when record is undefined', () => {
+		vi.mocked(instanceStore.get).mockReturnValueOnce(undefined as never);
+		const { container } = render(WindowWrapper, {
+			instanceId: 'inst-1',
+			moduleDisplayName: 'Deck',
+			children: childrenSnippet
+		});
+		expect(container.querySelector('[role="region"]')).toBeNull();
+	});
+
+	it('applies min-width and min-height style when props provided', () => {
+		const { container } = render(WindowWrapper, {
+			instanceId: 'inst-1',
+			moduleDisplayName: 'Deck',
+			children: childrenSnippet,
+			minWidth: 200,
+			minHeight: 150
+		});
+		const region = container.querySelector('[role="region"]') as HTMLElement;
+		const style = region.getAttribute('style') ?? '';
+		expect(style).toContain('min-width: 200px');
+		expect(style).toContain('min-height: 150px');
 	});
 
 	it('double-click on title starts rename', async () => {

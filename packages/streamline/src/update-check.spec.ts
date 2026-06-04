@@ -1,4 +1,11 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+
+vi.mock('electron', () => ({
+	app: { isPackaged: false, getVersion: vi.fn() },
+	Notification: vi.fn().mockImplementation(() => ({ on: vi.fn(), show: vi.fn() })),
+	shell: { openExternal: vi.fn() }
+}));
+
 import { resolveUpdate, type ReleaseInfo } from './update-check';
 
 const stableRelease = (tag: string): ReleaseInfo => ({

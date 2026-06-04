@@ -47,7 +47,7 @@ export async function initMixer(): Promise<void> {
 	tapNode.connect(audioCtx.destination);
 }
 
-/* v8 ignore next 21 — requires initialized Web Audio graph; tested by integration */
+/* v8 ignore next 20 — requires initialized Web Audio graph; tested by integration */
 export function setSoftClipEnabled(enabled: boolean): void {
 	if (!masterBus || !softClipper || !tapNode) return;
 	// Use targeted disconnects to avoid severing LocalOutput gainNode connections
@@ -67,7 +67,6 @@ export function setSoftClipEnabled(enabled: boolean): void {
 	} else {
 		masterBus.connect(tapNode);
 	}
-	tapNode.connect(getAudioContext().destination);
 }
 
 export function setMasterVolume(value: number): void {

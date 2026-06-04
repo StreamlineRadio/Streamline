@@ -46,8 +46,8 @@ const fakeWindow = {
 
 describe('encoder IPC handlers', () => {
 	beforeEach(() => {
-		vi.mocked(ipcMain.handle).mockClear();
 		vi.clearAllMocks();
+		setEncoderWindow(null);
 		registerEncoderHandlers();
 	});
 

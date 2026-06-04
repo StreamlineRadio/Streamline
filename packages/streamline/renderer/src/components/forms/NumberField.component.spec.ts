@@ -23,7 +23,8 @@ describe('NumberField', () => {
 		const { container } = render(NumberField, { label: 'L', value: 50, min: 10 });
 		const input = container.querySelector('input') as HTMLInputElement;
 		await fireEvent.input(input, { target: { value: '2' } });
-		expect(input.value).toBe('2');
+		await fireEvent.blur(input);
+		expect(input.value).toBe('10');
 	});
 
 	it('snaps back to valid value on blur when NaN', async () => {

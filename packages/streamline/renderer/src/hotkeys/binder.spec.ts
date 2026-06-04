@@ -35,8 +35,9 @@ describe('initHotkeyBinder', () => {
 
 	it('returned teardown removes keydown listener', () => {
 		const teardown = initHotkeyBinder();
+		const registeredHandler = capturedListeners.get('keydown');
 		teardown();
-		expect(window.removeEventListener).toHaveBeenCalledWith('keydown', expect.any(Function));
+		expect(window.removeEventListener).toHaveBeenCalledWith('keydown', registeredHandler);
 	});
 
 	it('emits hotkey event when matching accelerator key pressed', () => {

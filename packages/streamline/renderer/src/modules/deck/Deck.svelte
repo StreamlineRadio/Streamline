@@ -386,6 +386,9 @@
 			(url) => {
 				artworkDataUrl = url;
 			};
+		onDestroy(() => {
+			(window as unknown as { __deck_setArtwork?: unknown }).__deck_setArtwork = undefined;
+		});
 	}
 </script>
 

@@ -1,9 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createModuleContext } from './context';
 import { eventBus, _clearEventBusForTesting } from './event-bus';
 
 describe('createModuleContext', () => {
 	beforeEach(() => _clearEventBusForTesting());
+	afterEach(() => vi.restoreAllMocks());
 
 	it('emit forwards namespaced event to bus', () => {
 		const ctx = createModuleContext('inst-1', 'deck');
@@ -32,7 +33,6 @@ describe('createModuleContext', () => {
 		const ctx = createModuleContext('inst-1', 'deck');
 		ctx.log.info('hello');
 		expect(spy).toHaveBeenCalledWith('[deck:inst-1]', 'hello');
-		spy.mockRestore();
 	});
 
 	it('log.warn calls console.warn with module prefix', () => {
@@ -40,7 +40,6 @@ describe('createModuleContext', () => {
 		const ctx = createModuleContext('inst-1', 'deck');
 		ctx.log.warn('warning');
 		expect(spy).toHaveBeenCalledWith('[deck:inst-1]', 'warning');
-		spy.mockRestore();
 	});
 
 	it('log.error calls console.error with module prefix', () => {
@@ -48,6 +47,5 @@ describe('createModuleContext', () => {
 		const ctx = createModuleContext('inst-1', 'deck');
 		ctx.log.error('oops');
 		expect(spy).toHaveBeenCalledWith('[deck:inst-1]', 'oops');
-		spy.mockRestore();
 	});
 });

@@ -307,7 +307,8 @@ describe('Deck (component) — state emits', () => {
 		await waitFor(() => {
 			if (!document.querySelector('[role="dialog"]')) throw new Error('modal not open');
 		});
-		const closeButton = document.querySelector('[title="Close"]') as HTMLButtonElement;
+		const dialog = document.querySelector('[role="dialog"]') as HTMLElement;
+		const closeButton = dialog.querySelector('[title="Close"]') as HTMLButtonElement;
 		expect(closeButton).toBeTruthy();
 		await fireEvent.click(closeButton);
 		expect(document.querySelector('[role="dialog"]')).toBeNull();

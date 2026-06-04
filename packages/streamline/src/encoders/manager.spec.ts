@@ -34,6 +34,7 @@ vi.mock('../audio/pcm-receiver', () => ({
 vi.mock('../ipc/handlers/secret', () => ({ getSecret: vi.fn().mockReturnValue('pw') }));
 
 import { startEncoder, stopEncoder, getEncoderStatus } from './manager';
+import { EncoderProcess } from './encoder-process';
 import { registerEncoderConsumer, unregisterEncoderConsumer } from '../audio/pcm-receiver';
 import type { EncoderConfig } from '@streamline/shared';
 
@@ -129,5 +130,8 @@ describe('encoder manager', () => {
 		} as import('@streamline/shared').EncoderConfig;
 		startEncoder(fileConfig, fakeWindow);
 		expect(mockEncoderStart).toHaveBeenCalledOnce();
+		const calls = vi.mocked(EncoderProcess).mock.calls;
+		const passwordCallback = calls[calls.length - 1]![1];
+		expect(passwordCallback()).toBeNull();
 	});
 });

@@ -13,6 +13,7 @@ vi.mock('child_process', () => ({ spawn: spawnMock }));
 
 import type { EncoderConfig } from '@streamline/shared';
 import { EncoderProcess } from './encoder-process';
+import { log } from '../logging';
 
 function makeConfig(overrides: Partial<EncoderConfig> = {}): EncoderConfig {
 	return {
@@ -158,5 +159,6 @@ describe('EncoderProcess', () => {
 		const encoderProcess = new EncoderProcess(makeConfig(), () => null);
 		encoderProcess.start();
 		(fakeProcess.stderr as unknown as EventEmitter).emit('data', Buffer.from('ffmpeg output'));
+		expect(vi.mocked(log.debug)).toHaveBeenCalledWith('ffmpeg', 'ffmpeg output');
 	});
 });

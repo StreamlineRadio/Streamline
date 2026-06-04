@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('electron', () => ({ ipcMain: { handle: vi.fn() } }));
 
@@ -30,28 +30,29 @@ function getHandler(channel: string) {
 }
 
 describe('settings IPC handlers', () => {
-	it('registers GET and SET handlers', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
 		registerSettingsHandlers();
+	});
+
+	it('registers GET and SET handlers', () => {
 		expect(vi.mocked(ipcMain.handle)).toHaveBeenCalledWith('settings:get', expect.any(Function));
 		expect(vi.mocked(ipcMain.handle)).toHaveBeenCalledWith('settings:set', expect.any(Function));
 	});
 
 	it('GET handler returns null when key not found', () => {
-		registerSettingsHandlers();
 		const handler = getHandler('settings:get');
 		mockDb.get.mockReturnValue(null);
 		expect(handler?.({} as Event, 'missing-key')).toBeNull();
 	});
 
 	it('GET handler returns value when key exists', () => {
-		registerSettingsHandlers();
 		const handler = getHandler('settings:get');
 		mockDb.get.mockReturnValue({ value: 'stored-value' });
 		expect(handler?.({} as Event, 'my-key')).toBe('stored-value');
 	});
 
 	it('SET handler calls db insert with key and value', () => {
-		registerSettingsHandlers();
 		const handler = getHandler('settings:set');
 		handler?.({} as Event, 'my-key', 'my-value');
 		expect(mockDb.values).toHaveBeenCalledWith({ key: 'my-key', value: 'my-value' });

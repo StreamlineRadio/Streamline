@@ -28,7 +28,7 @@
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",
 		"@types/audioworklet": "^0.0.100",
-		"@vitest/coverage-v8": "^4.1.8",
+		"@vitest/coverage-v8": "^2.0.0",
 		"eslint": "^10.3.0",
 		"eslint-config-prettier": "^10.1.8",
 		"globals": "^17.6.0",

@@ -6,7 +6,7 @@ export default defineConfig({
 		include: ['src/**/*.{test,spec}.{js,ts}'],
 		coverage: {
 			provider: 'v8',
-			thresholds: { lines: 0, functions: 0, branches: 0, statements: 0 },
+			thresholds: { lines: 100, functions: 100, branches: 100, statements: 100 },
 			include: ['src/tap-processor.ts'],
 			exclude: ['src/index.ts']
 		}

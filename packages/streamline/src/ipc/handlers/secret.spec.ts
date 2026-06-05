@@ -32,6 +32,7 @@ vi.mock('../../db', () => ({ getDb: () => mockDb, schema: { secrets: { ref: 'ref
 
 import { registerSecretHandlers, getSecret } from './secret';
 import { ipcMain } from 'electron';
+import { log } from '../../logging';
 
 function getHandler(channel: string) {
 	const call = vi.mocked(ipcMain.handle).mock.calls.find(([ch]) => ch === channel);
@@ -58,6 +59,7 @@ describe('secret IPC handlers', () => {
 		isAvailableMock.mockReturnValue(false);
 		getHandler('secret:set')(null, 'ref', 'val');
 		expect(encryptStringMock).toHaveBeenCalled();
+		expect(vi.mocked(log.warn)).toHaveBeenCalledWith(expect.stringContaining('safeStorage'));
 	});
 
 	it('SECRET_DELETE deletes by ref', () => {

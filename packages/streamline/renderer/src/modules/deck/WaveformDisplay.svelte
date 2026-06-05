@@ -50,17 +50,18 @@
 		canvasCtx.restore();
 	}
 
-	/* v8 ignore next 5 — canvas/worker API not available in jsdom */
+	/* v8 ignore next 6 — canvas/worker API not available in jsdom */
 	function handleCanvasClick(e: MouseEvent) {
 		if (!canvas || duration === 0) return;
 		const rect = canvas.getBoundingClientRect();
+		if (rect.width <= 0) return;
 		onSeek(((e.clientX - rect.left) / rect.width) * duration);
 	}
 
 	function handleSeekBarClick(e: MouseEvent) {
-		/* v8 ignore next 1 — early return when duration is zero not triggered in tests */
 		if (duration === 0) return;
 		const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+		if (rect.width <= 0) return;
 		onSeek(((e.clientX - rect.left) / rect.width) * duration);
 	}
 </script>

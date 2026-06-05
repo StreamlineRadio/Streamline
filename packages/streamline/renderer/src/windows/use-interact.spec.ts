@@ -75,6 +75,14 @@ describe('useInteract', () => {
 		expect(unsetMock).toHaveBeenCalled();
 	});
 
+	it('uses 200x150 defaults when minWidth/minHeight are omitted', () => {
+		const onResize = vi.fn();
+		const node = {} as HTMLElement;
+		useInteract(node, { onMove: vi.fn(), onResize });
+		capturedResizeMove[0]?.({ rect: { width: 50, height: 50 } });
+		expect(onResize).toHaveBeenCalledWith(200, 150);
+	});
+
 	it('update() swaps options so new callbacks are used', () => {
 		const firstMove = vi.fn();
 		const secondMove = vi.fn();

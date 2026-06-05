@@ -59,7 +59,46 @@ describe('WaveformDisplay', () => {
 		expect(container.querySelector('canvas')).toBeTruthy();
 	});
 
-	it('calls onSeek when seekbar clicked', async () => {
+	it('calls onSeek with correct ratio when seekbar clicked', async () => {
+		const onSeek = vi.fn();
+		const { container } = render(WaveformDisplay, {
+			peaks: null,
+			position: 0,
+			duration: 100,
+			songLoaded: true,
+			onSeek
+		});
+		const seekBar = container.querySelector('[role="slider"]') as HTMLElement;
+		vi.spyOn(seekBar, 'getBoundingClientRect').mockReturnValue({
+			width: 1000,
+			left: 0,
+			height: 0,
+			top: 0,
+			bottom: 0,
+			right: 1000,
+			x: 0,
+			y: 0,
+			toJSON: vi.fn()
+		});
+		await fireEvent.click(seekBar, { clientX: 500 });
+		expect(onSeek).toHaveBeenCalledWith(50);
+	});
+
+	it('does not seek when duration is zero', async () => {
+		const onSeek = vi.fn();
+		const { container } = render(WaveformDisplay, {
+			peaks: null,
+			position: 0,
+			duration: 0,
+			songLoaded: true,
+			onSeek
+		});
+		const seekBar = container.querySelector('[role="slider"]') as HTMLElement;
+		await fireEvent.click(seekBar, { clientX: 50 });
+		expect(onSeek).not.toHaveBeenCalled();
+	});
+
+	it('does not seek when seekbar width is zero', async () => {
 		const onSeek = vi.fn();
 		const { container } = render(WaveformDisplay, {
 			peaks: null,
@@ -70,7 +109,7 @@ describe('WaveformDisplay', () => {
 		});
 		const seekBar = container.querySelector('[role="slider"]') as HTMLElement;
 		await fireEvent.click(seekBar, { clientX: 0 });
-		expect(onSeek).toHaveBeenCalled();
+		expect(onSeek).not.toHaveBeenCalled();
 	});
 
 	it('calls onSeek with position-5 on ArrowLeft', async () => {

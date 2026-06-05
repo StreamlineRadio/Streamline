@@ -311,6 +311,6 @@ describe('Deck (component) — state emits', () => {
 		const closeButton = dialog.querySelector('[title="Close"]') as HTMLButtonElement;
 		expect(closeButton).toBeTruthy();
 		await fireEvent.click(closeButton);
-		expect(document.querySelector('[role="dialog"]')).toBeNull();
+		await waitFor(() => expect(document.querySelector('[role="dialog"]')).toBeNull());
 	});
 });

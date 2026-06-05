@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from '@testing-library/svelte';
 
 const { allMapMock } = vi.hoisted(() => ({
@@ -32,7 +32,7 @@ vi.mock('./WindowWrapper.svelte', () => ({ default: vi.fn() }));
 import WindowManager from './WindowManager.svelte';
 
 describe('WindowManager', () => {
-	it('renders without crashing when instanceStore is empty', () => {
+	beforeEach(() => {
 		allMapMock.clear();
 		(window as unknown as Record<string, unknown>).streamline = {
 			api: {
@@ -42,24 +42,20 @@ describe('WindowManager', () => {
 				}
 			}
 		};
-		const { container } = render(WindowManager);
-		expect(container.querySelector('div.absolute')).toBeTruthy();
+	});
+
+	afterEach(() => {
 		delete (window as unknown as Record<string, unknown>).streamline;
 	});
 
+	it('renders without crashing when instanceStore is empty', () => {
+		const { container } = render(WindowManager);
+		expect(container.querySelector('div.absolute')).toBeTruthy();
+	});
+
 	it('renders wrapper container', () => {
-		allMapMock.clear();
-		(window as unknown as Record<string, unknown>).streamline = {
-			api: {
-				layout: {
-					list: vi.fn().mockResolvedValue([]),
-					load: vi.fn().mockResolvedValue(null)
-				}
-			}
-		};
 		const { container } = render(WindowManager);
 		const root = container.firstElementChild;
 		expect(root?.className).toContain('absolute');
-		delete (window as unknown as Record<string, unknown>).streamline;
 	});
 });

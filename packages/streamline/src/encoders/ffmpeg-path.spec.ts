@@ -22,9 +22,14 @@ describe('getFFmpegPath', () => {
 	});
 
 	it('caches the result on repeated calls', async () => {
-		vi.doMock('electron', () => ({ app: { isPackaged: false } }));
-		vi.doMock('ffmpeg-static', () => ({ default: '/path/ffmpeg' }));
+		const appMock = { isPackaged: true };
+		vi.doMock('electron', () => ({ app: appMock }));
+		vi.doMock('ffmpeg-static', () => ({ default: '/app/app.asar/ffmpeg' }));
 		const { getFFmpegPath } = await import('./ffmpeg-path');
-		expect(getFFmpegPath()).toBe(getFFmpegPath());
+		const first = getFFmpegPath();
+		appMock.isPackaged = false;
+		const second = getFFmpegPath();
+		expect(second).toBe(first);
+		expect(second).toBe('/app/app.asar.unpacked/ffmpeg');
 	});
 });

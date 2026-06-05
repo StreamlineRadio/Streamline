@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, fireEvent } from '@testing-library/svelte';
 import { createRawSnippet } from 'svelte';
 import { tick } from 'svelte';
@@ -43,6 +43,10 @@ import WindowWrapper from './WindowWrapper.svelte';
 const childrenSnippet = createRawSnippet(() => ({ render: () => '<span>content</span>' }));
 
 describe('WindowWrapper', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
 	it('renders module display name', () => {
 		const { getByText } = render(WindowWrapper, {
 			instanceId: 'inst-1',

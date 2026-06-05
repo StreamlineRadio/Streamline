@@ -108,7 +108,18 @@ describe('WaveformDisplay', () => {
 			onSeek
 		});
 		const seekBar = container.querySelector('[role="slider"]') as HTMLElement;
-		await fireEvent.click(seekBar, { clientX: 0 });
+		vi.spyOn(seekBar, 'getBoundingClientRect').mockReturnValue({
+			width: 0,
+			left: 0,
+			height: 0,
+			top: 0,
+			bottom: 0,
+			right: 0,
+			x: 0,
+			y: 0,
+			toJSON: vi.fn()
+		});
+		await fireEvent.click(seekBar, { clientX: 50 });
 		expect(onSeek).not.toHaveBeenCalled();
 	});
 

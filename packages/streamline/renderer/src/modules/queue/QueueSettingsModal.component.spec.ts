@@ -77,6 +77,7 @@ describe('QueueSettingsModal', () => {
 		const checkboxes = container.querySelectorAll(
 			'input[type="checkbox"]'
 		) as NodeListOf<HTMLInputElement>;
+		expect(checkboxes.length).toBeGreaterThan(0);
 		expect(checkboxes[0].checked).toBe(true);
 	});
 

@@ -25,7 +25,6 @@ function isNewerVersion(remote: string, current: string): boolean {
 	const parse = (v: string) => v.replace(/^v/, '').split('.').map(Number);
 	const [rMaj, rMin, rPat] = parse(remote);
 	const [cMaj, cMin, cPat] = parse(current);
-	/* v8 ignore next 2 — major/minor version divergence paths not exercised in unit tests */
 	if (rMaj !== cMaj) return rMaj > cMaj;
 	if (rMin !== cMin) return rMin > cMin;
 	return rPat > cPat;
@@ -45,7 +44,6 @@ export function resolveUpdate(args: {
 	}
 
 	const localSha = parseNightlySha(currentVersion);
-	/* v8 ignore next — null branch for release.name not exercised in unit tests */
 	const remoteSha = release.name ? parseNightlySha(release.name) : null;
 	if (!localSha || !remoteSha || localSha === remoteSha) return null;
 	return { version: release.name as string, url: release.html_url };

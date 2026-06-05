@@ -71,8 +71,10 @@ export async function resetToDefault(): Promise<void> {
 
 export function initResetToDefaultHotkey(): () => void {
 	const onKeyDown = createTripleTapHandler(() => {
-		/* v8 ignore next — resetToDefault IPC flow not exercised in unit tests */
-		void resetToDefault().catch(() => {});
+		/* v8 ignore next 3 — resetToDefault IPC flow not exercised in unit tests */
+		void resetToDefault().catch(() => {
+			eventBus.emit('toast:show', { message: 'Reset to default failed', type: 'error' });
+		});
 	});
 	window.addEventListener('keydown', onKeyDown);
 	return () => window.removeEventListener('keydown', onKeyDown);

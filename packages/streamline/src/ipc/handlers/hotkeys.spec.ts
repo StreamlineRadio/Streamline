@@ -38,20 +38,20 @@ describe('hotkey IPC handlers', () => {
 		expect(getHandler('hotkey:list')(null)).toEqual(bindings);
 	});
 
-	it('HOTKEY_SAVE upserts binding', () => {
+	it('HOTKEY_SAVE upserts binding', async () => {
 		const binding: HotkeyBinding = {
 			id: 'h1',
 			instanceId: 'i1',
 			action: 'play',
 			accelerator: 'F1'
 		};
-		getHandler('hotkey:save')(null, binding);
+		await getHandler('hotkey:save')(null, binding);
 		expect(mockDb.insert).toHaveBeenCalledOnce();
 		expect(mockDb.run).toHaveBeenCalledOnce();
 	});
 
-	it('HOTKEY_DELETE deletes by id', () => {
-		getHandler('hotkey:delete')(null, 'h1');
+	it('HOTKEY_DELETE deletes by id', async () => {
+		await getHandler('hotkey:delete')(null, 'h1');
 		expect(mockDb.delete).toHaveBeenCalledOnce();
 		expect(mockDb.run).toHaveBeenCalledOnce();
 	});

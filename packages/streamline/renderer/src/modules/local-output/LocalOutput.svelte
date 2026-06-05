@@ -78,7 +78,7 @@
 		if (gainNode) gainNode.gain.value = v;
 	}
 
-	/* v8 ignore next 3 — deviceLabel/deviceId/passthrough: source-map branches in {#each} and select unreachable in tests */
+	/* v8 ignore next 6 — source-map branches from {#each}, select value binding, and option helpers unreachable in tests */
 	function deviceLabel(label: string, id: string): string {
 		return label || id;
 	}

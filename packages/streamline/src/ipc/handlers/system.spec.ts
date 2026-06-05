@@ -95,6 +95,11 @@ describe('system IPC handlers', () => {
 		expect(result).toBeNull();
 	});
 
+	it('SYSTEM_SELECT_FOLDER returns folder path when not canceled', async () => {
+		const result = await (getHandler('system:selectFolder')(null) as Promise<unknown>);
+		expect(result).toBe('/chosen/file.mp3');
+	});
+
 	it('SYSTEM_GET_DEFAULT_RECORDINGS_FOLDER returns path with StreamlineRecordings', () => {
 		const result = getHandler('system:getDefaultRecordingsFolder')(null);
 		expect(result).toContain('StreamlineRecordings');

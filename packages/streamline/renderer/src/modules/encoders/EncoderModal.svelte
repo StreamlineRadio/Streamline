@@ -69,7 +69,7 @@
 		}
 
 		const sampleRateOut = snapSampleRate(sampleRate);
-		/* v8 ignore next 11 — save() requires Electron IPC (safeStorage); not testable in jsdom */
+		/* v8 ignore next 28 — save() requires Electron IPC (safeStorage); not testable in jsdom */
 		if (type === 'file') {
 			const pathTemplate = composePathTemplate(folder, filename);
 			onSave({

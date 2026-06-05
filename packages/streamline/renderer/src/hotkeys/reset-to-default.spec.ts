@@ -151,8 +151,9 @@ describe('initResetToDefaultHotkey', () => {
 	it('registers keydown listener and teardown removes it', () => {
 		vi.stubGlobal('window', { addEventListener: vi.fn(), removeEventListener: vi.fn() });
 		const teardown = initResetToDefaultHotkey();
-		expect(window.addEventListener).toHaveBeenCalledWith('keydown', expect.any(Function));
+		const capturedCallback = vi.mocked(window.addEventListener).mock.calls[0][1];
+		expect(capturedCallback).toBeTypeOf('function');
 		teardown();
-		expect(window.removeEventListener).toHaveBeenCalledWith('keydown', expect.any(Function));
+		expect(window.removeEventListener).toHaveBeenCalledWith('keydown', capturedCallback);
 	});
 });

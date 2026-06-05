@@ -30,7 +30,6 @@ export function registerSystemHandlers(): void {
 	ipcMain.handle(IPC.SYSTEM_SELECT_FOLDER, async () => {
 		const { dialog } = await import('electron');
 		const result = await dialog.showOpenDialog({ properties: ['openDirectory'] });
-		/* v8 ignore next — non-canceled dialog path not exercised in unit tests */
 		return result.canceled ? null : result.filePaths[0];
 	});
 	ipcMain.handle(IPC.SYSTEM_GET_DEFAULT_RECORDINGS_FOLDER, () =>

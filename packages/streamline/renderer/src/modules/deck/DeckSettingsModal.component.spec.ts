@@ -21,9 +21,9 @@ describe('DeckSettingsModal', () => {
 			onChange: vi.fn(),
 			onClose: vi.fn()
 		});
-		expect((container.querySelector('input[type="checkbox"]') as HTMLInputElement).checked).toBe(
-			false
-		);
+		const checkbox = container.querySelector('input[type="checkbox"]') as HTMLInputElement;
+		expect(checkbox).toBeTruthy();
+		expect(checkbox.checked).toBe(false);
 	});
 
 	it('checkbox reflects sendMetadata true', () => {
@@ -32,9 +32,9 @@ describe('DeckSettingsModal', () => {
 			onChange: vi.fn(),
 			onClose: vi.fn()
 		});
-		expect((container.querySelector('input[type="checkbox"]') as HTMLInputElement).checked).toBe(
-			true
-		);
+		const checkbox = container.querySelector('input[type="checkbox"]') as HTMLInputElement;
+		expect(checkbox).toBeTruthy();
+		expect(checkbox.checked).toBe(true);
 	});
 
 	it('calls onChange with toggled value on checkbox change', async () => {

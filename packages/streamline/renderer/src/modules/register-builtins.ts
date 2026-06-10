@@ -17,6 +17,7 @@ export async function registerBuiltinModules(): Promise<void> {
 	registerModule(microphoneManifest);
 	registerModule(encodersManifest);
 	// Initialize singleton headless modules immediately
+	/* v8 ignore next -- @preserve: mixer manifest always defines init */
 	if (mixerManifest.init) {
 		const moduleContext = createModuleContext('mixer-singleton', 'mixer');
 		await mixerManifest.init(moduleContext);

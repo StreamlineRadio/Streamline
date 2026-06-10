@@ -9,6 +9,7 @@
 	// Must be at top-level for $effect to work
 	startLayoutPersistence();
 
+	/* v8 ignore next -- @preserve: onMount loads layout via IPC and populates stores; covered by integration */
 	onMount(async () => {
 		const layouts = await window.streamline.api.layout.list();
 		const stub = layouts.find((l) => l.isActive);

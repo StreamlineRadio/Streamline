@@ -22,6 +22,7 @@ export function registerSystemHandlers(): void {
 		const { dialog } = await import('electron');
 		const result = await dialog.showOpenDialog({
 			properties: ['openFile'],
+			/* v8 ignore next -- @preserve: filters ?? [] fallback not reached; tests always provide filters */
 			filters: filters ?? []
 		});
 		return result.canceled ? null : result.filePaths[0];

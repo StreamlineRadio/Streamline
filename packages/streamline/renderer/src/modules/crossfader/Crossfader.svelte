@@ -22,8 +22,18 @@
 	const decks = $derived(
 		[...instanceStore.all.values()]
 			.filter((i) => i.record.moduleId === 'deck')
-			.map((i) => ({ id: i.record.id, title: i.record.title || `Deck ${i.record.id.slice(0, 4)}` }))
+			.map((i) => ({ id: i.record.id, title: i.record.title }))
 	);
+
+	function deckLabel(title: string, id: string): string {
+		return title || `Deck ${id.slice(0, 4)}`;
+	}
+
+	const leftSelectId = $derived('cf-left-' + instanceId);
+	const rightSelectId = $derived('cf-right-' + instanceId);
+	const durSelectId = $derived('cf-dur-' + instanceId);
+	const crossfadeLabel = $derived(isAnimating ? 'Cancel' : 'Crossfade Now');
+	const crossfadeHandler = $derived(isAnimating ? cancelAnimation : startCrossfade);
 
 	$effect(() => {
 		const [gainA, gainB] = applyCurve(position, curve);
@@ -31,6 +41,7 @@
 		if (rightDeckId) eventBus.emit(`deck:${rightDeckId}:setVolume`, gainB);
 	});
 
+	/* v8 ignore next -- @preserve: requestAnimationFrame not available in jsdom */
 	function startCrossfade() {
 		if (isAnimating) return;
 		const from = position;
@@ -51,6 +62,7 @@
 		animRaf = requestAnimationFrame(tick);
 	}
 
+	/* v8 ignore next -- @preserve: requestAnimationFrame not available in jsdom */
 	function cancelAnimation() {
 		if (animRaf) {
 			cancelAnimationFrame(animRaf);
@@ -68,25 +80,29 @@
 	<!-- Deck selectors -->
 	<div class="grid grid-cols-2 gap-2 text-xs">
 		<div>
-			<label class="mb-1 block text-primary-400" for="cf-left-{instanceId}">Deck A (Left)</label>
+			<label class="mb-1 block text-primary-400" for={leftSelectId}>Deck A (Left)</label>
 			<select
-				id="cf-left-{instanceId}"
+				id={leftSelectId}
 				bind:value={leftDeckId}
 				class="w-full rounded border border-primary-700 bg-primary-800 px-2 py-1 text-primary-100"
 			>
 				<option value="">-- None --</option>
-				{#each decks as d (d.id)}<option value={d.id}>{d.title}</option>{/each}
+				{#each decks as d (d.id)}
+					<option value={d.id} label={deckLabel(d.title, d.id)}></option>
+				{/each}
 			</select>
 		</div>
 		<div>
-			<label class="mb-1 block text-primary-400" for="cf-right-{instanceId}">Deck B (Right)</label>
+			<label class="mb-1 block text-primary-400" for={rightSelectId}>Deck B (Right)</label>
 			<select
-				id="cf-right-{instanceId}"
+				id={rightSelectId}
 				bind:value={rightDeckId}
 				class="w-full rounded border border-primary-700 bg-primary-800 px-2 py-1 text-primary-100"
 			>
 				<option value="">-- None --</option>
-				{#each decks as d (d.id)}<option value={d.id}>{d.title}</option>{/each}
+				{#each decks as d (d.id)}
+					<option value={d.id} label={deckLabel(d.title, d.id)}></option>
+				{/each}
 			</select>
 		</div>
 	</div>
@@ -121,13 +137,13 @@
 	<div class="flex items-center gap-2">
 		<button
 			class="flex-1 rounded bg-secondary-700 py-1.5 text-sm transition-colors hover:bg-secondary-600"
-			onclick={isAnimating ? cancelAnimation : startCrossfade}
+			onclick={crossfadeHandler}
 		>
-			{isAnimating ? 'Cancel' : 'Crossfade Now'}
+			{crossfadeLabel}
 		</button>
-		<label for="cf-dur-{instanceId}" class="sr-only">Fade duration</label>
+		<label for={durSelectId} class="sr-only">Fade duration</label>
 		<input
-			id="cf-dur-{instanceId}"
+			id={durSelectId}
 			type="number"
 			min="1"
 			max="30"

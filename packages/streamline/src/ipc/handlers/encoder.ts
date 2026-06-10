@@ -7,7 +7,7 @@ import { startEncoder, stopEncoder, getEncoderStatus } from '../../encoders/mana
 
 let _mainWindow: BrowserWindow | null = null;
 
-export function setEncoderWindow(mainWindow: BrowserWindow): void {
+export function setEncoderWindow(mainWindow: BrowserWindow | null): void {
 	_mainWindow = mainWindow;
 }
 

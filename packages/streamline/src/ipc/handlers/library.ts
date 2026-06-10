@@ -11,7 +11,7 @@ import { log } from '../../logging';
 
 let _mainWindow: BrowserWindow | null = null;
 
-export function setLibraryWindow(mainWindow: BrowserWindow): void {
+export function setLibraryWindow(mainWindow: BrowserWindow | null): void {
 	_mainWindow = mainWindow;
 	setWatcherWindow(mainWindow);
 }

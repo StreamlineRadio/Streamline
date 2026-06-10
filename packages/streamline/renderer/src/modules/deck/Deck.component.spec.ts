@@ -285,6 +285,14 @@ describe('Deck (component) — state emits', () => {
 		expect(container.querySelector('img[alt="cover"]')).toBeTruthy();
 	});
 
+	it('volume slider input updates the deck volume', async () => {
+		const { container } = render(Deck, { instanceId: 'd-vol' });
+		const slider = container.querySelector('.vol-slider') as HTMLInputElement;
+		expect(slider).toBeTruthy();
+		await fireEvent.input(slider, { target: { value: '0.5' } });
+		expect(slider.value).toBe('0.5');
+	});
+
 	it('opens settings modal via gear button and toggles sendMetadata', async () => {
 		const { container } = render(Deck, { instanceId: 'd5' });
 		const gearButton = container.querySelector('[title="Settings"]') as HTMLButtonElement;

@@ -4,7 +4,7 @@ const consumers = new Map<string, (buffer: ArrayBuffer) => void>();
 let dropoutCount = 0;
 
 export function handlePcmMessage(msg: PcmMessage): void {
-	/* v8 ignore next — null buffer / zero frames guard not exercised in unit tests */
+	/* v8 ignore next -- @preserve: null buffer / zero frames guard not exercised in unit tests */
 	if (!msg.buffer || msg.frames === 0) return;
 
 	const targets = msg.encoderTargets.length > 0 ? msg.encoderTargets : [...consumers.keys()];

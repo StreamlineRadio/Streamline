@@ -25,20 +25,13 @@
 			.map((i) => ({ id: i.record.id, title: i.record.title }))
 	);
 
-	/* v8 ignore next 2 — deckLabel/deckId: source-map branch in {#each} option value/label unreachable in tests */
 	function deckLabel(title: string, id: string): string {
 		return title || `Deck ${id.slice(0, 4)}`;
 	}
-	function deckId(id: string): string {
-		return id;
-	}
 
-	/* v8 ignore next 2 — instanceId prop is always a non-empty string; ?? '' branch unreachable */
 	const leftSelectId = $derived('cf-left-' + instanceId);
 	const rightSelectId = $derived('cf-right-' + instanceId);
-	/* v8 ignore next 2 — durSelectId: instanceId prop is always a non-empty string */
 	const durSelectId = $derived('cf-dur-' + instanceId);
-	/* v8 ignore next 3 — crossfadeLabel/crossfadeHandler: isAnimating only set inside v8-ignored rAF callback */
 	const crossfadeLabel = $derived(isAnimating ? 'Cancel' : 'Crossfade Now');
 	const crossfadeHandler = $derived(isAnimating ? cancelAnimation : startCrossfade);
 
@@ -48,7 +41,7 @@
 		if (rightDeckId) eventBus.emit(`deck:${rightDeckId}:setVolume`, gainB);
 	});
 
-	/* v8 ignore next 19 — requestAnimationFrame not available in jsdom */
+	/* v8 ignore next -- @preserve: requestAnimationFrame not available in jsdom */
 	function startCrossfade() {
 		if (isAnimating) return;
 		const from = position;
@@ -69,7 +62,7 @@
 		animRaf = requestAnimationFrame(tick);
 	}
 
-	/* v8 ignore next 6 — requestAnimationFrame not available in jsdom */
+	/* v8 ignore next -- @preserve: requestAnimationFrame not available in jsdom */
 	function cancelAnimation() {
 		if (animRaf) {
 			cancelAnimationFrame(animRaf);
@@ -94,12 +87,9 @@
 				class="w-full rounded border border-primary-700 bg-primary-800 px-2 py-1 text-primary-100"
 			>
 				<option value="">-- None --</option>
-				<!-- prettier-ignore -->
-				{!true /* v8 ignore start */}
-				{#each decks as d (d.id)}<option value={deckId(d.id)} label={deckLabel(d.title, d.id)}
-					></option>{/each}
-				<!-- prettier-ignore -->
-				{!true /* v8 ignore stop */}
+				{#each decks as d (d.id)}
+					<option value={d.id} label={deckLabel(d.title, d.id)}></option>
+				{/each}
 			</select>
 		</div>
 		<div>
@@ -110,12 +100,9 @@
 				class="w-full rounded border border-primary-700 bg-primary-800 px-2 py-1 text-primary-100"
 			>
 				<option value="">-- None --</option>
-				<!-- prettier-ignore -->
-				{!true /* v8 ignore start */}
-				{#each decks as d (d.id)}<option value={deckId(d.id)} label={deckLabel(d.title, d.id)}
-					></option>{/each}
-				<!-- prettier-ignore -->
-				{!true /* v8 ignore stop */}
+				{#each decks as d (d.id)}
+					<option value={d.id} label={deckLabel(d.title, d.id)}></option>
+				{/each}
 			</select>
 		</div>
 	</div>

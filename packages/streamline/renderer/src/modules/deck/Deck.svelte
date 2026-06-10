@@ -42,14 +42,15 @@
 	const currentSettings = $derived(
 		(() => {
 			const record = instanceStore.get(instanceId)?.record;
-			/* v8 ignore next 1 — settingsJson always provided in tests */
+			/* v8 ignore next -- @preserve: settingsJson always provided in tests */
 			if (!record?.settingsJson) return defaultSettings;
 			try {
 				return { ...defaultSettings, ...JSON.parse(record.settingsJson) } as DeckSettings;
-				/* v8 ignore next 3 — catch: JSON.parse always valid in tests */
+				/* v8 ignore start -- @preserve: JSON.parse is always valid in tests */
 			} catch {
 				return defaultSettings;
 			}
+			/* v8 ignore stop -- @preserve */
 		})()
 	);
 
@@ -90,27 +91,27 @@
 	}
 
 	const remaining = $derived(Math.max(0, duration - position));
-	/* v8 ignore next 2 — remainingDangerClass: isPlaying only set inside v8-ignored onMount */
+	/* v8 ignore next -- @preserve: remainingDangerClass: isPlaying only set inside v8-ignored onMount */
 	const remainingDangerClass = $derived(
 		isPlaying && remaining > 0 && remaining < 10 && 'text-danger-400'
 	);
-	/* v8 ignore next 2 — remainingWarningClass: isPlaying only set inside v8-ignored onMount */
+	/* v8 ignore next -- @preserve: remainingWarningClass: isPlaying only set inside v8-ignored onMount */
 	const remainingWarningClass = $derived(
 		isPlaying && remaining >= 10 && remaining < 30 && 'text-secondary-400'
 	);
-	/* v8 ignore next — accentBarScale: isPlaying only set inside v8-ignored onMount */
+	/* v8 ignore next -- @preserve: accentBarScale: isPlaying only set inside v8-ignored onMount */
 	const accentBarScale = $derived(isPlaying ? 1 : 0);
 	const accentBarTransform = $derived(`scaleX(${accentBarScale})`);
-	/* v8 ignore next 2 — playRingClass: isPlaying only set inside v8-ignored onMount */
+	/* v8 ignore next -- @preserve: playRingClass: isPlaying only set inside v8-ignored onMount */
 	const playRingClass = $derived(
 		isPlaying ? 'ring-1 ring-secondary-500 ring-offset-1 ring-offset-primary-950' : ''
 	);
-	/* v8 ignore next — playIcon: isPlaying only set inside v8-ignored onMount */
+	/* v8 ignore next -- @preserve: playIcon: isPlaying only set inside v8-ignored onMount */
 	const playIcon = $derived(isPlaying ? faPause : faPlay);
-	/* v8 ignore next — playTitle: isPlaying only set inside v8-ignored onMount */
+	/* v8 ignore next -- @preserve: playTitle: isPlaying only set inside v8-ignored onMount */
 	const playTitle = $derived(isPlaying ? 'Pause' : 'Play');
 
-	/* v8 ignore next 9 — emitDeckRemaining: only called from setInterval inside onMount, not exercised in tests */
+	/* v8 ignore next -- @preserve: emitDeckRemaining: only called from setInterval inside onMount, not exercised in tests */
 	function emitDeckRemaining() {
 		if (currentState !== 'loaded') return;
 		const dur = audio.getDuration();
@@ -121,7 +122,7 @@
 		} satisfies DeckRemainingPayload);
 	}
 
-	/* v8 ignore next 42 — onMount: requestAnimationFrame/setInterval callbacks not exercised in jsdom */
+	/* v8 ignore next -- @preserve: onMount: requestAnimationFrame/setInterval callbacks not exercised in jsdom */
 	onMount(() => {
 		audio.onEnded(() => {
 			unload();
@@ -165,7 +166,7 @@
 		});
 	});
 
-	/* v8 ignore next 16 — onDestroy: cleanup of browser timers and Web Audio resources */
+	/* v8 ignore next -- @preserve: onDestroy: cleanup of browser timers and Web Audio resources */
 	onDestroy(() => {
 		// Invalidate any in-flight loadSong so its async callbacks bail out instead of
 		// emitting 'loaded'/restoring state after this deck has emitted 'unloaded'.
@@ -198,7 +199,7 @@
 		emitState('unloaded');
 	}
 
-	/* v8 ignore next 9 — stopPlayback: Web Audio pause/seek not tested via button click in jsdom */
+	/* v8 ignore next -- @preserve: stopPlayback: Web Audio pause/seek not tested via button click in jsdom */
 	function stopPlayback() {
 		if (fadeOutTimer !== null) {
 			clearTimeout(fadeOutTimer);
@@ -209,7 +210,7 @@
 		isPlaying = false;
 	}
 
-	/* v8 ignore next 100 — loadSong: requires Electron IPC and Web Audio decodeAudioData */
+	/* v8 ignore next -- @preserve: loadSong: requires Electron IPC and Web Audio decodeAudioData */
 	async function loadSong(path: string): Promise<boolean> {
 		const generation = ++loadGeneration;
 		const filename = path.split('/').pop() ?? path;
@@ -311,7 +312,7 @@
 		return true;
 	}
 
-	/* v8 ignore next 8 — computeHash: crypto.subtle.digest not available in jsdom */
+	/* v8 ignore next -- @preserve: computeHash: crypto.subtle.digest not available in jsdom */
 	async function computeHash(path: string): Promise<string> {
 		const data = new TextEncoder().encode(path);
 		const hashBuffer = await crypto.subtle.digest('SHA-256', data);
@@ -321,7 +322,7 @@
 			.slice(0, 16);
 	}
 
-	/* v8 ignore next 11 — handleDrop: drag-and-drop events not fired in jsdom tests */
+	/* v8 ignore next -- @preserve: handleDrop: drag-and-drop events not fired in jsdom tests */
 	async function handleDrop(e: DragEvent) {
 		e.preventDefault();
 		const droppedSong = getSongDragData(e);
@@ -334,12 +335,12 @@
 		if (file) await loadSong(window.streamline.getPathForFile(file));
 	}
 
-	/* v8 ignore next 3 — handleDragOver: drag events not fired in jsdom tests */
+	/* v8 ignore next -- @preserve: handleDragOver: drag events not fired in jsdom tests */
 	function handleDragOver(e: DragEvent) {
 		e.preventDefault();
 	}
 
-	/* v8 ignore next 9 — togglePlay: Web Audio play/pause not tested via button click in jsdom */
+	/* v8 ignore next -- @preserve: togglePlay: Web Audio play/pause not tested via button click in jsdom */
 	function togglePlay() {
 		if (isPlaying) {
 			audio.pause();
@@ -350,12 +351,12 @@
 		}
 	}
 
-	/* v8 ignore next 3 — seek: Web Audio seek not exercised via WaveformDisplay click in jsdom */
+	/* v8 ignore next -- @preserve: seek: Web Audio seek not exercised via WaveformDisplay click in jsdom */
 	function seek(seconds: number) {
 		audio.seek(seconds);
 	}
 
-	/* v8 ignore next 4 — updateVolume: volume slider oninput and setVolume IPC not exercised in jsdom */
+	/* v8 ignore next -- @preserve: updateVolume: volume slider oninput and setVolume IPC not exercised in jsdom */
 	function updateVolume(value: number) {
 		volume = value;
 		audio.setVolume(value);
@@ -363,7 +364,7 @@
 
 	function fadeOut() {
 		audio.fadeOut(3000);
-		/* v8 ignore next 1 — fadeOutTimer re-entry only if fadeOut is called twice; not exercised in tests */
+		/* v8 ignore next -- @preserve: fadeOutTimer re-entry only if fadeOut is called twice; not exercised in tests */
 		if (fadeOutTimer !== null) clearTimeout(fadeOutTimer);
 		fadeOutTimer = setTimeout(() => {
 			unload();
@@ -381,6 +382,7 @@
 		return `${minutes}:${secs.toString().padStart(2, '0')}.${tenths}`;
 	};
 
+	/* v8 ignore else -- @preserve: MODE is always 'test' under vitest */
 	if (import.meta.env.MODE === 'test') {
 		(window as unknown as { __deck_setArtwork?: (url: string | null) => void }).__deck_setArtwork =
 			(url) => {

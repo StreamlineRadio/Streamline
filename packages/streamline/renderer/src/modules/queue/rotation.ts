@@ -14,9 +14,10 @@ export function selectNextDeck(
 	});
 	if (candidates.length === 0) return null;
 	return candidates.toSorted((a, b) => {
-		/* v8 ignore next 2 — ?? 0 defaults unreachable; zIndex is always defined when present */
+		/* v8 ignore start -- @preserve: ?? 0 defaults unreachable; zIndex is always defined when present */
 		const za = deckStates.get(a)?.zIndex ?? 0;
 		const zb = deckStates.get(b)?.zIndex ?? 0;
+		/* v8 ignore stop -- @preserve */
 		return za - zb;
 	})[0];
 }

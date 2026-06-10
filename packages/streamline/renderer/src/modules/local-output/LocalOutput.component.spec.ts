@@ -47,6 +47,41 @@ describe('LocalOutput', () => {
 		fakeGainNode.gain.value = 0;
 	});
 
+	it('falls back to the device id when the label is empty', async () => {
+		Object.defineProperty(navigator, 'mediaDevices', {
+			value: {
+				enumerateDevices: vi
+					.fn()
+					.mockResolvedValue([{ kind: 'audiooutput', deviceId: 'dev-x', label: '' }]),
+				addEventListener: vi.fn(),
+				removeEventListener: vi.fn()
+			},
+			configurable: true,
+			writable: true
+		});
+		const { container } = render(LocalOutput, { instanceId: 'lo-label' });
+		await vi.waitFor(() => {
+			const option = container.querySelector('option[value="dev-x"]');
+			if (!option) throw new Error('device option not rendered');
+			expect(option.getAttribute('label')).toBe('dev-x');
+		});
+	});
+
+	it('invokes the change handler when a device is selected', async () => {
+		const { container } = render(LocalOutput, { instanceId: 'lo-change' });
+		await vi.waitFor(() => {
+			if (!container.querySelector('option[value="dev1"]')) throw new Error('not ready');
+		});
+		const select = container.querySelector('select') as HTMLSelectElement;
+		await fireEvent.change(select, { target: { value: 'dev1' } });
+		expect(select.value).toBe('dev1');
+	});
+
+	it('unmounts cleanly before mount work completes', () => {
+		const { unmount } = render(LocalOutput, { instanceId: 'lo-eager' });
+		unmount();
+	});
+
 	it('renders only System Default when no devices exist', async () => {
 		Object.defineProperty(navigator, 'mediaDevices', {
 			value: {

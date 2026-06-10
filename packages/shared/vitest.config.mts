@@ -6,6 +6,7 @@ export default defineConfig({
 		include: ['src/**/*.{test,spec}.{js,ts}'],
 		coverage: {
 			provider: 'v8',
+			experimentalAstAwareRemapping: true,
 			thresholds: { lines: 100, functions: 100, branches: 100, statements: 100 },
 			include: ['src/types/encoder.ts'],
 			exclude: []

@@ -8,9 +8,9 @@ let softClipper: WaveShaperNode | null = null;
 let tapNode: AudioWorkletNode | null = null;
 
 export function getMasterBus(): GainNode {
-	/* v8 ignore next 2 — masterBus always null in tests; Web Audio not available in jsdom */
+	/* v8 ignore next -- @preserve: masterBus always null in tests; Web Audio not available in jsdom */
 	if (!masterBus) throw new Error('Mixer not initialized — call initMixer() first');
-	/* v8 ignore next 2 — masterBus is always null in jsdom; initMixer is already ignored */
+	/* v8 ignore next -- @preserve: masterBus is always null in jsdom; initMixer is already ignored */
 	return masterBus;
 }
 
@@ -18,7 +18,7 @@ export function connectToMaster(source: AudioNode): void {
 	source.connect(getMasterBus());
 }
 
-/* v8 ignore next 27 — requires Web Audio AudioWorklet API, not available in jsdom */
+/* v8 ignore next -- @preserve: requires Web Audio AudioWorklet API, not available in jsdom */
 export async function initMixer(): Promise<void> {
 	const audioCtx = getAudioContext();
 	masterBus = audioCtx.createGain();
@@ -47,7 +47,7 @@ export async function initMixer(): Promise<void> {
 	tapNode.connect(audioCtx.destination);
 }
 
-/* v8 ignore next 25 — requires initialized Web Audio graph; tested by integration */
+/* v8 ignore next -- @preserve: requires initialized Web Audio graph; tested by integration */
 export function setSoftClipEnabled(enabled: boolean): void {
 	if (!masterBus || !softClipper || !tapNode) return;
 	// Use targeted disconnects to avoid severing LocalOutput gainNode connections
@@ -75,6 +75,6 @@ export function setSoftClipEnabled(enabled: boolean): void {
 }
 
 export function setMasterVolume(value: number): void {
-	/* v8 ignore next — masterBus always null in tests; Web Audio not available in jsdom */
+	/* v8 ignore next -- @preserve: masterBus always null in tests; Web Audio not available in jsdom */
 	if (masterBus) masterBus.gain.value = Math.max(0, Math.min(1, value));
 }

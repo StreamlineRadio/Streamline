@@ -52,6 +52,12 @@ describe('hotkeyStore', () => {
 		expect(conflict).toEqual(makeBinding('h1'));
 	});
 
+	it('unbind with unknown id leaves bindings untouched', async () => {
+		await hotkeyStore.bind(makeBinding('h1'));
+		await hotkeyStore.unbind('unknown-id');
+		expect(hotkeyStore.all).toHaveLength(1);
+	});
+
 	it('unbind removes binding and calls API', async () => {
 		await hotkeyStore.bind(makeBinding('h1'));
 		await hotkeyStore.unbind('h1');

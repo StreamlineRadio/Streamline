@@ -21,6 +21,23 @@ vi.mock('../../layout/store.svelte', () => ({ layoutStore: mockLayoutStore }));
 import QueueSettingsModal from './QueueSettingsModal.svelte';
 
 describe('QueueSettingsModal', () => {
+	it('orders deck options by y position, then x', () => {
+		mockLayoutStore.active = {
+			instances: [
+				{ id: 'deck-b', moduleId: 'deck', title: 'Deck B', x: 50, y: 0 },
+				{ id: 'deck-a', moduleId: 'deck', title: 'Deck A', x: 0, y: 0 },
+				{ id: 'deck-c', moduleId: 'deck', title: 'Deck C', x: 0, y: 100 }
+			]
+		};
+		const { container } = render(QueueSettingsModal, {
+			linkedDeckIds: [],
+			onToggleDeck: vi.fn(),
+			onClose: vi.fn()
+		});
+		const labels = [...container.querySelectorAll('label')].map((l) => l.textContent?.trim());
+		expect(labels).toEqual(['Deck A', 'Deck B', 'Deck C']);
+	});
+
 	it('renders "Queue settings" title', () => {
 		mockLayoutStore.active = {
 			instances: [{ id: 'deck-a', moduleId: 'deck', title: 'Deck A', x: 0, y: 0 }]

@@ -1,11 +1,23 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render } from '@testing-library/svelte';
+import { render, fireEvent } from '@testing-library/svelte';
 
 vi.mock('@fortawesome/svelte-fontawesome', () => ({ FontAwesomeIcon: vi.fn() }));
 
 import SampleRateField from './SampleRateField.svelte';
 
 describe('SampleRateField', () => {
+	it('updates the bound value when an option is picked', async () => {
+		const { container } = render(SampleRateField, { label: 'Rate', value: 44100 });
+		const input = container.querySelector('input') as HTMLInputElement;
+		await fireEvent.focus(input);
+		const option = [...container.querySelectorAll('button')].find((b) =>
+			b.textContent?.includes('48.0')
+		) as HTMLButtonElement;
+		expect(option).toBeTruthy();
+		await fireEvent.click(option);
+		expect(input.value).toBe('48.0');
+	});
+
 	it('renders label', () => {
 		const { getByText } = render(SampleRateField, { label: 'Sample Rate', value: 44100 });
 		expect(getByText('Sample Rate')).toBeTruthy();

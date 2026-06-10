@@ -27,7 +27,7 @@
 		gainNode.connect(destNode);
 		audioEl = new Audio();
 		audioEl.srcObject = destNode.stream;
-		/* v8 ignore next 5 — audioEl.play() always resolves in test mock; catch branch unreachable */
+		/* v8 ignore next -- @preserve: audioEl.play() always resolves in test mock; catch branch unreachable */
 		try {
 			await audioEl.play();
 		} catch (err) {
@@ -42,6 +42,7 @@
 		navigator.mediaDevices.removeEventListener('devicechange', refreshDevices);
 		gainNode?.disconnect();
 		destNode?.disconnect();
+		/* v8 ignore else -- @preserve: audioEl is assigned synchronously in onMount before any teardown */
 		if (audioEl) {
 			audioEl.pause();
 			audioEl.srcObject = null;
@@ -53,7 +54,7 @@
 		devices = all.filter((d) => d.kind === 'audiooutput');
 	}
 
-	/* v8 ignore next 18 — Web Audio + setSinkId not available in jsdom */
+	/* v8 ignore next -- @preserve: Web Audio + setSinkId not available in jsdom */
 	async function changeDevice(deviceId: string) {
 		const previousDeviceId = selectedDeviceId;
 		selectedDeviceId = deviceId;
@@ -75,21 +76,10 @@
 
 	function updateVolume(v: number) {
 		volume = v;
+		/* v8 ignore else -- @preserve: gainNode is assigned synchronously in onMount before any input */
 		if (gainNode) gainNode.gain.value = v;
 	}
 
-	/* v8 ignore next 6 — source-map branches from {#each}, select value binding, and option helpers unreachable in tests */
-	function deviceLabel(label: string, id: string): string {
-		return label || id;
-	}
-	function deviceId(id: string): string {
-		return id;
-	}
-	function passthrough<T>(value: T): T {
-		return value;
-	}
-
-	/* v8 ignore next 2 — instanceId prop is always a non-empty string; ?? '' branch unreachable */
 	const deviceSelectId = $derived('output-device-' + instanceId);
 	const volSliderId = $derived('output-vol-' + instanceId);
 </script>
@@ -100,18 +90,13 @@
 		<select
 			id={deviceSelectId}
 			class="rounded border border-primary-700 bg-primary-800 px-2 py-1 text-sm text-primary-100"
-			value={passthrough(selectedDeviceId)}
+			value={selectedDeviceId}
 			onchange={(e) => changeDevice((e.target as HTMLSelectElement).value)}
 		>
 			<option value="">System Default</option>
-			<!-- prettier-ignore -->
-			{!true /* v8 ignore start */}
 			{#each devices as device (device.deviceId)}
-				<option value={deviceId(device.deviceId)} label={deviceLabel(device.label, device.deviceId)}
-				></option>
+				<option value={device.deviceId} label={device.label || device.deviceId}></option>
 			{/each}
-			<!-- prettier-ignore -->
-			{!true /* v8 ignore stop */}
 		</select>
 	</div>
 

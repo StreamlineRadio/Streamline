@@ -3,18 +3,25 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('electron', () => ({ BrowserWindow: vi.fn(), ipcMain: { handle: vi.fn() } }));
 vi.mock('../logging', () => ({ log: { info: vi.fn() } }));
 
-const { mockEncoderStart, mockEncoderStop, mockEncoderStatus, capturedStatusListeners } =
-	vi.hoisted(() => ({
-		mockEncoderStart: vi.fn(),
-		mockEncoderStop: vi.fn(),
-		mockEncoderStatus: vi.fn().mockReturnValue({ status: 'idle' }),
-		capturedStatusListeners: [] as Array<(s: import('@streamline/shared').EncoderStatus) => void>
-	}));
+const {
+	mockEncoderStart,
+	mockEncoderStop,
+	mockEncoderWrite,
+	mockEncoderStatus,
+	capturedStatusListeners
+} = vi.hoisted(() => ({
+	mockEncoderStart: vi.fn(),
+	mockEncoderStop: vi.fn(),
+	mockEncoderWrite: vi.fn(),
+	mockEncoderStatus: vi.fn().mockReturnValue({ status: 'idle' }),
+	capturedStatusListeners: [] as Array<(s: import('@streamline/shared').EncoderStatus) => void>
+}));
 
 vi.mock('./encoder-process', () => ({
 	EncoderProcess: vi.fn().mockImplementation(() => ({
 		start: mockEncoderStart,
 		stop: mockEncoderStop,
+		write: mockEncoderWrite,
 		setStatusListener: vi
 			.fn()
 			.mockImplementation((cb: (s: import('@streamline/shared').EncoderStatus) => void) => {
@@ -70,6 +77,14 @@ describe('encoder manager', () => {
 		startEncoder(makeConfig(), fakeWindow);
 		expect(mockEncoderStart).toHaveBeenCalledOnce();
 		expect(registerEncoderConsumer).toHaveBeenCalledWith('enc-1', expect.any(Function));
+	});
+
+	it('registered PCM consumer forwards buffers to the encoder process', () => {
+		startEncoder(makeConfig(), fakeWindow);
+		const consumer = vi.mocked(registerEncoderConsumer).mock.calls[0][1];
+		const buffer = new ArrayBuffer(8);
+		consumer(buffer);
+		expect(mockEncoderWrite).toHaveBeenCalledWith(buffer);
 	});
 
 	it('startEncoder stops existing process before creating a new one', () => {

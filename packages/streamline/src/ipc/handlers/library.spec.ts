@@ -98,6 +98,19 @@ describe('library IPC handlers', () => {
 		expect(scanFolderMock).toHaveBeenCalledWith('/music', fakeWindow);
 	});
 
+	it('LIBRARY_ADD_FOLDER skips scan when no window is set', () => {
+		setLibraryWindow(null);
+		mockDb.all.mockReturnValueOnce([{ path: '/music' }]);
+		getHandler('library:addFolder')(null, '/music');
+		expect(scanFolderMock).not.toHaveBeenCalled();
+	});
+
+	it('LIBRARY_SCAN_FOLDER skips scan when no window is set', () => {
+		setLibraryWindow(null);
+		getHandler('library:scanFolder')(null, '/music');
+		expect(scanFolderMock).not.toHaveBeenCalled();
+	});
+
 	it('LIBRARY_SEARCH returns all songs for empty query', () => {
 		const songs = [{ id: 's1', title: 'Song' }];
 		mockDb.all.mockReturnValueOnce(songs);

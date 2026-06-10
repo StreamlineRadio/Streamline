@@ -65,6 +65,27 @@ describe('DbMeter', () => {
 		expect(rafMock.mock.calls.length).toBeGreaterThan(2);
 	});
 
+	it('marks the peak indicator as clipping at full scale', async () => {
+		const analyser = makeAnalyser(new Float32Array([1, 1, 1, 1]));
+		const { container } = render((await import('./DbMeter.svelte')).default, { analyser });
+		rafCallback!(performance.now());
+		await tick();
+		expect(container.querySelector('.peak-clipping')).toBeTruthy();
+	});
+
+	it('holds the peak while within the hold window', async () => {
+		const samples = new Float32Array([0.5, 0.5]);
+		const analyser = makeAnalyser(samples);
+		render((await import('./DbMeter.svelte')).default, { analyser });
+		const now = performance.now();
+		rafCallback!(now);
+		await tick();
+		analyser.getFloatTimeDomainData = vi.fn((buf: Float32Array) => buf.fill(0));
+		rafCallback!(now + 100);
+		await tick();
+		expect(rafMock.mock.calls.length).toBeGreaterThan(2);
+	});
+
 	it('cancelAnimationFrame called on destroy', async () => {
 		const analyser = makeAnalyser(new Float32Array([0]));
 		const { unmount } = render((await import('./DbMeter.svelte')).default, { analyser });

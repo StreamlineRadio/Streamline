@@ -8,8 +8,15 @@ const { allMapMock } = vi.hoisted(() => ({
 vi.mock('../modules/instance-store.svelte', () => ({
 	instanceStore: {
 		all: allMapMock,
-		add: vi.fn()
+		add: vi.fn(),
+		get: vi.fn((id: string) => allMapMock.get(id)),
+		update: vi.fn(),
+		bringToFront: vi.fn()
 	}
+}));
+
+vi.mock('./use-interact', () => ({
+	useInteract: vi.fn().mockReturnValue({ destroy: vi.fn() })
 }));
 
 vi.mock('../layout/store.svelte', () => ({
@@ -26,8 +33,6 @@ vi.mock('../layout/persistence.svelte', () => ({
 vi.mock('../modules/registry', () => ({
 	getModule: vi.fn().mockReturnValue(null)
 }));
-
-vi.mock('./WindowWrapper.svelte', () => ({ default: vi.fn() }));
 
 import WindowManager from './WindowManager.svelte';
 
@@ -46,6 +51,62 @@ describe('WindowManager', () => {
 
 	afterEach(() => {
 		delete (window as unknown as Record<string, unknown>).streamline;
+	});
+
+	it('renders a window wrapper for window-kind module instances', async () => {
+		const { getModule } = await import('../modules/registry');
+		const fakeUi = vi.fn();
+		vi.mocked(getModule).mockReturnValue({
+			id: 'fake',
+			kind: 'window',
+			displayName: 'Fake Module',
+			minWidth: 100,
+			minHeight: 80,
+			ui: fakeUi
+		} as unknown as ReturnType<typeof getModule>);
+		allMapMock.set('w1', {
+			record: {
+				id: 'w1',
+				moduleId: 'fake',
+				title: 'Win',
+				x: 0,
+				y: 0,
+				width: 200,
+				height: 150,
+				zIndex: 1,
+				minimized: false
+			}
+		});
+		try {
+			const { getByRole } = render(WindowManager);
+			expect(getByRole('region')).toBeTruthy();
+			expect(fakeUi).toHaveBeenCalled();
+		} finally {
+			vi.mocked(getModule).mockReturnValue(undefined);
+			allMapMock.clear();
+		}
+	});
+
+	it('skips instances whose module is not a window module', async () => {
+		allMapMock.set('h1', {
+			record: {
+				id: 'h1',
+				moduleId: 'unknown',
+				title: '',
+				x: 0,
+				y: 0,
+				width: 10,
+				height: 10,
+				zIndex: 1,
+				minimized: false
+			}
+		});
+		try {
+			const { container } = render(WindowManager);
+			expect(container.querySelector('[role="region"]')).toBeNull();
+		} finally {
+			allMapMock.clear();
+		}
 	});
 
 	it('renders without crashing when instanceStore is empty', () => {

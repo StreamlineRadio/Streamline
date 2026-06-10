@@ -63,6 +63,19 @@ describe('watcher', () => {
 		expect(firstInstance.close).toHaveBeenCalledOnce();
 	});
 
+	it('logs a warning when closing the previous watcher fails', async () => {
+		watchFolders(['/music']);
+		chokidarInstance!.close.mockRejectedValueOnce(new Error('busy'));
+		watchFolders(['/music']);
+		await vi.waitFor(() => expect(chokidarInstance).toBeDefined());
+	});
+
+	it('ignores "add" for a file outside the watched folders', () => {
+		watchFolders(['/music']);
+		chokidarInstance!.emit('add', '/elsewhere/song.mp3');
+		expect(scanFolderMock).not.toHaveBeenCalled();
+	});
+
 	it('triggers scanFolder on "add" for supported extension', () => {
 		watchFolders(['/music']);
 		chokidarInstance!.emit('add', '/music/song.mp3');

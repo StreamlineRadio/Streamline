@@ -2,8 +2,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, fireEvent } from '@testing-library/svelte';
 import { tick } from 'svelte';
 
-vi.mock('@fortawesome/svelte-fontawesome', () => ({ FontAwesomeIcon: vi.fn() }));
-
 import type { EncoderConfig } from '@streamline/shared';
 
 const fakeConfig: EncoderConfig = {
@@ -116,6 +114,182 @@ describe('Encoders', () => {
 		await tick();
 		await Promise.resolve();
 		expect(streamlineMock.api.encoder.start).toHaveBeenCalled();
+	});
+
+	it('falls back to load order when stored order JSON is malformed', async () => {
+		const streamline = makeStreamline([fakeConfig]);
+		streamline.api.settings.get = vi.fn().mockResolvedValue('{not-json');
+		(window as unknown as Record<string, unknown>).streamline = streamline;
+		const { getByText } = render((await import('./Encoders.svelte')).default, {
+			instanceId: 'enc-order-bad'
+		});
+		await vi.waitFor(() => expect(getByText('My Icecast')).toBeTruthy());
+	});
+
+	it('reorders encoders via drag and drop and persists the order', async () => {
+		const second = { ...fakeConfig, id: 'enc-2', name: 'Second Out' };
+		const streamline = makeStreamline([fakeConfig, second]);
+		(window as unknown as Record<string, unknown>).streamline = streamline;
+		const { container, getByText } = render((await import('./Encoders.svelte')).default, {
+			instanceId: 'enc-dnd'
+		});
+		await vi.waitFor(() => expect(getByText('Second Out')).toBeTruthy());
+		const rows = [...container.querySelectorAll('[draggable="true"]')] as HTMLElement[];
+		expect(rows.length).toBe(2);
+		const dataTransfer = { effectAllowed: '', dropEffect: '', setData: vi.fn() };
+		await fireEvent.dragStart(rows[0], { dataTransfer });
+		await fireEvent.dragOver(rows[1], { dataTransfer });
+		await fireEvent.drop(rows[1], { dataTransfer });
+		await fireEvent.dragEnd(rows[0], { dataTransfer });
+		await vi.waitFor(() =>
+			expect(streamline.api.settings.set).toHaveBeenCalledWith(
+				'encoders.order.enc-dnd',
+				JSON.stringify(['enc-2', 'enc-1'])
+			)
+		);
+	});
+
+	it('logs an error when persisting the order fails', async () => {
+		const second = { ...fakeConfig, id: 'enc-2', name: 'Second Out' };
+		const streamline = makeStreamline([fakeConfig, second]);
+		streamline.api.settings.set = vi.fn().mockRejectedValue(new Error('disk full'));
+		(window as unknown as Record<string, unknown>).streamline = streamline;
+		const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+		try {
+			const { container, getByText } = render((await import('./Encoders.svelte')).default, {
+				instanceId: 'enc-dnd-err'
+			});
+			await vi.waitFor(() => expect(getByText('Second Out')).toBeTruthy());
+			const rows = [...container.querySelectorAll('[draggable="true"]')] as HTMLElement[];
+			const dataTransfer = { effectAllowed: '', dropEffect: '', setData: vi.fn() };
+			await fireEvent.dragStart(rows[0], { dataTransfer });
+			await fireEvent.drop(rows[1], { dataTransfer });
+			await vi.waitFor(() => expect(errorSpy).toHaveBeenCalled());
+		} finally {
+			errorSpy.mockRestore();
+		}
+	});
+
+	it('closes the add-encoder modal via Cancel', async () => {
+		const { getByTitle, getByText, queryByText } = render(
+			(await import('./Encoders.svelte')).default,
+			{ instanceId: 'enc-cancel' }
+		);
+		await fireEvent.click(getByTitle('Add encoder'));
+		await vi.waitFor(() => expect(getByText('Cancel')).toBeTruthy());
+		await fireEvent.click(getByText('Cancel'));
+		await vi.waitFor(() => expect(queryByText('Cancel')).toBeNull());
+	});
+
+	it('saves a new encoder config from the modal', async () => {
+		const streamline = makeStreamline([]);
+		(window as unknown as Record<string, unknown>).streamline = streamline;
+		const { getByTitle, getByText } = render((await import('./Encoders.svelte')).default, {
+			instanceId: 'enc-save'
+		});
+		await fireEvent.click(getByTitle('Add encoder'));
+		await vi.waitFor(() => expect(getByText('Save')).toBeTruthy());
+		await fireEvent.click(getByText('Save'));
+		await vi.waitFor(() => expect(streamline.api.encoder.saveConfig).toHaveBeenCalled());
+	});
+
+	it('calls encoder.stop when stopping an active encoder', async () => {
+		const streamline = makeStreamline([fakeConfig]);
+		(window as unknown as Record<string, unknown>).streamline = streamline;
+		let statusCallback: ((id: string, status: unknown) => void) | undefined;
+		streamline.onEncoderStatus = vi.fn().mockImplementation((cb) => {
+			statusCallback = cb;
+		});
+		const { getByTitle, getByText } = render((await import('./Encoders.svelte')).default, {
+			instanceId: 'enc-stop'
+		});
+		await vi.waitFor(() => expect(getByText('My Icecast')).toBeTruthy());
+		statusCallback?.('enc-1', { status: 'streaming', bytesEncoded: 0, secondsEncoded: 0 });
+		await tick();
+		await fireEvent.click(getByTitle('Stop streaming'));
+		await vi.waitFor(() => expect(streamline.api.encoder.stop).toHaveBeenCalledWith('enc-1'));
+	});
+
+	it('logs an error when saving a config fails', async () => {
+		const streamline = makeStreamline([]);
+		streamline.api.encoder.saveConfig = vi.fn().mockRejectedValue(new Error('nope'));
+		(window as unknown as Record<string, unknown>).streamline = streamline;
+		const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+		try {
+			const { getByTitle, getByText } = render((await import('./Encoders.svelte')).default, {
+				instanceId: 'enc-save-err'
+			});
+			await fireEvent.click(getByTitle('Add encoder'));
+			await vi.waitFor(() => expect(getByText('Save')).toBeTruthy());
+			await fireEvent.click(getByText('Save'));
+			await vi.waitFor(() => expect(errorSpy).toHaveBeenCalled());
+		} finally {
+			errorSpy.mockRestore();
+		}
+	});
+
+	it('deletes the stored secret when removing an encoder with a passwordRef', async () => {
+		const withSecret = { ...fakeConfig, passwordRef: 'secret-1' };
+		const streamline = makeStreamline([withSecret]);
+		(window as unknown as Record<string, unknown>).streamline = streamline;
+		const { getByTitle, getByText } = render((await import('./Encoders.svelte')).default, {
+			instanceId: 'enc-del-secret'
+		});
+		await vi.waitFor(() => expect(getByText('My Icecast')).toBeTruthy());
+		await fireEvent.click(getByTitle('Delete encoder'));
+		await vi.waitFor(() => expect(streamline.api.secret.delete).toHaveBeenCalledWith('secret-1'));
+	});
+
+	it('logs an error when deleting an encoder fails', async () => {
+		const streamline = makeStreamline([fakeConfig]);
+		streamline.api.encoder.deleteConfig = vi.fn().mockRejectedValue(new Error('nope'));
+		(window as unknown as Record<string, unknown>).streamline = streamline;
+		const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+		try {
+			const { getByTitle, getByText } = render((await import('./Encoders.svelte')).default, {
+				instanceId: 'enc-del-err'
+			});
+			await vi.waitFor(() => expect(getByText('My Icecast')).toBeTruthy());
+			await fireEvent.click(getByTitle('Delete encoder'));
+			await vi.waitFor(() => expect(errorSpy).toHaveBeenCalled());
+		} finally {
+			errorSpy.mockRestore();
+		}
+	});
+
+	it('logs an error when toggling streaming fails', async () => {
+		const streamline = makeStreamline([fakeConfig]);
+		streamline.api.encoder.start = vi.fn().mockRejectedValue(new Error('nope'));
+		(window as unknown as Record<string, unknown>).streamline = streamline;
+		const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+		try {
+			const { getByTitle, getByText } = render((await import('./Encoders.svelte')).default, {
+				instanceId: 'enc-start-err'
+			});
+			await vi.waitFor(() => expect(getByText('My Icecast')).toBeTruthy());
+			await fireEvent.click(getByTitle('Start streaming'));
+			await vi.waitFor(() => expect(errorSpy).toHaveBeenCalled());
+		} finally {
+			errorSpy.mockRestore();
+		}
+	});
+
+	it('ignores drag events without prior dragstart or dataTransfer', async () => {
+		const second = { ...fakeConfig, id: 'enc-2', name: 'Second Out' };
+		const streamline = makeStreamline([fakeConfig, second]);
+		(window as unknown as Record<string, unknown>).streamline = streamline;
+		const { container, getByText } = render((await import('./Encoders.svelte')).default, {
+			instanceId: 'enc-dnd-edge'
+		});
+		await vi.waitFor(() => expect(getByText('Second Out')).toBeTruthy());
+		const rows = [...container.querySelectorAll('[draggable="true"]')] as HTMLElement[];
+		await fireEvent.dragOver(rows[1]);
+		await fireEvent.drop(rows[1]);
+		await fireEvent.dragStart(rows[0]);
+		await fireEvent.dragOver(rows[1]);
+		await fireEvent.dragOver(rows[1]);
+		await fireEvent.drop(rows[0]);
+		expect(streamline.api.settings.set).not.toHaveBeenCalled();
 	});
 
 	it('applies stored order from valid JSON when configs loaded', async () => {

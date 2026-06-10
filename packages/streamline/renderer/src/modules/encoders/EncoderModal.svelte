@@ -54,7 +54,7 @@
 		const id = config?.id ?? crypto.randomUUID();
 		let passwordRef = config?.type !== 'file' ? config?.passwordRef : undefined;
 
-		/* v8 ignore next 4 — save() requires Electron IPC (safeStorage); not testable in jsdom */
+		/* v8 ignore next -- @preserve: save() requires Electron IPC (safeStorage); not testable in jsdom */
 		if (password) {
 			passwordRef = `encoder-pw-${id}`;
 			await window.streamline.api.secret.set(passwordRef, password);
@@ -62,14 +62,14 @@
 
 		// Type switched from a network output to a file output — drop the
 		// no-longer-referenced secret so it doesn't leak in the secrets table.
-		/* v8 ignore next 4 — save() requires Electron IPC (safeStorage); not testable in jsdom */
+		/* v8 ignore next -- @preserve: save() requires Electron IPC (safeStorage); not testable in jsdom */
 		if (type === 'file' && config?.type !== 'file' && config?.passwordRef) {
 			await window.streamline.api.secret.delete(config.passwordRef);
 			passwordRef = undefined;
 		}
 
 		const sampleRateOut = snapSampleRate(sampleRate);
-		/* v8 ignore next 28 — save() requires Electron IPC (safeStorage); not testable in jsdom */
+		/* v8 ignore next -- @preserve: save() requires Electron IPC (safeStorage); not testable in jsdom */
 		if (type === 'file') {
 			const pathTemplate = composePathTemplate(folder, filename);
 			onSave({

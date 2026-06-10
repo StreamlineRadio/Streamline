@@ -12,7 +12,7 @@ export function startEncoder(config: EncoderConfig, mainWindow: BrowserWindow): 
 	if (processes.has(config.id)) stopEncoder(config.id);
 
 	const encoderProcess = new EncoderProcess(config, () =>
-		/* v8 ignore next — getSecret path untestable without safeStorage (Electron-only) */
+		/* v8 ignore next -- @preserve: getSecret path untestable without safeStorage (Electron-only) */
 		'passwordRef' in config && config.passwordRef ? getSecret(config.passwordRef) : null
 	);
 

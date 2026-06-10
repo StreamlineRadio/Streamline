@@ -74,6 +74,7 @@ export class EncoderProcess {
 		this.ffmpegProcess.stdin.write(buf);
 		this.bytesEncoded += buf.byteLength;
 		this.secondsEncoded += buf.byteLength / (this.config.sampleRate * this.config.channels * 4);
+		/* v8 ignore next -- @preserve: status is always 'streaming' while stdin is writable in unit flows */
 		if (this._status.status === 'streaming') {
 			this.setStatus({
 				status: 'streaming',
@@ -114,7 +115,7 @@ export class EncoderProcess {
 			return [...base, '-f', this.icecastFormat(), url];
 		}
 
-		/* v8 ignore next 7 — false branch unreachable; no EncoderConfig type exists beyond icecast/shoutcast/file */
+		/* v8 ignore next -- @preserve: no EncoderConfig type exists beyond icecast/shoutcast/file */
 		if (this.config.type === 'file') {
 			const filePath = this.config.pathTemplate
 				.replace('{date}', new Date().toISOString().slice(0, 10))
@@ -123,7 +124,7 @@ export class EncoderProcess {
 			return [...base, filePath];
 		}
 
-		/* v8 ignore next — unreachable: all valid EncoderConfig types handled above */
+		/* v8 ignore next -- @preserve: unreachable, all valid EncoderConfig types handled above */
 		return base;
 	}
 

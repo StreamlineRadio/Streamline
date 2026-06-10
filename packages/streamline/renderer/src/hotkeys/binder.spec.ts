@@ -94,6 +94,24 @@ describe('initHotkeyBinder', () => {
 		expect(emitted).toHaveLength(0);
 	});
 
+	it('does not append a key part for a modifier-only key press', () => {
+		initHotkeyBinder();
+		const emitted: unknown[] = [];
+		eventBus.on('deck-1:play', (payload) => emitted.push(payload));
+		const handler = capturedListeners.get('keydown')!;
+		handler({
+			code: 'ControlLeft',
+			key: 'Control',
+			ctrlKey: true,
+			altKey: false,
+			shiftKey: false,
+			metaKey: false,
+			target: { tagName: 'DIV', isContentEditable: false },
+			preventDefault: vi.fn()
+		} as unknown as Event);
+		expect(emitted).toHaveLength(0);
+	});
+
 	it('normalizes modifier keys (Ctrl+Alt+Shift+Meta) without matching', () => {
 		initHotkeyBinder();
 		const emitted: unknown[] = [];

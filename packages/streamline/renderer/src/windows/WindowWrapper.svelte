@@ -24,7 +24,7 @@
 		node.focus();
 	}
 
-	/* v8 ignore next 7 — interact.js drag callbacks not triggered in jsdom */
+	/* v8 ignore next -- @preserve: interact.js drag callbacks not triggered in jsdom */
 	function onMove(dx: number, dy: number) {
 		if (!record) return;
 		const newX = record.x + dx;
@@ -33,13 +33,13 @@
 		layoutStore.updateInstance(instanceId, { x: newX, y: newY });
 	}
 
-	/* v8 ignore next 4 — interact.js drag callbacks not triggered in jsdom */
+	/* v8 ignore next -- @preserve: interact.js drag callbacks not triggered in jsdom */
 	function onResize(width: number, height: number) {
 		instanceStore.update(instanceId, { width, height });
 		layoutStore.updateInstance(instanceId, { width, height });
 	}
 
-	/* v8 ignore next 5 — interact.js drag callbacks not triggered in jsdom */
+	/* v8 ignore next -- @preserve: interact.js drag callbacks not triggered in jsdom */
 	function bringToFront() {
 		instanceStore.bringToFront(instanceId);
 		const updated = instanceStore.get(instanceId);
@@ -47,12 +47,12 @@
 	}
 
 	function startRename() {
-		/* v8 ignore next — title always defined in mocked records */
+		/* v8 ignore next -- @preserve: title always defined in mocked records */
 		titleInput = record?.title ?? '';
 		isEditingTitle = true;
 	}
 
-	/* v8 ignore next 5 — interact.js drag callbacks not triggered in jsdom */
+	/* v8 ignore next -- @preserve: interact.js drag callbacks not triggered in jsdom */
 	function commitRename() {
 		instanceStore.update(instanceId, { title: titleInput });
 		layoutStore.updateInstance(instanceId, { title: titleInput });
@@ -60,20 +60,21 @@
 	}
 
 	function toggleMinimize() {
-		/* v8 ignore next — minimized always boolean; record always non-null in tests */
+		/* v8 ignore next -- @preserve: minimized always boolean; record always non-null in tests */
 		const minimized = !(record?.minimized ?? false);
 		instanceStore.update(instanceId, { minimized });
 		layoutStore.updateInstance(instanceId, { minimized });
 	}
 
-	/* v8 ignore next 7 — Svelte template style computations; both minimized states and prop presence tested */
+	/* v8 ignore start -- @preserve: record is non-null while rendered and its layout fields are always set */
 	const heightStyle = $derived(record?.minimized ? 'auto' : `${record?.height ?? 0}px`);
-	const minWidthStyle = $derived(minWidth ? `${minWidth}px` : undefined);
-	const minHeightStyle = $derived(minHeight ? `${minHeight}px` : undefined);
 	const leftStyle = $derived(`${record?.x ?? 0}px`);
 	const topStyle = $derived(`${record?.y ?? 0}px`);
 	const widthStyle = $derived(`${record?.width ?? 0}px`);
 	const zIndexStyle = $derived(`${record?.zIndex ?? 0}`);
+	/* v8 ignore stop -- @preserve */
+	const minWidthStyle = $derived(minWidth ? `${minWidth}px` : undefined);
+	const minHeightStyle = $derived(minHeight ? `${minHeight}px` : undefined);
 </script>
 
 {#if record}

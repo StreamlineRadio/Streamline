@@ -57,13 +57,13 @@
 		monitorGain.disconnect();
 	});
 
-	/* v8 ignore next 4 — getUserMedia + Web Audio not available in jsdom */
+	/* v8 ignore next -- @preserve: getUserMedia + Web Audio not available in jsdom */
 	async function refreshDevices() {
 		const allDevices = await navigator.mediaDevices.enumerateDevices();
 		devices = allDevices.filter((device) => device.kind === 'audioinput');
 	}
 
-	/* v8 ignore next 14 — getUserMedia + Web Audio not available in jsdom */
+	/* v8 ignore next -- @preserve: getUserMedia + Web Audio not available in jsdom */
 	async function startCapture() {
 		stopCapture();
 		stream = await navigator.mediaDevices.getUserMedia({
@@ -79,7 +79,7 @@
 		sourceNode.connect(monitorGain);
 	}
 
-	/* v8 ignore next 6 — getUserMedia + Web Audio not available in jsdom */
+	/* v8 ignore next -- @preserve: getUserMedia + Web Audio not available in jsdom */
 	function stopCapture() {
 		sourceNode?.disconnect();
 		stream?.getTracks().forEach((track) => track.stop());
@@ -87,14 +87,14 @@
 		sourceNode = null;
 	}
 
-	/* v8 ignore next 5 — getUserMedia + Web Audio not available in jsdom */
+	/* v8 ignore next -- @preserve: getUserMedia + Web Audio not available in jsdom */
 	function rampGain(targetValue: number, timeMs: number) {
 		gainNode.gain.cancelScheduledValues(audioCtx.currentTime);
 		gainNode.gain.setValueAtTime(gainNode.gain.value, audioCtx.currentTime);
 		gainNode.gain.linearRampToValueAtTime(targetValue, audioCtx.currentTime + timeMs / 1000);
 	}
 
-	/* v8 ignore next 5 — getUserMedia + Web Audio not available in jsdom */
+	/* v8 ignore next -- @preserve: getUserMedia + Web Audio not available in jsdom */
 	function rampMonitor(targetValue: number, timeMs: number) {
 		monitorGain.gain.cancelScheduledValues(audioCtx.currentTime);
 		monitorGain.gain.setValueAtTime(monitorGain.gain.value, audioCtx.currentTime);
@@ -103,13 +103,13 @@
 
 	// Re-applies both gains to their derived targets. Monitor is muted while live
 	// because the broadcast path already routes to the local destination through master.
-	/* v8 ignore next 4 — getUserMedia + Web Audio not available in jsdom */
+	/* v8 ignore next -- @preserve: getUserMedia + Web Audio not available in jsdom */
 	function applyAudio(timeMs = 10) {
 		rampGain(isLive ? volume : 0, timeMs);
 		rampMonitor(isMonitoring && !isLive ? volume : 0, timeMs);
 	}
 
-	/* v8 ignore next 10 — getUserMedia + Web Audio not available in jsdom */
+	/* v8 ignore next -- @preserve: getUserMedia + Web Audio not available in jsdom */
 	async function ensureCapture(): Promise<boolean> {
 		if (sourceNode) return true;
 		try {
@@ -121,7 +121,7 @@
 		}
 	}
 
-	/* v8 ignore next 14 — PTT hotkey handlers require audio capture; not testable in jsdom */
+	/* v8 ignore next -- @preserve: PTT hotkey handlers require audio capture; not testable in jsdom */
 	function handlePttDown() {
 		pttHeld = true;
 		if (isLocked) isLocked = false;
@@ -137,7 +137,7 @@
 		});
 	}
 
-	/* v8 ignore next 6 — PTT hotkey handlers require audio capture; not testable in jsdom */
+	/* v8 ignore next -- @preserve: PTT hotkey handlers require audio capture; not testable in jsdom */
 	function handlePttRelease() {
 		if (!pttHeld) return;
 		pttHeld = false;
@@ -145,7 +145,7 @@
 		applyAudio(50);
 	}
 
-	/* v8 ignore next 19 — PTT hotkey handlers require audio capture; not testable in jsdom */
+	/* v8 ignore next -- @preserve: PTT hotkey handlers require audio capture; not testable in jsdom */
 	function toggleLock() {
 		const next = !isLocked;
 		isLocked = next;
@@ -166,7 +166,7 @@
 		}
 	}
 
-	/* v8 ignore next 8 — getUserMedia + Web Audio not available in jsdom */
+	/* v8 ignore next -- @preserve: getUserMedia + Web Audio not available in jsdom */
 	async function handleDeviceChange() {
 		if (!sourceNode) return;
 		try {
@@ -176,7 +176,7 @@
 		}
 	}
 
-	/* v8 ignore next 16 — getUserMedia + Web Audio not available in jsdom */
+	/* v8 ignore next -- @preserve: getUserMedia + Web Audio not available in jsdom */
 	function toggleMonitor() {
 		const next = !isMonitoring;
 		isMonitoring = next;
@@ -194,30 +194,20 @@
 		}
 	}
 
-	/* v8 ignore next 2 — deviceLabel/deviceId: source-map branch in {#each} option value/label unreachable in tests */
-	function deviceLabel(label: string, id: string): string {
-		return label || id;
-	}
-	function deviceId(id: string): string {
-		return id;
-	}
-
-	/* v8 ignore next 3 — instanceId prop is always a non-empty string; ?? '' branch unreachable */
 	const micDeviceSelectId = $derived('mic-device-' + instanceId);
 	const micVolSliderId = $derived('mic-vol-' + instanceId);
-	/* v8 ignore next 5 — isMonitoring only set inside v8-ignored toggleMonitor */
+	/* v8 ignore next -- @preserve: FontAwesomeIcon reads the icon prop once at mount; the toggled arm is never re-read */
 	const monitorIcon = $derived(isMonitoring ? faHeadphones : faHeadphonesSimple);
 	const monitorTitle = $derived(isMonitoring ? 'Stop hearing yourself' : 'Hear yourself');
-	/* v8 ignore next 9 — isLocked only set inside v8-ignored toggleLock */
 	const lockTitle = $derived(isLocked ? 'Release talk lock' : 'Lock talk on');
 	const lockClass = $derived(
 		isLocked
 			? 'border-danger-500 bg-danger-700 text-primary-50 hover:bg-danger-600'
 			: 'border-primary-700 bg-primary-900 text-primary-400 hover:border-secondary-600 hover:text-secondary-300'
 	);
+	/* v8 ignore next -- @preserve: FontAwesomeIcon reads the icon prop once at mount; the toggled arm is never re-read */
 	const lockIcon = $derived(isLocked ? faLock : faLockOpen);
 	const lockLabel = $derived(isLocked ? 'Locked' : 'Lock Talk');
-	/* v8 ignore next 1 — volTrackHeight: bind:clientHeight only updates in browser layout */
 	const heightStyle = $derived(`${volTrackHeight}px`);
 </script>
 
@@ -244,10 +234,7 @@
 				>
 					<option value="">System Default</option>
 					{#each devices as device (device.deviceId)}
-						<option
-							value={deviceId(device.deviceId)}
-							label={deviceLabel(device.label, device.deviceId)}
-						></option>
+						<option value={device.deviceId} label={device.label || device.deviceId}></option>
 					{/each}
 				</select>
 

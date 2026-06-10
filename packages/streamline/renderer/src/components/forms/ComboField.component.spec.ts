@@ -1,8 +1,6 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { render, fireEvent } from '@testing-library/svelte';
 import { tick } from 'svelte';
-
-vi.mock('@fortawesome/svelte-fontawesome', () => ({ FontAwesomeIcon: vi.fn() }));
 
 import ComboField from './ComboField.svelte';
 
@@ -109,6 +107,49 @@ describe('ComboField', () => {
 		await fireEvent.blur(input);
 		await tick();
 		expect(input.value).toBe('64');
+	});
+
+	it('stays open on mousedown inside the wrapper', async () => {
+		const { container } = render((await import('./ComboField.svelte')).default, {
+			label: 'L',
+			value: 128,
+			options: [128, 192]
+		});
+		const input = container.querySelector('input') as HTMLInputElement;
+		await fireEvent.focus(input);
+		await fireEvent.mouseDown(input);
+		expect(container.querySelectorAll('button').length).toBeGreaterThan(1);
+	});
+
+	it('ignores non-Escape keys', async () => {
+		const { container } = render((await import('./ComboField.svelte')).default, {
+			label: 'L',
+			value: 128,
+			options: [128, 192]
+		});
+		const input = container.querySelector('input') as HTMLInputElement;
+		await fireEvent.focus(input);
+		await fireEvent.keyDown(input, { key: 'a' });
+		expect(container.querySelectorAll('button').length).toBeGreaterThan(1);
+	});
+
+	it('prevents focus steal on chevron and option mousedown', async () => {
+		const { container } = render((await import('./ComboField.svelte')).default, {
+			label: 'L',
+			value: 128,
+			options: [128, 192],
+			suffix: 'kbps'
+		});
+		const chevron = container.querySelector('[aria-label="Toggle options"]') as HTMLButtonElement;
+		await fireEvent.mouseDown(chevron);
+		const input = container.querySelector('input') as HTMLInputElement;
+		await fireEvent.focus(input);
+		const optionButtons = [...container.querySelectorAll('button')].filter((b) =>
+			b.textContent?.includes('192')
+		);
+		expect(optionButtons.length).toBe(1);
+		await fireEvent.mouseDown(optionButtons[0]);
+		expect(optionButtons[0].textContent).toContain('kbps');
 	});
 
 	it('mousedown outside does nothing when dropdown already closed', async () => {

@@ -94,6 +94,88 @@ describe('WindowWrapper', () => {
 		expect(updateMock).toHaveBeenCalledWith('inst-1', { minimized: true });
 	});
 
+	it('omits the title separator when the record title is empty', () => {
+		const defaultRecord = instanceStore.get('inst-1');
+		vi.mocked(instanceStore.get).mockReturnValue({
+			record: {
+				id: 'inst-1',
+				x: 10,
+				y: 20,
+				width: 300,
+				height: 200,
+				zIndex: 1,
+				title: '',
+				minimized: false,
+				moduleId: 'deck'
+			}
+		} as unknown as ReturnType<typeof instanceStore.get>);
+		try {
+			const { container } = render(WindowWrapper, {
+				instanceId: 'inst-1',
+				moduleDisplayName: 'Deck',
+				children: childrenSnippet
+			});
+			expect(container.textContent).not.toContain(':');
+		} finally {
+			vi.mocked(instanceStore.get).mockReturnValue(defaultRecord);
+		}
+	});
+
+	it('applies min-width and min-height styles when provided', () => {
+		const { getByRole } = render(WindowWrapper, {
+			instanceId: 'inst-1',
+			moduleDisplayName: 'Deck',
+			minWidth: 240,
+			minHeight: 120,
+			children: childrenSnippet
+		});
+		const region = getByRole('region');
+		expect(region.style.minWidth).toBe('240px');
+		expect(region.style.minHeight).toBe('120px');
+	});
+
+	it('renames the window via double-click, typing, and Enter', async () => {
+		const { container, getByText } = render(WindowWrapper, {
+			instanceId: 'inst-1',
+			moduleDisplayName: 'Deck',
+			children: childrenSnippet
+		});
+		await fireEvent.dblClick(getByText('Deck A'));
+		const input = container.querySelector('input') as HTMLInputElement;
+		expect(input).toBeTruthy();
+		await fireEvent.input(input, { target: { value: 'Renamed' } });
+		await fireEvent.keyDown(input, { key: 'a' });
+		await fireEvent.keyDown(input, { key: 'Enter' });
+		expect(updateMock).toHaveBeenCalledWith('inst-1', { title: 'Renamed' });
+	});
+
+	it('commits a rename when the input loses focus', async () => {
+		const { container, getByText } = render(WindowWrapper, {
+			instanceId: 'inst-1',
+			moduleDisplayName: 'Deck',
+			children: childrenSnippet
+		});
+		await fireEvent.dblClick(getByText('Deck A'));
+		const input = container.querySelector('input') as HTMLInputElement;
+		await fireEvent.blur(input);
+		expect(updateMock).toHaveBeenCalledWith('inst-1', { title: 'Deck A' });
+	});
+
+	it('renders nothing when the instance record is missing', () => {
+		const defaultRecord = instanceStore.get('inst-1');
+		vi.mocked(instanceStore.get).mockReturnValue(undefined);
+		try {
+			const { container } = render(WindowWrapper, {
+				instanceId: 'gone',
+				moduleDisplayName: 'Deck',
+				children: childrenSnippet
+			});
+			expect(container.querySelector('[role="region"]')).toBeNull();
+		} finally {
+			vi.mocked(instanceStore.get).mockReturnValue(defaultRecord);
+		}
+	});
+
 	it('renders auto height when minimized', () => {
 		const mockContext = {
 			instanceId: 'inst-1',

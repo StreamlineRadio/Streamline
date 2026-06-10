@@ -32,7 +32,6 @@ const { fakeAudioCtx } = vi.hoisted(() => {
 
 vi.mock('../../audio/context', () => ({ getAudioContext: vi.fn().mockReturnValue(fakeAudioCtx) }));
 vi.mock('../../audio/mixer-bridge', () => ({ connectToMaster: vi.fn() }));
-vi.mock('@fortawesome/svelte-fontawesome', () => ({ FontAwesomeIcon: vi.fn() }));
 
 import Microphone from './Microphone.svelte';
 
@@ -134,5 +133,59 @@ describe('Microphone', () => {
 		await Promise.resolve();
 		await tick();
 		expect(pttButton.getAttribute('aria-pressed')).toBe('true');
+	});
+
+	it('PTT release returns the button to idle', async () => {
+		const { getByRole } = render(Microphone, { instanceId: 'mic-ptt-rel' });
+		const pttButton = getByRole('button', { name: 'Hold to talk' });
+		await fireEvent.pointerDown(pttButton);
+		await tick();
+		await Promise.resolve();
+		await tick();
+		await fireEvent.pointerUp(pttButton);
+		await tick();
+		expect(pttButton.getAttribute('aria-pressed')).toBe('false');
+	});
+
+	it('toggles self-monitoring on and off via the monitor button', async () => {
+		const { getByTitle } = render(Microphone, { instanceId: 'mic-mon' });
+		await fireEvent.click(getByTitle('Hear yourself'));
+		await tick();
+		await Promise.resolve();
+		await tick();
+		expect(getByTitle('Stop hearing yourself')).toBeTruthy();
+		await fireEvent.click(getByTitle('Stop hearing yourself'));
+		await tick();
+		expect(getByTitle('Hear yourself')).toBeTruthy();
+	});
+
+	it('toggles talk lock on and off via the lock button', async () => {
+		const { getByTitle } = render(Microphone, { instanceId: 'mic-lock' });
+		await fireEvent.click(getByTitle('Lock talk on'));
+		await tick();
+		await Promise.resolve();
+		await tick();
+		expect(getByTitle('Release talk lock')).toBeTruthy();
+		await fireEvent.click(getByTitle('Release talk lock'));
+		await tick();
+		expect(getByTitle('Lock talk on')).toBeTruthy();
+	});
+
+	it('changes the selected input device via the device select', async () => {
+		const { container } = render(Microphone, { instanceId: 'mic-dev-change' });
+		await vi.waitFor(() => {
+			if (!container.querySelector('option[value="mic1"]')) throw new Error('not ready');
+		});
+		const select = container.querySelector('select') as HTMLSelectElement;
+		await fireEvent.change(select, { target: { value: 'mic1' } });
+		expect(select.value).toBe('mic1');
+	});
+
+	it('volume slider input applies audio gain', async () => {
+		const { container } = render(Microphone, { instanceId: 'mic-vol' });
+		const slider = container.querySelector('#mic-vol-mic-vol') as HTMLInputElement;
+		expect(slider).toBeTruthy();
+		await fireEvent.input(slider, { target: { value: '0.5' } });
+		expect(slider.value).toBe('0.5');
 	});
 });

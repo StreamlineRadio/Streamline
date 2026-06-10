@@ -153,6 +153,64 @@ describe('Queue (component)', () => {
 		expect(stateRequestForD2.length).toBe(0);
 	});
 
+	it('skips null durations when computing the queue ETA', async () => {
+		const { container } = render(Queue, { instanceId: 'q-eta-null' });
+		queueAddSong()(makeSong());
+		queueAddSong()(makeSong({ id: 's-null', path: '/tmp/s2.mp3', durationSec: null }));
+		queueAddSong()(makeSong({ id: 's-after', path: '/tmp/s3.mp3' }));
+		await tick();
+		expect(container.querySelectorAll('.font-mono').length).toBeGreaterThan(0);
+	});
+
+	it('allows dragover on the queue container', async () => {
+		const { container } = render(Queue, { instanceId: 'q-dragover' });
+		const root = container.querySelector('div.flex.h-full') as HTMLElement;
+		expect(root).toBeTruthy();
+		await fireEvent.dragOver(root);
+	});
+
+	it('removes a song via the row remove button without triggering row dblclick', async () => {
+		const { container } = render(Queue, { instanceId: 'q-remove' });
+		queueAddSong()(makeSong());
+		await tick();
+		const removeButton = container.querySelector(
+			'[title="Remove from queue"]'
+		) as HTMLButtonElement;
+		expect(removeButton).toBeTruthy();
+		await fireEvent.dblClick(removeButton);
+		await fireEvent.click(removeButton);
+		await tick();
+		expect(container.querySelector('[title="Remove from queue"]')).toBeNull();
+	});
+
+	it('accepts a drop on a queue row', async () => {
+		const { container } = render(Queue, { instanceId: 'q-rowdrop' });
+		queueAddSong()(makeSong());
+		await tick();
+		const row = container.querySelector('[draggable="true"]') as HTMLElement;
+		expect(row).toBeTruthy();
+		await fireEvent.drop(row, { dataTransfer: { files: [] } });
+	});
+
+	it('loads the song on a linked deck via row double-click', async () => {
+		settingsHolder.current = JSON.stringify({ autoplay: false, linkedDeckIds: ['d1'] });
+		layoutInstancesHolder.current = [{ id: 'd1', moduleId: 'deck' }];
+		const loadCalls: string[] = [];
+		eventBus.on('deck:d1:load-if-idle', (payload) => {
+			const request = payload as { path: string; onAccept: () => void };
+			loadCalls.push(request.path);
+			request.onAccept();
+		});
+		const { container } = render(Queue, { instanceId: 'q-dbl' });
+		queueAddSong()(makeSong());
+		eventBus.emit('deck:d1:state', { state: 'unloaded' as DeckState });
+		await tick();
+		const row = container.querySelector('[draggable="true"]') as HTMLElement;
+		expect(row).toBeTruthy();
+		await fireEvent.dblClick(row);
+		expect(loadCalls).toEqual(['/tmp/song1.mp3']);
+	});
+
 	it('autoplay: on deck:X:ended pushes the next song to a DIFFERENT linked deck', () => {
 		settingsHolder.current = JSON.stringify({ autoplay: true, linkedDeckIds: ['d1', 'd2'] });
 		layoutInstancesHolder.current = [

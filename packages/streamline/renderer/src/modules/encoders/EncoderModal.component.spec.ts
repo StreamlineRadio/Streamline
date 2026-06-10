@@ -84,6 +84,64 @@ describe('EncoderModal', () => {
 		expect(onCancel).toHaveBeenCalledOnce();
 	});
 
+	it('updates icecast fields through their inputs before saving', async () => {
+		const onSave = vi.fn();
+		const { container, getByText } = render((await import('./EncoderModal.svelte')).default, {
+			onSave,
+			onCancel: vi.fn()
+		});
+		const textInputs = [...container.querySelectorAll('input[type="text"]')] as HTMLInputElement[];
+		for (const input of textInputs) {
+			await fireEvent.input(input, { target: { value: input.value || 'x' } });
+		}
+		const passwordInput = container.querySelector('input[type="password"]') as HTMLInputElement;
+		expect(passwordInput).toBeTruthy();
+		await fireEvent.input(passwordInput, { target: { value: 'hunter2' } });
+		const selects = [...container.querySelectorAll('select')] as HTMLSelectElement[];
+		expect(selects.length).toBeGreaterThanOrEqual(3);
+		await fireEvent.change(selects[0], { target: { value: 'shoutcast' } });
+		await fireEvent.change(selects[1], { target: { value: 'aac' } });
+		await fireEvent.change(selects[2], { target: { value: '1' } });
+		await fireEvent.click(getByText('Save'));
+		expect(onSave).toHaveBeenCalled();
+	});
+
+	it('updates file fields through their inputs before saving', async () => {
+		(window as unknown as Record<string, unknown>).streamline = {
+			api: { system: { selectFolder: vi.fn().mockResolvedValue('/music/out') } }
+		};
+		try {
+			const onSave = vi.fn();
+			const { container, getByText } = render((await import('./EncoderModal.svelte')).default, {
+				config: {
+					id: 'enc-f',
+					name: 'File Out',
+					type: 'file',
+					format: 'flac',
+					bitrateKbps: 320,
+					sampleRate: 48000,
+					channels: 2,
+					pathTemplate: '/music/{date}.flac'
+				},
+				onSave,
+				onCancel: vi.fn()
+			});
+			const folderButton = [...container.querySelectorAll('button')].find((b) =>
+				b.textContent?.includes('/music')
+			) as HTMLButtonElement;
+			expect(folderButton).toBeTruthy();
+			await fireEvent.click(folderButton);
+			const filenameInput = [
+				...container.querySelectorAll('input[type="text"]')
+			].pop() as HTMLInputElement;
+			await fireEvent.input(filenameInput, { target: { value: 'show-{date}' } });
+			await fireEvent.click(getByText('Save'));
+			expect(onSave).toHaveBeenCalled();
+		} finally {
+			delete (window as unknown as Record<string, unknown>).streamline;
+		}
+	});
+
 	it('calls onSave when Save clicked', async () => {
 		const onSave = vi.fn();
 		const { getByText } = render((await import('./EncoderModal.svelte')).default, {

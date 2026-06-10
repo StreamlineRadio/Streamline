@@ -52,6 +52,13 @@ describe('renderer audio port', () => {
 		expect(getAudioPort()).toBe(port2);
 	});
 
+	it('ignores a streamline-audio-port event without ports', async () => {
+		const { initAudioPort, getAudioPort } = await import('./port');
+		initAudioPort();
+		listeners.get('streamline-audio-port')!({ ports: [] } as unknown as MessageEvent);
+		expect(getAudioPort()).toBeNull();
+	});
+
 	it('sendPcm posts message on current port', async () => {
 		const { initAudioPort, sendPcm } = await import('./port');
 		initAudioPort();

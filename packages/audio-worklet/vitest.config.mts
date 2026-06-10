@@ -6,6 +6,7 @@ export default defineConfig({
 		include: ['src/**/*.{test,spec}.{js,ts}'],
 		coverage: {
 			provider: 'v8',
+			experimentalAstAwareRemapping: true,
 			exclude: ['src/index.ts']
 		}
 	}

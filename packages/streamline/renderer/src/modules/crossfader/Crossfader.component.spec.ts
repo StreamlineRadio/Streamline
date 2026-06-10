@@ -48,6 +48,46 @@ describe('Crossfader (component)', () => {
 		expect(options[0].getAttribute('label')).toBe('Deck abcd');
 	});
 
+	it('switches the curve via the curve buttons', async () => {
+		const { container } = render(Crossfader, { instanceId: 'cf-curve' });
+		const buttons = [...container.querySelectorAll('button')].filter((b) =>
+			['linear', 'equal-power', 'cut'].includes(b.textContent?.trim() ?? '')
+		);
+		expect(buttons.length).toBe(3);
+		await fireEvent.click(buttons[0]);
+		expect(buttons[0].className).toContain('bg-secondary-700');
+	});
+
+	it('starts and cancels a crossfade via the main button', async () => {
+		vi.stubGlobal(
+			'requestAnimationFrame',
+			vi.fn().mockImplementation(() => 1)
+		);
+		vi.stubGlobal('cancelAnimationFrame', vi.fn());
+		try {
+			const { container, unmount } = render(Crossfader, { instanceId: 'cf-anim' });
+			const mainButton = [...container.querySelectorAll('button')].find((b) =>
+				b.textContent?.includes('Crossfade Now')
+			) as HTMLButtonElement;
+			expect(mainButton).toBeTruthy();
+			await fireEvent.click(mainButton);
+			expect(mainButton.textContent).toContain('Cancel');
+			await fireEvent.click(mainButton);
+			expect(mainButton.textContent).toContain('Crossfade Now');
+			unmount();
+		} finally {
+			vi.unstubAllGlobals();
+		}
+	});
+
+	it('updates the fade duration via the number input', async () => {
+		const { container } = render(Crossfader, { instanceId: 'cf-dur' });
+		const durationInput = container.querySelector('#cf-dur-cf-dur') as HTMLInputElement;
+		expect(durationInput).toBeTruthy();
+		await fireEvent.input(durationInput, { target: { value: '8' } });
+		expect(durationInput.value).toBe('8');
+	});
+
 	it('emits deck:${leftDeckId}:setVolume and deck:${rightDeckId}:setVolume when slider moves', async () => {
 		const leftListener = vi.fn();
 		const rightListener = vi.fn();

@@ -1,8 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, fireEvent } from '@testing-library/svelte';
 
-vi.mock('@fortawesome/svelte-fontawesome', () => ({ FontAwesomeIcon: vi.fn() }));
-
 describe('FolderField', () => {
 	beforeEach(() => {
 		(window as unknown as Record<string, unknown>).streamline = {
@@ -16,6 +14,20 @@ describe('FolderField', () => {
 
 	afterEach(() => {
 		delete (window as unknown as Record<string, unknown>).streamline;
+	});
+
+	it('keeps the current value when the picker is canceled', async () => {
+		(
+			window as unknown as {
+				streamline: { api: { system: { selectFolder: () => Promise<string | null> } } };
+			}
+		).streamline.api.system.selectFolder = vi.fn().mockResolvedValue(null);
+		const { getByText } = render((await import('./FolderField.svelte')).default, {
+			label: 'L',
+			value: '/existing'
+		});
+		await fireEvent.click(getByText('/existing'));
+		await vi.waitFor(() => expect(getByText('/existing')).toBeTruthy());
 	});
 
 	it('renders label', async () => {

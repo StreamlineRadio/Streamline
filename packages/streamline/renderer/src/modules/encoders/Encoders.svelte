@@ -43,13 +43,11 @@
 				const bi = orderMap.get(b.id) ?? Number.MAX_SAFE_INTEGER;
 				return ai - bi;
 			});
-			/* v8 ignore next 3 — catch branch only reachable on malformed JSON, not worth testing */
 		} catch {
 			return loaded;
 		}
 	}
 
-	/* v8 ignore next 8 — persistOrder: Electron IPC settings.set not exercised directly in jsdom */
 	async function persistOrder(orderedConfigs: EncoderConfig[]) {
 		const orderJson = JSON.stringify(orderedConfigs.map((c) => c.id));
 		try {
@@ -59,7 +57,6 @@
 		}
 	}
 
-	/* v8 ignore next 7 — reloadConfigs: Electron IPC calls not available in jsdom */
 	async function reloadConfigs() {
 		const [loaded, orderJson] = await Promise.all([
 			window.streamline.api.encoder.listConfigs(),
@@ -68,7 +65,6 @@
 		configs = applyStoredOrder(loaded, orderJson);
 	}
 
-	/* v8 ignore next 6 — onMount: Electron IPC and onEncoderStatus not available in jsdom */
 	onMount(async () => {
 		await reloadConfigs();
 		window.streamline.onEncoderStatus((id, rawStatus) => {
@@ -76,7 +72,6 @@
 		});
 	});
 
-	/* v8 ignore next 10 — saveConfig: Electron IPC encoder.saveConfig not available in jsdom */
 	async function saveConfig(config: EncoderConfig) {
 		try {
 			await window.streamline.api.encoder.saveConfig(config);
@@ -88,7 +83,6 @@
 		}
 	}
 
-	/* v8 ignore next 14 — deleteConfig: Electron IPC and safeStorage not available in jsdom */
 	async function deleteConfig(encoderId: string) {
 		const encoderConfig = configs.find((c) => c.id === encoderId);
 		try {
@@ -104,7 +98,6 @@
 		}
 	}
 
-	/* v8 ignore next 12 — toggleStreaming: Electron IPC streaming not available in jsdom */
 	async function toggleStreaming(config: EncoderConfig) {
 		const status = statuses.get(config.id);
 		try {
@@ -142,13 +135,11 @@
 			(s) => s.status === 'streaming' || s.status === 'connecting'
 		).length
 	);
-	/* v8 ignore next 2 — Svelte textContent path; activeCount is always a number, never null */
 	const activeLiveText = $derived(`${activeCount} live`);
 
 	let dragIndex = $state<number | null>(null);
 	let dragOverIndex = $state<number | null>(null);
 
-	/* v8 ignore next 7 — handleDragStart: drag-and-drop events not fired in jsdom tests */
 	function handleDragStart(event: DragEvent, index: number) {
 		dragIndex = index;
 		if (event.dataTransfer) {
@@ -157,7 +148,6 @@
 		}
 	}
 
-	/* v8 ignore next 6 — handleDragOver: drag-and-drop events not fired in jsdom tests */
 	function handleDragOver(event: DragEvent, index: number) {
 		if (dragIndex === null) return;
 		event.preventDefault();
@@ -165,7 +155,6 @@
 		if (dragOverIndex !== index) dragOverIndex = index;
 	}
 
-	/* v8 ignore next 12 — handleDrop: drag-and-drop events not fired in jsdom tests */
 	function handleDrop(event: DragEvent, targetIndex: number) {
 		event.preventDefault();
 		const source = dragIndex;
@@ -179,13 +168,11 @@
 		persistOrder(next);
 	}
 
-	/* v8 ignore next 4 — handleDragEnd: drag-and-drop events not fired in jsdom tests */
 	function handleDragEnd() {
 		dragIndex = null;
 		dragOverIndex = null;
 	}
 
-	/* v8 ignore next 7 — isDragTarget: drag-state only reachable during drag events, not fireable in jsdom */
 	function computeIsDragTarget(
 		overIndex: number | null,
 		sourceIndex: number | null,
@@ -194,7 +181,6 @@
 		return overIndex === index && sourceIndex !== null && sourceIndex !== index;
 	}
 
-	/* v8 ignore next 4 — drag visual classes; DnD events not fired in jsdom tests */
 	function dragCardClasses(isSource: boolean, isTarget: boolean): (string | false)[] {
 		return [
 			isSource && 'opacity-40',
@@ -202,7 +188,6 @@
 		];
 	}
 
-	/* v8 ignore next 4 — handleModalCancel: modal cancel only reachable when showModal=true, not exercised in jsdom tests */
 	function handleModalCancel() {
 		showModal = false;
 		editingConfig = undefined;

@@ -17,6 +17,7 @@ export default defineConfig({
 			include: ['src/**/*.ts', 'renderer/src/**/*.ts', 'renderer/src/**/*.svelte'],
 			exclude: [
 				'**/*.spec.ts',
+				'**/*.test.ts',
 				'src/main.ts',
 				'src/preload.ts',
 				'src/logging/index.ts',

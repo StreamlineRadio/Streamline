@@ -23,13 +23,14 @@ function makeChannel() {
 }
 
 describe('createAudioPort', () => {
-	let didFinishLoad: () => void;
+	let didFinishLoad: (() => void) | undefined;
 	let mockWebContents: { on: ReturnType<typeof vi.fn>; postMessage: ReturnType<typeof vi.fn> };
 	let mockWindow: { webContents: typeof mockWebContents };
 
 	beforeEach(async () => {
 		vi.clearAllMocks();
 		vi.resetModules();
+		didFinishLoad = undefined;
 		channelRef.current = makeChannel();
 		mockWebContents = {
 			on: vi.fn((event: string, cb: () => void) => {

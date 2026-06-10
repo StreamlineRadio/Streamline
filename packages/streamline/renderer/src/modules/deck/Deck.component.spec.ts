@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, waitFor, fireEvent, act } from '@testing-library/svelte';
 import { tick } from 'svelte';
 import Deck from './Deck.svelte';
@@ -91,6 +91,11 @@ describe('Deck (component) — state emits', () => {
 			},
 			getPathForFile: vi.fn()
 		};
+	});
+
+	afterEach(() => {
+		delete (window as unknown as { streamline?: unknown }).streamline;
+		delete (globalThis as unknown as { __deckAudio?: unknown }).__deckAudio;
 	});
 
 	it('emits state(loading) then state(loaded) when a song is loaded', async () => {

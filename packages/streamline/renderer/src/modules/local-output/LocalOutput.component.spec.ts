@@ -19,6 +19,8 @@ vi.mock('../../audio/mixer-bridge', () => ({
 import LocalOutput from './LocalOutput.svelte';
 
 describe('LocalOutput', () => {
+	const originalMediaDevices = Object.getOwnPropertyDescriptor(navigator, 'mediaDevices');
+
 	beforeEach(() => {
 		vi.stubGlobal(
 			'Audio',
@@ -44,6 +46,11 @@ describe('LocalOutput', () => {
 	afterEach(() => {
 		vi.unstubAllGlobals();
 		vi.clearAllMocks();
+		if (originalMediaDevices) {
+			Object.defineProperty(navigator, 'mediaDevices', originalMediaDevices);
+		} else {
+			delete (navigator as { mediaDevices?: unknown }).mediaDevices;
+		}
 		fakeGainNode.gain.value = 0;
 	});
 

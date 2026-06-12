@@ -50,43 +50,12 @@ jobs:
           path: NIGHTLY_NOTES.md
 
   build:
-    name: Build (${{ matrix.os }})
     needs: prepare
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Install Linux build dependencies
-        if: matrix.os == 'ubuntu-latest'
-        run: sudo apt-get install -y rpm
-
-      - run: pnpm install
-
-      - name: Set nightly version
-        run: pnpm --filter streamline exec npm version --no-git-tag-version "${{ needs.prepare.outputs.version }}"
-
-      - name: Package
-        run: pnpm package
-        env:
-          STREAMLINE_CHANNEL: nightly
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: artifacts-${{ matrix.os }}
-          path: packages/streamline/out/make/**/*
-          if-no-files-found: error
+    uses: ./.github/workflows/build.yml
+    with:
+      version: ${{ needs.prepare.outputs.version }}
+      channel: nightly
+      upload-artifacts: true
 
   release:
     name: Publish nightly release

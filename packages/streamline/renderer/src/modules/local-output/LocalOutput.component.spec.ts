@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vitest';
 import { render, fireEvent } from '@testing-library/svelte';
 import { tick } from 'svelte';
 
@@ -46,12 +46,20 @@ describe('LocalOutput', () => {
 	afterEach(() => {
 		vi.unstubAllGlobals();
 		vi.clearAllMocks();
+		fakeGainNode.gain.value = 0;
+	});
+
+	// Restore the descriptor only after the whole file: testing-library's auto-cleanup
+	// afterEach unmounts components *after* this file's afterEach, and the component's
+	// async onMount continuation can also touch navigator.mediaDevices after a test
+	// ends. Restoring per-test deletes the stub before those run and crashes them.
+	afterAll(async () => {
+		await new Promise((resolve) => setTimeout(resolve, 0));
 		if (originalMediaDevices) {
 			Object.defineProperty(navigator, 'mediaDevices', originalMediaDevices);
 		} else {
 			delete (navigator as { mediaDevices?: unknown }).mediaDevices;
 		}
-		fakeGainNode.gain.value = 0;
 	});
 
 	it('falls back to the device id when the label is empty', async () => {

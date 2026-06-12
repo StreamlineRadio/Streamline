@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { getAudioContext } from '../../audio/context';
-	import { getMasterBus } from '../../audio/mixer-bridge';
+	import { getMonitorBus } from '../../audio/mixer-bridge';
 
 	interface Props {
 		instanceId: string;
@@ -21,7 +21,7 @@
 		audioCtx = getAudioContext();
 		gainNode = audioCtx.createGain();
 		gainNode.gain.value = volume;
-		getMasterBus().connect(gainNode);
+		getMonitorBus().connect(gainNode);
 
 		destNode = audioCtx.createMediaStreamDestination();
 		gainNode.connect(destNode);
@@ -40,6 +40,8 @@
 
 	onDestroy(() => {
 		navigator.mediaDevices.removeEventListener('devicechange', refreshDevices);
+		// disconnect() only severs outgoing edges; the bus holds the incoming one
+		if (gainNode) getMonitorBus().disconnect(gainNode);
 		gainNode?.disconnect();
 		destNode?.disconnect();
 		/* v8 ignore else -- @preserve: audioEl is assigned synchronously in onMount before any teardown */

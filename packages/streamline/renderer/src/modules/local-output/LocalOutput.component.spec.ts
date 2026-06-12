@@ -2,18 +2,19 @@ import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vites
 import { render, fireEvent } from '@testing-library/svelte';
 import { tick } from 'svelte';
 
-const { fakeGainNode, fakeAudioCtx } = vi.hoisted(() => {
+const { fakeGainNode, fakeAudioCtx, fakeMonitorBus } = vi.hoisted(() => {
 	const fakeGainNode = { gain: { value: 0 }, connect: vi.fn(), disconnect: vi.fn() };
 	const fakeAudioCtx = {
 		createGain: vi.fn().mockReturnValue(fakeGainNode),
 		createMediaStreamDestination: vi.fn().mockReturnValue({ stream: {}, disconnect: vi.fn() })
 	};
-	return { fakeGainNode, fakeAudioCtx };
+	const fakeMonitorBus = { connect: vi.fn(), disconnect: vi.fn() };
+	return { fakeGainNode, fakeAudioCtx, fakeMonitorBus };
 });
 
 vi.mock('../../audio/context', () => ({ getAudioContext: vi.fn().mockReturnValue(fakeAudioCtx) }));
 vi.mock('../../audio/mixer-bridge', () => ({
-	getMasterBus: vi.fn().mockReturnValue({ connect: vi.fn(), disconnect: vi.fn() })
+	getMonitorBus: vi.fn().mockReturnValue(fakeMonitorBus)
 }));
 
 import LocalOutput from './LocalOutput.svelte';
@@ -60,6 +61,21 @@ describe('LocalOutput', () => {
 		} else {
 			delete (navigator as { mediaDevices?: unknown }).mediaDevices;
 		}
+	});
+
+	it('plays the monitor mix, not the raw master bus', async () => {
+		render(LocalOutput, { instanceId: 'lo-bus' });
+		await tick();
+		await Promise.resolve();
+		await tick();
+		expect(fakeMonitorBus.connect).toHaveBeenCalledWith(fakeGainNode);
+	});
+
+	it('disconnects the monitor bus from the gain node on unmount', async () => {
+		const { unmount } = render(LocalOutput, { instanceId: 'lo-teardown' });
+		await tick();
+		unmount();
+		expect(fakeMonitorBus.disconnect).toHaveBeenCalledWith(fakeGainNode);
 	});
 
 	it('falls back to the device id when the label is empty', async () => {

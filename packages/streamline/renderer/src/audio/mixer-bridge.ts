@@ -4,6 +4,7 @@ import { sendPcm } from './port';
 import tapProcessorUrl from '@streamline/audio-worklet/tap-processor?url';
 
 let masterBus: GainNode | null = null;
+let monitorBus: GainNode | null = null;
 let softClipper: WaveShaperNode | null = null;
 let tapNode: AudioWorkletNode | null = null;
 
@@ -14,7 +15,21 @@ export function getMasterBus(): GainNode {
 	return masterBus;
 }
 
+// What LocalOutput plays. Mirrors the master bus minus broadcast-only sources
+// (the microphone), so the DJ only hears their own mic via its monitor toggle.
+export function getMonitorBus(): GainNode {
+	/* v8 ignore next -- @preserve: monitorBus always null in tests; Web Audio not available in jsdom */
+	if (!monitorBus) throw new Error('Mixer not initialized — call initMixer() first');
+	/* v8 ignore next -- @preserve: monitorBus is always null in jsdom; initMixer is already ignored */
+	return monitorBus;
+}
+
 export function connectToMaster(source: AudioNode): void {
+	source.connect(getMasterBus());
+	source.connect(getMonitorBus());
+}
+
+export function connectToBroadcastOnly(source: AudioNode): void {
 	source.connect(getMasterBus());
 }
 
@@ -23,6 +38,8 @@ export async function initMixer(): Promise<void> {
 	const audioCtx = getAudioContext();
 	masterBus = audioCtx.createGain();
 	masterBus.gain.value = 1.0;
+	monitorBus = audioCtx.createGain();
+	monitorBus.gain.value = 1.0;
 
 	// Soft clipper (tanh curve, 256-point WaveShaper)
 	softClipper = audioCtx.createWaveShaper();
@@ -50,7 +67,7 @@ export async function initMixer(): Promise<void> {
 /* v8 ignore next -- @preserve: requires initialized Web Audio graph; tested by integration */
 export function setSoftClipEnabled(enabled: boolean): void {
 	if (!masterBus || !softClipper || !tapNode) return;
-	// Use targeted disconnects to avoid severing LocalOutput gainNode connections
+	// Use targeted disconnects so source connections into masterBus stay intact
 	try {
 		masterBus.disconnect(softClipper);
 	} catch {
@@ -75,6 +92,9 @@ export function setSoftClipEnabled(enabled: boolean): void {
 }
 
 export function setMasterVolume(value: number): void {
+	const clampedValue = Math.max(0, Math.min(1, value));
 	/* v8 ignore next -- @preserve: masterBus always null in tests; Web Audio not available in jsdom */
-	if (masterBus) masterBus.gain.value = Math.max(0, Math.min(1, value));
+	if (masterBus) masterBus.gain.value = clampedValue;
+	/* v8 ignore next -- @preserve: monitorBus always null in tests; Web Audio not available in jsdom */
+	if (monitorBus) monitorBus.gain.value = clampedValue;
 }

@@ -30,7 +30,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        # windows-2022 pinned: windows-latest ships Visual Studio 2026 (v18) since
+        # 2026-06-08, which @electron/node-gyp cannot detect yet (native module
+        # rebuilds fail). Revert to windows-latest once the electron toolchain
+        # supports VS2026. https://github.com/actions/runner-images/issues/14017
+        os: [ubuntu-latest, macos-latest, windows-2022]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     steps:

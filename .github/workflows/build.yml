@@ -1,0 +1,74 @@
+name: Build
+
+on:
+  pull_request:
+  workflow_call:
+    inputs:
+      version:
+        description: Version to stamp before packaging (skipped when empty)
+        type: string
+        default: ''
+      channel:
+        description: Update channel baked into the build
+        type: string
+        default: stable
+      upload-artifacts:
+        description: Upload the installers as workflow artifacts
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        # windows-2022 pinned: windows-latest ships Visual Studio 2026 (v18) since
+        # 2026-06-08, which @electron/node-gyp cannot detect yet (native module
+        # rebuilds fail). Revert to windows-latest once the electron toolchain
+        # supports VS2026. https://github.com/actions/runner-images/issues/14017
+        os: [ubuntu-latest, macos-latest, windows-2022]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install Linux build dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get install -y rpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Set version
+        if: inputs.version != ''
+        run: pnpm --filter streamline exec npm version --no-git-tag-version "${{ inputs.version }}"
+
+      - name: Package
+        run: pnpm package
+        env:
+          # inputs.channel is empty on pull_request runs (defaults only apply to workflow_call)
+          STREAMLINE_CHANNEL: ${{ inputs.channel || 'stable' }}
+
+      - name: Upload build artifacts
+        if: inputs.upload-artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts-${{ matrix.os }}
+          path: packages/streamline/out/make/**/*
+          if-no-files-found: error

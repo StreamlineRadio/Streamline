@@ -31,8 +31,12 @@ const { fakeAudioCtx } = vi.hoisted(() => {
 });
 
 vi.mock('../../audio/context', () => ({ getAudioContext: vi.fn().mockReturnValue(fakeAudioCtx) }));
-vi.mock('../../audio/mixer-bridge', () => ({ connectToMaster: vi.fn() }));
+vi.mock('../../audio/mixer-bridge', () => ({
+	connectToMaster: vi.fn(),
+	connectToBroadcastOnly: vi.fn()
+}));
 
+import { connectToBroadcastOnly } from '../../audio/mixer-bridge';
 import Microphone from './Microphone.svelte';
 
 describe('Microphone', () => {
@@ -157,6 +161,43 @@ describe('Microphone', () => {
 		await fireEvent.click(getByTitle('Stop hearing yourself'));
 		await tick();
 		expect(getByTitle('Hear yourself')).toBeTruthy();
+	});
+
+	it('connects the broadcast gain to the master bus only, not the local monitor mix', () => {
+		render(Microphone, { instanceId: 'mic-bus' });
+		expect(connectToBroadcastOnly).toHaveBeenCalledTimes(1);
+	});
+
+	it('keeps self-monitoring audible while live', async () => {
+		const { getByTitle, getByRole } = render(Microphone, { instanceId: 'mic-mon-live' });
+		await fireEvent.click(getByTitle('Hear yourself'));
+		await tick();
+		await Promise.resolve();
+		await tick();
+		const monitorGain = fakeAudioCtx.createGain.mock.results[1].value;
+		monitorGain.gain.linearRampToValueAtTime.mockClear();
+		await fireEvent.pointerDown(getByRole('button', { name: 'Hold to talk' }));
+		await tick();
+		await Promise.resolve();
+		await tick();
+		expect(monitorGain.gain.linearRampToValueAtTime).toHaveBeenCalledWith(1, expect.any(Number));
+	});
+
+	it('mutes self-monitoring while live when toggled off', async () => {
+		const { getByTitle, getByRole } = render(Microphone, { instanceId: 'mic-mon-off' });
+		await fireEvent.pointerDown(getByRole('button', { name: 'Hold to talk' }));
+		await tick();
+		await Promise.resolve();
+		await tick();
+		await fireEvent.click(getByTitle('Hear yourself'));
+		await tick();
+		await Promise.resolve();
+		await tick();
+		const monitorGain = fakeAudioCtx.createGain.mock.results[1].value;
+		monitorGain.gain.linearRampToValueAtTime.mockClear();
+		await fireEvent.click(getByTitle('Stop hearing yourself'));
+		await tick();
+		expect(monitorGain.gain.linearRampToValueAtTime).toHaveBeenCalledWith(0, expect.any(Number));
 	});
 
 	it('toggles talk lock on and off via the lock button', async () => {

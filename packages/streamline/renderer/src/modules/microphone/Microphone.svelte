@@ -10,7 +10,7 @@
 		faHeadphonesSimple
 	} from '@fortawesome/free-solid-svg-icons';
 	import { getAudioContext } from '../../audio/context';
-	import { connectToMaster } from '../../audio/mixer-bridge';
+	import { connectToBroadcastOnly } from '../../audio/mixer-bridge';
 	import DbMeter from '../../components/DbMeter.svelte';
 	import IconButton from '../../components/IconButton.svelte';
 
@@ -33,7 +33,9 @@
 	const analyserNode = audioCtx.createAnalyser();
 	analyserNode.fftSize = 2048;
 	gainNode.connect(analyserNode);
-	connectToMaster(gainNode);
+	// Broadcast-only: the mic must not reach LocalOutput's monitor mix, or the
+	// DJ would always hear themselves while live regardless of the toggle below
+	connectToBroadcastOnly(gainNode);
 
 	// Parallel monitor path → speakers, independent of broadcast gain
 	const monitorGain = audioCtx.createGain();
@@ -101,12 +103,10 @@
 		monitorGain.gain.linearRampToValueAtTime(targetValue, audioCtx.currentTime + timeMs / 1000);
 	}
 
-	// Re-applies both gains to their derived targets. Monitor is muted while live
-	// because the broadcast path already routes to the local destination through master.
 	/* v8 ignore next -- @preserve: getUserMedia + Web Audio not available in jsdom */
 	function applyAudio(timeMs = 10) {
 		rampGain(isLive ? volume : 0, timeMs);
-		rampMonitor(isMonitoring && !isLive ? volume : 0, timeMs);
+		rampMonitor(isMonitoring ? volume : 0, timeMs);
 	}
 
 	/* v8 ignore next -- @preserve: getUserMedia + Web Audio not available in jsdom */

@@ -15,6 +15,7 @@
 	import IconButton from '../../components/IconButton.svelte';
 	import { setSongDragData } from '../../drag-drop/song-drag';
 	import { eventBus } from '../event-bus';
+	import { trackPreloader } from '../../audio/track-preload';
 	import { layoutStore } from '../../layout/store.svelte';
 	import { instanceStore } from '../instance-store.svelte';
 	import type { DeckState, DeckStatePayload, DeckRemainingPayload } from '../deck/types';
@@ -62,6 +63,16 @@
 
 	let items = $state<QueueItem[]>([]);
 	const trackCountLabel = $derived(`${items.length} track${items.length !== 1 ? 's' : ''}`);
+
+	// Decode the head track ahead of time so an autoplay hand-off starts instantly.
+	// Only worthwhile when autoplay is on; otherwise the head may never play.
+	const upcomingPreloadPath = $derived(
+		currentSettings.autoplay ? (items[0]?.song.path ?? null) : null
+	);
+	$effect(() => {
+		if (upcomingPreloadPath) trackPreloader.preload(upcomingPreloadPath);
+		else trackPreloader.clear();
+	});
 	let dragIndex = $state<number | null>(null);
 	// Tracks whether the current drag landed on a drop target within THIS queue.
 	// Browsers set dropEffect='move' on the source's dragend after any successful drop

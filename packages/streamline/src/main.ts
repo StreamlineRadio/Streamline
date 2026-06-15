@@ -13,8 +13,6 @@ import { createAudioPort } from './audio/port';
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string;
 declare const MAIN_WINDOW_VITE_NAME: string;
 
-const DEV_SERVER_URL = MAIN_WINDOW_VITE_DEV_SERVER_URL;
-
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 if (process.platform === 'win32' && require('electron-squirrel-startup')) app.quit();
 app.setAppUserModelId('com.squirrel.Streamline.Streamline');
@@ -48,8 +46,8 @@ const createWindow = (): BrowserWindow => {
 		mainWindow.maximize();
 	}
 
-	if (DEV_SERVER_URL) {
-		mainWindow.loadURL(DEV_SERVER_URL);
+	if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
+		mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
 		mainWindow.webContents.openDevTools();
 	} else {
 		mainWindow.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));

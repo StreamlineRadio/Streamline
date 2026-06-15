@@ -1,3 +1,4 @@
+/* v8 ignore start — AudioWorkletProcessor and registerProcessor are not available in Node.js */
 const BATCH_FRAMES = 960; // 20ms at 48 kHz
 
 class TapProcessor extends AudioWorkletProcessor {
@@ -56,3 +57,5 @@ class TapProcessor extends AudioWorkletProcessor {
 }
 
 registerProcessor('tap-processor', TapProcessor);
+
+/* v8 ignore stop */

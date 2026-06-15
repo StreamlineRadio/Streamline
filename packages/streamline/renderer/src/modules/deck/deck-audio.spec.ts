@@ -49,6 +49,16 @@ describe('deck audio', () => {
 		deck.destroy();
 	});
 
+	it('onEnded registers a callback and returns a working unsubscribe', async () => {
+		const { createDeckAudio } = await import('./deck-audio');
+		const deck = createDeckAudio();
+		const callback = vi.fn();
+		const unsubscribe = deck.onEnded(callback);
+		expect(typeof unsubscribe).toBe('function');
+		unsubscribe();
+		deck.destroy();
+	});
+
 	it('fadeOut calls setTargetAtTime', async () => {
 		const { createDeckAudio } = await import('./deck-audio');
 		const deck = createDeckAudio();

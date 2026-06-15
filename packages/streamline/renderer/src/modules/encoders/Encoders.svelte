@@ -135,6 +135,7 @@
 			(s) => s.status === 'streaming' || s.status === 'connecting'
 		).length
 	);
+	const activeLiveText = $derived(`${activeCount} live`);
 
 	let dragIndex = $state<number | null>(null);
 	let dragOverIndex = $state<number | null>(null);
@@ -171,6 +172,31 @@
 		dragIndex = null;
 		dragOverIndex = null;
 	}
+
+	function computeIsDragTarget(
+		overIndex: number | null,
+		sourceIndex: number | null,
+		index: number
+	) {
+		return overIndex === index && sourceIndex !== null && sourceIndex !== index;
+	}
+
+	function dragCardClasses(isSource: boolean, isTarget: boolean): (string | false)[] {
+		return [
+			isSource && 'opacity-40',
+			isTarget && 'border-secondary-500 ring-1 ring-secondary-500/30'
+		];
+	}
+
+	function handleModalCancel() {
+		showModal = false;
+		editingConfig = undefined;
+	}
+
+	function handleEditConfig(config: EncoderConfig) {
+		editingConfig = config;
+		showModal = true;
+	}
 </script>
 
 <div
@@ -193,9 +219,8 @@
 			{#if activeCount > 0}
 				<span
 					class="rounded-full border border-success-700 bg-success-900 px-1.5 py-0.5 text-[0.55rem] font-bold tracking-[0.18em] text-success-300 uppercase"
+					>{activeLiveText}</span
 				>
-					{activeCount} live
-				</span>
 			{/if}
 		</div>
 		<IconButton
@@ -217,7 +242,8 @@
 			{@const isError = status.status === 'error'}
 			{@const isActive = isStreaming || isConnecting}
 			{@const isDragSource = dragIndex === index}
-			{@const isDragTarget = dragOverIndex === index && dragIndex !== null && dragIndex !== index}
+			{@const isDragTarget = computeIsDragTarget(dragOverIndex, dragIndex, index)}
+			{@const formatLabel = `${config.format.toUpperCase()} ${config.bitrateKbps}k`}
 			<!-- svelte-ignore a11y_no_static_element_interactions -->
 			<div
 				ondragover={(event) => handleDragOver(event, index)}
@@ -232,8 +258,7 @@
 							: isError
 								? 'border-danger-700 hover:border-danger-600'
 								: 'border-primary-700 hover:border-primary-600',
-					isDragSource && 'opacity-40',
-					isDragTarget && 'border-secondary-500 ring-1 ring-secondary-500/30'
+					...dragCardClasses(isDragSource, isDragTarget)
 				]}
 			>
 				<!-- Left accent bar when active -->
@@ -287,7 +312,7 @@
 					<div class="truncate font-mono text-[0.6rem] tracking-wide text-primary-500 uppercase">
 						<span class="text-secondary-400">{config.type}</span>
 						<span class="text-primary-700">·</span>
-						<span>{config.format.toUpperCase()} {config.bitrateKbps}k</span>
+						<span>{formatLabel}</span>
 						<span class="text-primary-700">·</span>
 						<span>{config.sampleRate / 1000} kHz</span>
 						<span class="text-primary-700">·</span>
@@ -351,10 +376,7 @@
 					<IconButton
 						icon={faGear}
 						title="Edit encoder"
-						onclick={() => {
-							editingConfig = config;
-							showModal = true;
-						}}
+						onclick={() => handleEditConfig(config)}
 						size="sm"
 					/>
 					<IconButton
@@ -381,14 +403,7 @@
 </div>
 
 {#if showModal}
-	<EncoderModal
-		config={editingConfig}
-		onSave={saveConfig}
-		onCancel={() => {
-			showModal = false;
-			editingConfig = undefined;
-		}}
-	/>
+	<EncoderModal config={editingConfig} onSave={saveConfig} onCancel={handleModalCancel} />
 {/if}
 
 <style>

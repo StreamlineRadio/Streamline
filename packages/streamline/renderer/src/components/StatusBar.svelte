@@ -46,6 +46,13 @@
 				: 'text-green-500'
 	);
 
+	const encoderCountText = $derived(
+		`${activeEncoders} encoder${activeEncoders !== 1 ? 's' : ''} active`
+	);
+
+	const versionLabel = $derived(`v${version}`);
+	const cpuText = $derived(`CPU: ${Math.round(cpuUsage)}%`);
+
 	function formatTime(date: Date): string {
 		return date.toLocaleTimeString('en-US', { hour12: false });
 	}
@@ -56,15 +63,13 @@
 >
 	<div class="flex flex-1 items-center gap-4">
 		<OnAirIndicator active={activeEncoders > 0} />
-		<span class={encoderColor}
-			>{activeEncoders} encoder{activeEncoders !== 1 ? 's' : ''} active</span
-		>
+		<span class={encoderColor}>{encoderCountText}</span>
 	</div>
 	<div class="flex flex-1 justify-center">
-		<span>Streamline <span class="text-primary-600">&bull;</span> v{version}</span>
+		<span>Streamline <span class="text-primary-600">&bull; </span>{versionLabel}</span>
 	</div>
 	<div class="flex flex-1 items-center justify-end gap-4">
-		<span>CPU: {Math.round(cpuUsage)}%</span>
+		<span>{cpuText}</span>
 		<span class="font-mono">{time}</span>
 	</div>
 </div>

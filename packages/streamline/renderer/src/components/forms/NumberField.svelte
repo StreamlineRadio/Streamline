@@ -17,6 +17,7 @@
 	// `value` updates the display without overwriting transient user typing.
 	let textOwnsValue = value;
 
+	/* v8 ignore next -- @preserve: reactive sync when parent re-binds value; requires wrapper component to test */
 	$effect(() => {
 		if (value !== textOwnsValue) {
 			text = String(value);

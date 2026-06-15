@@ -11,7 +11,7 @@ const SUPPORTED_EXTENSIONS = new Set(['.mp3', '.m4a', '.aac', '.flac', '.wav', '
 let watcher: FSWatcher | null = null;
 let _mainWindow: BrowserWindow | null = null;
 
-export function setWatcherWindow(mainWindow: BrowserWindow): void {
+export function setWatcherWindow(mainWindow: BrowserWindow | null): void {
 	_mainWindow = mainWindow;
 }
 

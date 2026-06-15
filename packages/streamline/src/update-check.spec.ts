@@ -1,4 +1,11 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+
+vi.mock('electron', () => ({
+	app: { isPackaged: false, getVersion: vi.fn() },
+	Notification: vi.fn().mockImplementation(() => ({ on: vi.fn(), show: vi.fn() })),
+	shell: { openExternal: vi.fn() }
+}));
+
 import { resolveUpdate, type ReleaseInfo } from './update-check';
 
 const stableRelease = (tag: string): ReleaseInfo => ({
@@ -42,6 +49,46 @@ describe('resolveUpdate — stable', () => {
 
 	it('returns null when there is no release', () => {
 		expect(resolveUpdate({ channel: 'stable', currentVersion: '0.0.1', release: null })).toBeNull();
+	});
+
+	it('notifies when the remote has a higher major version', () => {
+		expect(
+			resolveUpdate({
+				channel: 'stable',
+				currentVersion: '0.0.1',
+				release: stableRelease('v1.0.0')
+			})
+		).not.toBeNull();
+	});
+
+	it('returns null when the remote has a lower major version', () => {
+		expect(
+			resolveUpdate({
+				channel: 'stable',
+				currentVersion: '1.0.0',
+				release: stableRelease('v0.0.1')
+			})
+		).toBeNull();
+	});
+
+	it('notifies when the remote has a higher minor version', () => {
+		expect(
+			resolveUpdate({
+				channel: 'stable',
+				currentVersion: '0.0.1',
+				release: stableRelease('v0.1.0')
+			})
+		).not.toBeNull();
+	});
+
+	it('returns null when the remote has a lower minor version', () => {
+		expect(
+			resolveUpdate({
+				channel: 'stable',
+				currentVersion: '0.1.0',
+				release: stableRelease('v0.0.1')
+			})
+		).toBeNull();
 	});
 });
 
@@ -97,6 +144,16 @@ describe('resolveUpdate — nightly', () => {
 	it('returns null when there is no nightly release', () => {
 		expect(
 			resolveUpdate({ channel: 'nightly', currentVersion: '0.0.1-nightly.gaaaaaaa', release: null })
+		).toBeNull();
+	});
+
+	it('returns null when release.name is null', () => {
+		expect(
+			resolveUpdate({
+				channel: 'nightly',
+				currentVersion: '0.0.1-nightly.gaaaaaaa',
+				release: { tag_name: 'nightly', name: null, html_url: 'x' }
+			})
 		).toBeNull();
 	});
 });

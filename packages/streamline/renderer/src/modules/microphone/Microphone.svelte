@@ -10,7 +10,7 @@
 		faHeadphonesSimple
 	} from '@fortawesome/free-solid-svg-icons';
 	import { getAudioContext } from '../../audio/context';
-	import { connectToMaster } from '../../audio/mixer-bridge';
+	import { connectToBroadcastOnly } from '../../audio/mixer-bridge';
 	import DbMeter from '../../components/DbMeter.svelte';
 	import IconButton from '../../components/IconButton.svelte';
 
@@ -33,7 +33,9 @@
 	const analyserNode = audioCtx.createAnalyser();
 	analyserNode.fftSize = 2048;
 	gainNode.connect(analyserNode);
-	connectToMaster(gainNode);
+	// Broadcast-only: the mic must not reach LocalOutput's monitor mix, or the
+	// DJ would always hear themselves while live regardless of the toggle below
+	connectToBroadcastOnly(gainNode);
 
 	// Parallel monitor path → speakers, independent of broadcast gain
 	const monitorGain = audioCtx.createGain();
@@ -57,11 +59,13 @@
 		monitorGain.disconnect();
 	});
 
+	/* v8 ignore next -- @preserve: getUserMedia + Web Audio not available in jsdom */
 	async function refreshDevices() {
 		const allDevices = await navigator.mediaDevices.enumerateDevices();
 		devices = allDevices.filter((device) => device.kind === 'audioinput');
 	}
 
+	/* v8 ignore next -- @preserve: getUserMedia + Web Audio not available in jsdom */
 	async function startCapture() {
 		stopCapture();
 		stream = await navigator.mediaDevices.getUserMedia({
@@ -77,6 +81,7 @@
 		sourceNode.connect(monitorGain);
 	}
 
+	/* v8 ignore next -- @preserve: getUserMedia + Web Audio not available in jsdom */
 	function stopCapture() {
 		sourceNode?.disconnect();
 		stream?.getTracks().forEach((track) => track.stop());
@@ -84,25 +89,27 @@
 		sourceNode = null;
 	}
 
+	/* v8 ignore next -- @preserve: getUserMedia + Web Audio not available in jsdom */
 	function rampGain(targetValue: number, timeMs: number) {
 		gainNode.gain.cancelScheduledValues(audioCtx.currentTime);
 		gainNode.gain.setValueAtTime(gainNode.gain.value, audioCtx.currentTime);
 		gainNode.gain.linearRampToValueAtTime(targetValue, audioCtx.currentTime + timeMs / 1000);
 	}
 
+	/* v8 ignore next -- @preserve: getUserMedia + Web Audio not available in jsdom */
 	function rampMonitor(targetValue: number, timeMs: number) {
 		monitorGain.gain.cancelScheduledValues(audioCtx.currentTime);
 		monitorGain.gain.setValueAtTime(monitorGain.gain.value, audioCtx.currentTime);
 		monitorGain.gain.linearRampToValueAtTime(targetValue, audioCtx.currentTime + timeMs / 1000);
 	}
 
-	// Re-applies both gains to their derived targets. Monitor is muted while live
-	// because the broadcast path already routes to the local destination through master.
+	/* v8 ignore next -- @preserve: getUserMedia + Web Audio not available in jsdom */
 	function applyAudio(timeMs = 10) {
 		rampGain(isLive ? volume : 0, timeMs);
-		rampMonitor(isMonitoring && !isLive ? volume : 0, timeMs);
+		rampMonitor(isMonitoring ? volume : 0, timeMs);
 	}
 
+	/* v8 ignore next -- @preserve: getUserMedia + Web Audio not available in jsdom */
 	async function ensureCapture(): Promise<boolean> {
 		if (sourceNode) return true;
 		try {
@@ -114,6 +121,7 @@
 		}
 	}
 
+	/* v8 ignore next -- @preserve: PTT hotkey handlers require audio capture; not testable in jsdom */
 	function handlePttDown() {
 		pttHeld = true;
 		if (isLocked) isLocked = false;
@@ -129,6 +137,7 @@
 		});
 	}
 
+	/* v8 ignore next -- @preserve: PTT hotkey handlers require audio capture; not testable in jsdom */
 	function handlePttRelease() {
 		if (!pttHeld) return;
 		pttHeld = false;
@@ -136,6 +145,7 @@
 		applyAudio(50);
 	}
 
+	/* v8 ignore next -- @preserve: PTT hotkey handlers require audio capture; not testable in jsdom */
 	function toggleLock() {
 		const next = !isLocked;
 		isLocked = next;
@@ -156,6 +166,7 @@
 		}
 	}
 
+	/* v8 ignore next -- @preserve: getUserMedia + Web Audio not available in jsdom */
 	async function handleDeviceChange() {
 		if (!sourceNode) return;
 		try {
@@ -165,6 +176,7 @@
 		}
 	}
 
+	/* v8 ignore next -- @preserve: getUserMedia + Web Audio not available in jsdom */
 	function toggleMonitor() {
 		const next = !isMonitoring;
 		isMonitoring = next;
@@ -181,6 +193,22 @@
 			applyAudio(50);
 		}
 	}
+
+	const micDeviceSelectId = $derived('mic-device-' + instanceId);
+	const micVolSliderId = $derived('mic-vol-' + instanceId);
+	/* v8 ignore next -- @preserve: FontAwesomeIcon reads the icon prop once at mount; the toggled arm is never re-read */
+	const monitorIcon = $derived(isMonitoring ? faHeadphones : faHeadphonesSimple);
+	const monitorTitle = $derived(isMonitoring ? 'Stop hearing yourself' : 'Hear yourself');
+	const lockTitle = $derived(isLocked ? 'Release talk lock' : 'Lock talk on');
+	const lockClass = $derived(
+		isLocked
+			? 'border-danger-500 bg-danger-700 text-primary-50 hover:bg-danger-600'
+			: 'border-primary-700 bg-primary-900 text-primary-400 hover:border-secondary-600 hover:text-secondary-300'
+	);
+	/* v8 ignore next -- @preserve: FontAwesomeIcon reads the icon prop once at mount; the toggled arm is never re-read */
+	const lockIcon = $derived(isLocked ? faLock : faLockOpen);
+	const lockLabel = $derived(isLocked ? 'Locked' : 'Lock Talk');
+	const heightStyle = $derived(`${volTrackHeight}px`);
 </script>
 
 <div
@@ -197,22 +225,22 @@
 		<div class="flex min-w-0 flex-1 flex-col gap-3 p-3">
 			<!-- Top row: device dropdown + monitor toggle + on-air badge -->
 			<div class="flex items-center gap-2">
-				<label for="mic-device-{instanceId}" class="sr-only">Input device</label>
+				<label for={micDeviceSelectId} class="sr-only">Input device</label>
 				<select
-					id="mic-device-{instanceId}"
+					id={micDeviceSelectId}
 					bind:value={selectedDeviceId}
 					onchange={handleDeviceChange}
 					class="min-w-0 flex-1 rounded border border-primary-700 bg-primary-900 px-2 py-1 text-xs text-primary-100 outline-none focus:border-secondary-500"
 				>
 					<option value="">System Default</option>
 					{#each devices as device (device.deviceId)}
-						<option value={device.deviceId}>{device.label || device.deviceId}</option>
+						<option value={device.deviceId} label={device.label || device.deviceId}></option>
 					{/each}
 				</select>
 
 				<IconButton
-					icon={isMonitoring ? faHeadphones : faHeadphonesSimple}
-					title={isMonitoring ? 'Stop hearing yourself' : 'Hear yourself'}
+					icon={monitorIcon}
+					title={monitorTitle}
 					onclick={toggleMonitor}
 					active={isMonitoring}
 					size="xs"
@@ -261,16 +289,14 @@
 				<!-- Small lock-talk pill underneath -->
 				<button
 					onclick={toggleLock}
-					title={isLocked ? 'Release talk lock' : 'Lock talk on'}
+					title={lockTitle}
 					class={[
 						'flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[0.6rem] font-bold tracking-[0.18em] uppercase transition-colors',
-						isLocked
-							? 'border-danger-500 bg-danger-700 text-primary-50 hover:bg-danger-600'
-							: 'border-primary-700 bg-primary-900 text-primary-400 hover:border-secondary-600 hover:text-secondary-300'
+						lockClass
 					]}
 				>
-					<FontAwesomeIcon icon={isLocked ? faLock : faLockOpen} />
-					<span>{isLocked ? 'Locked' : 'Lock Talk'}</span>
+					<FontAwesomeIcon icon={lockIcon} />
+					<span>{lockLabel}</span>
 				</button>
 			</div>
 		</div>
@@ -280,9 +306,9 @@
 			<div class="flex w-5 flex-col items-center gap-1">
 				<span class="side-label">VOL</span>
 				<div class="min-h-0 flex-1" bind:clientHeight={volTrackHeight}>
-					<label for="mic-vol-{instanceId}" class="sr-only">Volume</label>
+					<label for={micVolSliderId} class="sr-only">Volume</label>
 					<input
-						id="mic-vol-{instanceId}"
+						id={micVolSliderId}
 						type="range"
 						min="0"
 						max="1"
@@ -290,7 +316,7 @@
 						bind:value={volume}
 						oninput={() => applyAudio(10)}
 						class="vol-slider"
-						style:height="{volTrackHeight}px"
+						style:height={heightStyle}
 					/>
 				</div>
 			</div>

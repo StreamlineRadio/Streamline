@@ -9,13 +9,19 @@
 		faPlay,
 		faTrashCan,
 		faMusic,
-		faGear
+		faGear,
+		faBolt,
+		faSpinner
 	} from '@fortawesome/free-solid-svg-icons';
 	import type { Song } from '@streamline/shared';
 	import IconButton from '../../components/IconButton.svelte';
 	import { setSongDragData } from '../../drag-drop/song-drag';
 	import { eventBus } from '../event-bus';
-	import { trackPreloader } from '../../audio/track-preload';
+	import {
+		trackPreloader,
+		TRACK_PRELOAD_STATE,
+		type PreloadStatePayload
+	} from '../../audio/track-preload';
 	import { layoutStore } from '../../layout/store.svelte';
 	import { instanceStore } from '../instance-store.svelte';
 	import type { DeckState, DeckStatePayload, DeckRemainingPayload } from '../deck/types';
@@ -73,6 +79,18 @@
 		if (upcomingPreloadPath) trackPreloader.preload(upcomingPreloadPath);
 		else trackPreloader.clear();
 	});
+
+	// Mirrors the shared preloader's progress so the matching row can show an
+	// indicator. The preloader holds one track, so a single entry is enough.
+	let preload = $state<{ path: string; status: 'preloading' | 'ready' } | null>(null);
+	function onPreloadState(payload: unknown): void {
+		const { path, status } = payload as PreloadStatePayload;
+		if (status === 'cleared') {
+			if (path === null || preload?.path === path) preload = null;
+			return;
+		}
+		preload = { path: path as string, status };
+	}
 	let dragIndex = $state<number | null>(null);
 	// Tracks whether the current drag landed on a drop target within THIS queue.
 	// Browsers set dropEffect='move' on the source's dragend after any successful drop
@@ -229,11 +247,14 @@
 		linkedDecks.delete(deckId);
 	}
 
+	let unsubPreloadState: (() => void) | null = null;
+
 	onMount(() => {
 		nowTimer = setInterval(() => {
 			// Skip when a deck is connected — deckEtaBase updates drive ETA instead
 			if (deckEtaBase === null) now = Date.now();
 		}, 1000);
+		unsubPreloadState = eventBus.on(TRACK_PRELOAD_STATE, onPreloadState);
 	});
 
 	// Reconciles per-deck subscriptions with currentSettings.linkedDeckIds.
@@ -254,6 +275,7 @@
 
 	onDestroy(() => {
 		clearInterval(nowTimer);
+		unsubPreloadState?.();
 		for (const deckId of Array.from(linkedDecks.keys())) {
 			unsubscribeFromDeck(deckId);
 		}
@@ -436,6 +458,14 @@
 		eventBus.emit('toast:show', { message, type });
 	}
 
+	function showPreloadInfo(e: MouseEvent) {
+		e.stopPropagation();
+		showToast(
+			'Preloaded: this track is already decoded in memory, so autoplay starts it instantly with no gap between songs.',
+			'info'
+		);
+	}
+
 	function tryLoadOnDeck(deckId: string, path: string): boolean {
 		let accepted = false;
 		eventBus.emit(`deck:${deckId}:load-if-idle`, {
@@ -551,6 +581,22 @@
 				</span>
 				<span class="w-12 shrink-0 text-right font-mono text-xs text-primary-300">
 					{formatDuration(item.song.durationSec)}
+				</span>
+				<span class="flex h-6 w-6 shrink-0 items-center justify-center text-xs">
+					{#if preload?.path === item.song.path && preload.status === 'ready'}
+						<button
+							title="Preloaded"
+							onclick={showPreloadInfo}
+							ondblclick={(e) => e.stopPropagation()}
+							class="flex h-6 w-6 items-center justify-center rounded text-success-400 transition-colors hover:bg-success-950"
+						>
+							<FontAwesomeIcon icon={faBolt} />
+						</button>
+					{:else if preload?.path === item.song.path && preload.status === 'preloading'}
+						<span title="Preloading…" class="text-primary-400">
+							<FontAwesomeIcon icon={faSpinner} spin />
+						</span>
+					{/if}
 				</span>
 				<button
 					title="Remove from queue"

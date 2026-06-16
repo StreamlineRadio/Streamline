@@ -1,8 +1,9 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('./context', () => ({ getAudioContext: vi.fn() }));
 
-import { createTrackPreloader, type DecodeTrack } from './track-preload';
+import { createTrackPreloader, TRACK_PRELOAD_STATE, type DecodeTrack } from './track-preload';
+import { eventBus, _clearEventBusForTesting } from '../modules/event-bus';
 
 const fakeBuffer = (id: string): AudioBuffer => ({ id }) as unknown as AudioBuffer;
 
@@ -32,6 +33,8 @@ function deferredDecode() {
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe('track-preload', () => {
+	beforeEach(() => _clearEventBusForTesting());
+
 	it('decodes and caches a track, then hands it off via take', async () => {
 		const { decode, calls } = deferredDecode();
 		const preloader = createTrackPreloader(decode);
@@ -159,5 +162,41 @@ describe('track-preload', () => {
 		calls.get('/b.mp3')!.resolve(fakeBuffer('b'));
 		await flush();
 		expect(preloader.take('/b.mp3')).toBeNull();
+	});
+
+	it('emits preloading then ready, then cleared on take', async () => {
+		const { decode, calls } = deferredDecode();
+		const preloader = createTrackPreloader(decode);
+		const events: unknown[] = [];
+		eventBus.on(TRACK_PRELOAD_STATE, (p) => events.push(p));
+
+		preloader.preload('/a.mp3');
+		calls.get('/a.mp3')!.resolve(fakeBuffer('a'));
+		await flush();
+		preloader.take('/a.mp3');
+
+		expect(events).toEqual([
+			{ path: '/a.mp3', status: 'preloading' },
+			{ path: '/a.mp3', status: 'ready' },
+			{ path: '/a.mp3', status: 'cleared' }
+		]);
+	});
+
+	it('emits cleared when a decode rejects, and a null-path cleared on clear', async () => {
+		const { decode, calls } = deferredDecode();
+		const preloader = createTrackPreloader(decode);
+		const events: unknown[] = [];
+		eventBus.on(TRACK_PRELOAD_STATE, (p) => events.push(p));
+
+		preloader.preload('/a.mp3');
+		calls.get('/a.mp3')!.reject(new Error('read failed'));
+		await flush();
+		preloader.clear();
+
+		expect(events).toEqual([
+			{ path: '/a.mp3', status: 'preloading' },
+			{ path: '/a.mp3', status: 'cleared' },
+			{ path: null, status: 'cleared' }
+		]);
 	});
 });

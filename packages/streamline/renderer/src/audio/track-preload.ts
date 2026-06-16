@@ -1,6 +1,15 @@
 import { getAudioContext } from './context';
+import { eventBus } from '../modules/event-bus';
 
 export type DecodeTrack = (path: string) => Promise<AudioBuffer>;
+
+export const TRACK_PRELOAD_STATE = 'track:preload:state';
+
+export interface PreloadStatePayload {
+	// null only with status 'cleared', meaning every preload state was dropped.
+	path: string | null;
+	status: 'preloading' | 'ready' | 'cleared';
+}
 
 /* v8 ignore start -- @preserve: IPC + Web Audio decodeAudioData not available in jsdom */
 const defaultDecode: DecodeTrack = async (path) => {
@@ -25,19 +34,26 @@ export function createTrackPreloader(decode: DecodeTrack = defaultDecode): Track
 	let cachedBuffer: AudioBuffer | null = null;
 	let inFlightPath: string | null = null;
 
+	const emitState = (path: string | null, status: PreloadStatePayload['status']) =>
+		eventBus.emit(TRACK_PRELOAD_STATE, { path, status } satisfies PreloadStatePayload);
+
 	return {
 		preload(path: string): void {
 			if (path === cachedPath || path === inFlightPath) return;
 			inFlightPath = path;
+			emitState(path, 'preloading');
 			decode(path)
 				.then((buffer) => {
 					if (inFlightPath !== path) return;
 					cachedPath = path;
 					cachedBuffer = buffer;
 					inFlightPath = null;
+					emitState(path, 'ready');
 				})
 				.catch(() => {
-					if (inFlightPath === path) inFlightPath = null;
+					if (inFlightPath !== path) return;
+					inFlightPath = null;
+					emitState(path, 'cleared');
 				});
 		},
 		take(path: string): AudioBuffer | null {
@@ -45,12 +61,14 @@ export function createTrackPreloader(decode: DecodeTrack = defaultDecode): Track
 			const buffer = cachedBuffer;
 			cachedPath = null;
 			cachedBuffer = null;
+			emitState(path, 'cleared');
 			return buffer;
 		},
 		clear(): void {
 			cachedPath = null;
 			cachedBuffer = null;
 			inFlightPath = null;
+			emitState(null, 'cleared');
 		}
 	};
 }

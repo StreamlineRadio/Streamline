@@ -555,6 +555,7 @@
 		<span class="queue-label flex-1">Song</span>
 		<span class="queue-label w-12 shrink-0 text-right">Length</span>
 		<span class="w-6 shrink-0"></span>
+		<span class="w-6 shrink-0"></span>
 	</div>
 
 	<!-- Song list (scrollable, min-h-0 prevents flex overflow) -->

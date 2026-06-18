@@ -47,7 +47,7 @@ await rebuild({
 	electronVersion,
 	arch: process.arch,
 	onlyModules: ['better-sqlite3'],
-	extraModules: new Set(['better-sqlite3']),
+	extraModules: ['better-sqlite3'],
 	buildFromSource: true,
 	force: true
 });

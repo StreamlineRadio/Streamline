@@ -7,7 +7,9 @@
 	"private": true,
 	"scripts": {
 		"pretest": "pnpm rebuild better-sqlite3",
+		"predev": "node scripts/ensure-electron-abi.mjs",
 		"dev": "electron-forge start",
+		"prestart": "node scripts/ensure-electron-abi.mjs",
 		"start": "electron-forge start",
 		"make": "electron-forge make",
 		"check": "svelte-check --tsconfig ./renderer/tsconfig.json && tsc --noEmit",

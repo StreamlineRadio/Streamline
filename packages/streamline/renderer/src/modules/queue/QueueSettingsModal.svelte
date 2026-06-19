@@ -5,11 +5,14 @@
 
 	interface Props {
 		linkedDeckIds: string[];
+		preloadCount: number;
 		onToggleDeck: (deckId: string, linked: boolean) => void;
+		onPreloadCountChange: (count: number) => void;
 		onClose: () => void;
 	}
 
-	const { linkedDeckIds, onToggleDeck, onClose }: Props = $props();
+	const { linkedDeckIds, preloadCount, onToggleDeck, onPreloadCountChange, onClose }: Props =
+		$props();
 
 	const deckOptions = $derived(
 		(layoutStore.active?.instances ?? [])
@@ -51,5 +54,24 @@
 				{/each}
 			</ul>
 		{/if}
+	</section>
+
+	<section class="mt-4 flex flex-col gap-2">
+		<header>
+			<div class="text-sm font-semibold text-primary-100">Preload first N tracks</div>
+			<div class="text-xs text-primary-500">
+				Decode this many upcoming tracks ahead so autoplay starts with no gap. Higher values greatly
+				increase RAM use (~92 MB per track).
+			</div>
+		</header>
+		<input
+			type="number"
+			min="1"
+			max="20"
+			value={preloadCount}
+			onchange={(e) =>
+				onPreloadCountChange(Math.max(1, Math.round(Number((e.target as HTMLInputElement).value))))}
+			class="w-20 rounded border border-primary-700 bg-primary-900 px-2 py-1 text-sm text-primary-100"
+		/>
 	</section>
 </Modal>

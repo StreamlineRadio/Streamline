@@ -51,7 +51,7 @@ const config: ForgeConfig = {
 			{
 				options: {
 					categories: ['Audio'],
-					icon: 'assets/icon.svg'
+					icon: 'assets/icon.png'
 				}
 			},
 			['linux']
@@ -60,7 +60,14 @@ const config: ForgeConfig = {
 			{
 				options: {
 					categories: ['Audio'],
-					icon: 'assets/icon.png'
+					// maker-deb types `icon` as a string, but electron-installer-debian only
+					// installs into the hicolor theme (where desktop environments resolve the
+					// launcher/taskbar icon) when given a resolution-keyed object. A bare string
+					// lands only in the legacy /usr/share/pixmaps fallback, which GNOME ignores.
+					icon: {
+						'512x512': 'assets/icon.png',
+						scalable: 'assets/icon.svg'
+					} as unknown as string
 				}
 			},
 			['linux']
@@ -69,7 +76,11 @@ const config: ForgeConfig = {
 			{
 				options: {
 					categories: ['Audio'],
-					icon: 'assets/icon.png'
+					// See MakerDeb above: object form is required for hicolor theme installation.
+					icon: {
+						'512x512': 'assets/icon.png',
+						scalable: 'assets/icon.svg'
+					} as unknown as string
 				}
 			},
 			['linux']

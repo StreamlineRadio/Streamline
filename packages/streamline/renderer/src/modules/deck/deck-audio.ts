@@ -5,6 +5,7 @@ export interface DeckAudio {
 	gainNode: GainNode;
 	analyserNode: AnalyserNode;
 	load(arrayBuffer: ArrayBuffer): Promise<void>;
+	loadDecoded(decodedBuffer: AudioBuffer): void;
 	play(): void;
 	pause(): void;
 	stop(): void;
@@ -47,16 +48,26 @@ export function createDeckAudio(): DeckAudio {
 		pauseOffset = 0;
 	}
 
+	/* v8 ignore next -- @preserve: Web Audio API not available in jsdom */
+	function applyBuffer(decodedBuffer: AudioBuffer) {
+		gainNode.gain.cancelScheduledValues(audioCtx.currentTime);
+		gainNode.gain.setValueAtTime(1, audioCtx.currentTime);
+		stopSource();
+		buffer = decodedBuffer;
+	}
+
 	return {
 		gainNode,
 		analyserNode,
 
 		/* v8 ignore next -- @preserve: Web Audio decodeAudioData not available in jsdom */
 		async load(arrayBuffer: ArrayBuffer): Promise<void> {
-			gainNode.gain.cancelScheduledValues(audioCtx.currentTime);
-			gainNode.gain.setValueAtTime(1, audioCtx.currentTime);
-			stopSource();
-			buffer = await audioCtx.decodeAudioData(arrayBuffer);
+			applyBuffer(await audioCtx.decodeAudioData(arrayBuffer));
+		},
+
+		/* v8 ignore next -- @preserve: Web Audio API not available in jsdom */
+		loadDecoded(decodedBuffer: AudioBuffer): void {
+			applyBuffer(decodedBuffer);
 		},
 
 		/* v8 ignore next -- @preserve: Web Audio API not available in jsdom */

@@ -38,7 +38,8 @@ const config: ForgeConfig = {
 		name: 'Streamline',
 		executableName: 'streamline',
 		appBundleId: 'com.streamlineradio.Streamline',
-		icon: './assets/icon'
+		icon: './assets/icon',
+		extraResource: ['./assets/icon.png']
 	},
 	rebuildConfig: {
 		onlyModules: ['better-sqlite3']

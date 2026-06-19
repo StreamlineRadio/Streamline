@@ -26,12 +26,16 @@ const createWindow = (): BrowserWindow => {
 		defaultHeight: 800
 	});
 
+	const iconPath = app.isPackaged
+		? path.join(process.resourcesPath, 'icon.png')
+		: path.join(app.getAppPath(), 'assets/icon.png');
+
 	const mainWindow = new BrowserWindow({
 		x: windowState.x,
 		y: windowState.y,
 		width: windowState.width,
 		height: windowState.height,
-		icon: path.join(app.getAppPath(), 'build/icon.png'),
+		icon: iconPath,
 		webPreferences: {
 			preload: path.join(__dirname, 'preload.js'),
 			contextIsolation: true,

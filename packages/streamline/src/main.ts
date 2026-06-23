@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu } from 'electron';
+import { app, BrowserWindow, Menu, dialog } from 'electron';
 import path from 'node:path';
 import windowStateKeeper from 'electron-window-state';
 import { checkForUpdates } from './update-check';
@@ -6,6 +6,7 @@ import { initLogging, log } from './logging';
 import { openDb, closeDb } from './db';
 import { runMigrations } from './db/migrate';
 import { registerAllHandlers } from './ipc/register';
+import { isAnyEncoderStreaming } from './encoders/manager';
 import { setEncoderWindow } from './ipc/handlers/encoder';
 import { setLibraryWindow } from './ipc/handlers/library';
 import { createAudioPort } from './audio/port';
@@ -41,6 +42,20 @@ const createWindow = (): BrowserWindow => {
 	});
 
 	windowState.manage(mainWindow);
+
+	mainWindow.on('close', (event) => {
+		if (!isAnyEncoderStreaming()) return;
+		event.preventDefault();
+		const choice = dialog.showMessageBoxSync(mainWindow, {
+			type: 'warning',
+			buttons: ['Quit', 'Cancel'],
+			defaultId: 1,
+			cancelId: 1,
+			title: 'On air',
+			message: 'You are on air — quit anyway?'
+		});
+		if (choice === 0) mainWindow.destroy();
+	});
 
 	if (windowState.x === undefined) {
 		mainWindow.maximize();

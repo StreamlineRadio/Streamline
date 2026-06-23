@@ -40,7 +40,7 @@ vi.mock('../audio/pcm-receiver', () => ({
 
 vi.mock('../ipc/handlers/secret', () => ({ getSecret: vi.fn().mockReturnValue('pw') }));
 
-import { startEncoder, stopEncoder, getEncoderStatus } from './manager';
+import { startEncoder, stopEncoder, getEncoderStatus, isAnyEncoderStreaming } from './manager';
 import { EncoderProcess } from './encoder-process';
 import { registerEncoderConsumer, unregisterEncoderConsumer } from '../audio/pcm-receiver';
 import type { EncoderConfig } from '@streamline/shared';
@@ -119,6 +119,22 @@ describe('encoder manager', () => {
 		});
 		startEncoder(makeConfig('enc-2'), fakeWindow);
 		expect(getEncoderStatus('enc-2')).toEqual(expect.objectContaining({ status: 'streaming' }));
+	});
+
+	it('isAnyEncoderStreaming is false when no encoder is running', () => {
+		expect(isAnyEncoderStreaming()).toBe(false);
+	});
+
+	it('isAnyEncoderStreaming is true when a running encoder is streaming', () => {
+		mockEncoderStatus.mockReturnValue({ status: 'streaming' });
+		startEncoder(makeConfig(), fakeWindow);
+		expect(isAnyEncoderStreaming()).toBe(true);
+	});
+
+	it('isAnyEncoderStreaming is false when the running encoder is not streaming', () => {
+		mockEncoderStatus.mockReturnValue({ status: 'connecting' });
+		startEncoder(makeConfig(), fakeWindow);
+		expect(isAnyEncoderStreaming()).toBe(false);
 	});
 
 	it('status listener fires webContents.send when status changes', () => {

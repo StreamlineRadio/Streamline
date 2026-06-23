@@ -10,7 +10,7 @@
 		faHeadphonesSimple
 	} from '@fortawesome/free-solid-svg-icons';
 	import { getAudioContext } from '../../audio/context';
-	import { connectToBroadcastOnly } from '../../audio/mixer-bridge';
+	import { connectToBroadcastOnly, getMonitorBus } from '../../audio/mixer-bridge';
 	import DbMeter from '../../components/DbMeter.svelte';
 	import IconButton from '../../components/IconButton.svelte';
 
@@ -37,10 +37,11 @@
 	// DJ would always hear themselves while live regardless of the toggle below
 	connectToBroadcastOnly(gainNode);
 
-	// Parallel monitor path → speakers, independent of broadcast gain
+	// Parallel monitor path → shared monitor bus, so "Hear yourself" follows
+	// LocalOutput's selected device instead of always hitting system default
 	const monitorGain = audioCtx.createGain();
 	monitorGain.gain.value = 0;
-	monitorGain.connect(audioCtx.destination);
+	monitorGain.connect(getMonitorBus());
 
 	let stream: MediaStream | null = null;
 	let sourceNode: MediaStreamAudioSourceNode | null = null;

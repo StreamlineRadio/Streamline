@@ -9,6 +9,7 @@
 		faGear
 	} from '@fortawesome/free-solid-svg-icons';
 	import { createDeckAudio } from './deck-audio';
+	import { trackPreloader } from '../../audio/track-preload';
 	import DbMeter from '../../components/DbMeter.svelte';
 	import IconButton from '../../components/IconButton.svelte';
 	import WaveformDisplay from './WaveformDisplay.svelte';
@@ -239,10 +240,15 @@
 		emitState('loading');
 
 		try {
-			const arrayBuffer = await window.streamline.api.library.readAudioFile(path);
-			if (generation !== loadGeneration) return false;
-			await audio.load(arrayBuffer);
-			if (generation !== loadGeneration) return false;
+			const preloaded = trackPreloader.take(path);
+			if (preloaded) {
+				audio.loadDecoded(preloaded);
+			} else {
+				const arrayBuffer = await window.streamline.api.library.readAudioFile(path);
+				if (generation !== loadGeneration) return false;
+				await audio.load(arrayBuffer);
+				if (generation !== loadGeneration) return false;
+			}
 			duration = audio.getDuration();
 			position = 0;
 			isPlaying = false;

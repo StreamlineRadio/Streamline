@@ -67,6 +67,13 @@ vi.mock('../../layout/store.svelte', () => ({
 
 vi.mock('../../assets/favicon.svg?url', () => ({ default: 'favicon.svg' }));
 
+// Stub the shared preloader so its own decode/IPC never runs here; the indicator
+// is driven purely by emitting TRACK_PRELOAD_STATE events on the bus.
+vi.mock('../../audio/track-preload', () => ({
+	trackPreloader: { preload: vi.fn(), take: () => null, clear: vi.fn() },
+	TRACK_PRELOAD_STATE: 'track:preload:state'
+}));
+
 describe('Queue (component)', () => {
 	beforeEach(() => {
 		layoutUpdateInstance.mockReset();
@@ -521,6 +528,92 @@ describe('Queue (component)', () => {
 		const closeButton = document.querySelector('[title="Close"]') as HTMLButtonElement;
 		await fireEvent.click(closeButton);
 		expect(document.querySelector('[role="dialog"]')).toBeNull();
+	});
+
+	it('preload indicator: shows a spinner while preloading, a badge when ready', async () => {
+		const { container } = render(Queue, { instanceId: 'q-preload' });
+		queueAddSong()(makeSong());
+		await tick();
+
+		eventBus.emit('track:preload:state', { path: '/tmp/song1.mp3', status: 'preloading' });
+		await tick();
+		expect(container.querySelector('[title="Preloading…"]')).toBeTruthy();
+		expect(container.querySelector('[title="Preloaded"]')).toBeNull();
+
+		eventBus.emit('track:preload:state', { path: '/tmp/song1.mp3', status: 'ready' });
+		await tick();
+		expect(container.querySelector('[title="Preloading…"]')).toBeNull();
+		expect(container.querySelector('[title="Preloaded"]')).toBeTruthy();
+	});
+
+	it('preload indicator: clicking the badge emits an info toast and does not play the row', async () => {
+		const toasts: Array<{ message: string; type: string }> = [];
+		eventBus.on('toast:show', (payload) =>
+			toasts.push(payload as { message: string; type: string })
+		);
+		const { container } = render(Queue, { instanceId: 'q-preload-click' });
+		queueAddSong()(makeSong());
+		await tick();
+		eventBus.emit('track:preload:state', { path: '/tmp/song1.mp3', status: 'ready' });
+		await tick();
+
+		const badge = container.querySelector('[title="Preloaded"]') as HTMLButtonElement;
+		await fireEvent.dblClick(badge);
+		await fireEvent.click(badge);
+
+		expect(toasts).toHaveLength(1);
+		expect(toasts[0].type).toBe('info');
+		expect(toasts[0].message).toContain('Preloaded');
+	});
+
+	it('preload indicator: a matching cleared event removes the indicator', async () => {
+		const { container } = render(Queue, { instanceId: 'q-preload-clear' });
+		queueAddSong()(makeSong());
+		await tick();
+		eventBus.emit('track:preload:state', { path: '/tmp/song1.mp3', status: 'ready' });
+		await tick();
+		expect(container.querySelector('[title="Preloaded"]')).toBeTruthy();
+
+		eventBus.emit('track:preload:state', { path: '/tmp/song1.mp3', status: 'cleared' });
+		await tick();
+		expect(container.querySelector('[title="Preloaded"]')).toBeNull();
+	});
+
+	it('preload indicator: a null-path cleared event removes the indicator', async () => {
+		const { container } = render(Queue, { instanceId: 'q-preload-clear-null' });
+		queueAddSong()(makeSong());
+		await tick();
+		eventBus.emit('track:preload:state', { path: '/tmp/song1.mp3', status: 'preloading' });
+		await tick();
+		expect(container.querySelector('[title="Preloading…"]')).toBeTruthy();
+
+		eventBus.emit('track:preload:state', { path: null, status: 'cleared' });
+		await tick();
+		expect(container.querySelector('[title="Preloading…"]')).toBeNull();
+	});
+
+	it('preload indicator: a non-matching cleared event is ignored', async () => {
+		const { container } = render(Queue, { instanceId: 'q-preload-keep' });
+		queueAddSong()(makeSong());
+		await tick();
+		eventBus.emit('track:preload:state', { path: '/tmp/song1.mp3', status: 'ready' });
+		await tick();
+
+		// cleared for a different path (and the optional-chain path when nothing matches) must not drop it.
+		eventBus.emit('track:preload:state', { path: '/tmp/other.mp3', status: 'cleared' });
+		await tick();
+		expect(container.querySelector('[title="Preloaded"]')).toBeTruthy();
+	});
+
+	it('preload indicator: cleared with no active preload is a no-op', async () => {
+		const { container } = render(Queue, { instanceId: 'q-preload-noop' });
+		queueAddSong()(makeSong());
+		await tick();
+		// No preloading/ready was emitted, so preload is null; the optional chain short-circuits.
+		eventBus.emit('track:preload:state', { path: '/tmp/song1.mp3', status: 'cleared' });
+		await tick();
+		expect(container.querySelector('[title="Preloaded"]')).toBeNull();
+		expect(container.querySelector('[title="Preloading…"]')).toBeNull();
 	});
 
 	it('settings modal: unchecking a deck removes it from linkedDeckIds', async () => {

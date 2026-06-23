@@ -668,4 +668,22 @@ describe('Queue (component)', () => {
 			expect.objectContaining({ settingsJson: expect.stringContaining('"preloadCount":3') })
 		);
 	});
+
+	it('preload window: clamps an oversized persisted preloadCount to the 20-track max', async () => {
+		mockPreloader.setWindow.mockClear();
+		settingsHolder.current = JSON.stringify({
+			autoplay: true,
+			linkedDeckIds: [],
+			preloadCount: 9999
+		});
+		render(Queue, { instanceId: 'q-preload-clamp' });
+		for (let i = 0; i < 25; i++) {
+			queueAddSong()(makeSong({ id: `s${i}`, path: `/tmp/song${i}.mp3` }));
+		}
+		await tick();
+
+		const lastSetWindowCall = mockPreloader.setWindow.mock.calls.at(-1);
+		expect(lastSetWindowCall?.[0]).toBe('q-preload-clamp');
+		expect(lastSetWindowCall?.[1]).toHaveLength(20);
+	});
 });

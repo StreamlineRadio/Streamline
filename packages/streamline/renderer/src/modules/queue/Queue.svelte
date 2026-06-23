@@ -54,6 +54,10 @@
 		preloadCount: 1
 	};
 
+	// Mirrors the max on the settings modal's number input. Keeps decode pressure and
+	// RAM bounded even if a corrupt persisted value slips past the UI.
+	const MAX_PRELOAD_COUNT = 20;
+
 	const currentSettings = $derived(
 		(() => {
 			const record = instanceStore.get(instanceId)?.record;
@@ -80,7 +84,9 @@
 	// Only worthwhile when autoplay is on; otherwise the head may never play. The
 	// shared preloader holds the union of every queue's window, so this queue
 	// registers its own window rather than clobbering a single global slot.
-	const preloadCount = $derived(Math.max(0, currentSettings.preloadCount));
+	const preloadCount = $derived(
+		Math.min(MAX_PRELOAD_COUNT, Math.max(1, Math.round(currentSettings.preloadCount) || 1))
+	);
 	const windowPaths = $derived(
 		currentSettings.autoplay ? items.slice(0, preloadCount).map((item) => item.song.path) : []
 	);

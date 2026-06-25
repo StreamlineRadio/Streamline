@@ -11,7 +11,8 @@
 		faMusic,
 		faGear,
 		faBolt,
-		faSpinner
+		faSpinner,
+		faDownload
 	} from '@fortawesome/free-solid-svg-icons';
 	import type { Song } from '@streamline/shared';
 	import IconButton from '../../components/IconButton.svelte';
@@ -44,9 +45,18 @@
 	interface QueueSettings {
 		autoplay: boolean;
 		linkedDeckIds: string[];
+		preloadCount: number;
 	}
 
-	const defaultQueueSettings: QueueSettings = { autoplay: false, linkedDeckIds: [] };
+	const defaultQueueSettings: QueueSettings = {
+		autoplay: false,
+		linkedDeckIds: [],
+		preloadCount: 1
+	};
+
+	// Mirrors the max on the settings modal's number input. Keeps decode pressure and
+	// RAM bounded even if a corrupt persisted value slips past the UI.
+	const MAX_PRELOAD_COUNT = 20;
 
 	const currentSettings = $derived(
 		(() => {
@@ -70,26 +80,27 @@
 	let items = $state<QueueItem[]>([]);
 	const trackCountLabel = $derived(`${items.length} track${items.length !== 1 ? 's' : ''}`);
 
-	// Decode the head track ahead of time so an autoplay hand-off starts instantly.
-	// Only worthwhile when autoplay is on; otherwise the head may never play.
-	const upcomingPreloadPath = $derived(
-		currentSettings.autoplay ? (items[0]?.song.path ?? null) : null
+	// Decode the first N tracks ahead of time so an autoplay hand-off starts instantly.
+	// Only worthwhile when autoplay is on; otherwise the head may never play. The
+	// shared preloader holds the union of every queue's window, so this queue
+	// registers its own window rather than clobbering a single global slot.
+	const preloadCount = $derived(
+		Math.min(MAX_PRELOAD_COUNT, Math.max(1, Math.round(currentSettings.preloadCount) || 1))
+	);
+	const windowPaths = $derived(
+		currentSettings.autoplay ? items.slice(0, preloadCount).map((item) => item.song.path) : []
 	);
 	$effect(() => {
-		if (upcomingPreloadPath) trackPreloader.preload(upcomingPreloadPath);
-		else trackPreloader.clear();
+		trackPreloader.setWindow(instanceId, windowPaths);
 	});
 
-	// Mirrors the shared preloader's progress so the matching row can show an
-	// indicator. The preloader holds one track, so a single entry is enough.
-	let preload = $state<{ path: string; status: 'preloading' | 'ready' } | null>(null);
+	// Mirrors the shared preloader's per-path progress so each row can show its own
+	// indicator. SvelteMap is already reactive; do not wrap it in $state.
+	const preloadStatus = new SvelteMap<string, 'preloading' | 'ready'>();
 	function onPreloadState(payload: unknown): void {
 		const { path, status } = payload as PreloadStatePayload;
-		if (status === 'cleared') {
-			if (path === null || preload?.path === path) preload = null;
-			return;
-		}
-		preload = { path: path as string, status };
+		if (status === 'cleared') preloadStatus.delete(path);
+		else preloadStatus.set(path, status);
 	}
 	let dragIndex = $state<number | null>(null);
 	// Tracks whether the current drag landed on a drop target within THIS queue.
@@ -276,6 +287,7 @@
 	onDestroy(() => {
 		clearInterval(nowTimer);
 		unsubPreloadState?.();
+		trackPreloader.releaseOwner(instanceId);
 		for (const deckId of Array.from(linkedDecks.keys())) {
 			unsubscribeFromDeck(deckId);
 		}
@@ -466,6 +478,11 @@
 		);
 	}
 
+	function preloadManually(e: MouseEvent, path: string) {
+		e.stopPropagation();
+		trackPreloader.preloadManual(path);
+	}
+
 	function tryLoadOnDeck(deckId: string, path: string): boolean {
 		let accepted = false;
 		eventBus.emit(`deck:${deckId}:load-if-idle`, {
@@ -562,6 +579,7 @@
 	<div class="min-h-0 flex-1 overflow-y-auto">
 		{#each items as item, i (item.id)}
 			{@const eta = cumulativeDuration(i)}
+			{@const preloadState = preloadStatus.get(item.song.path)}
 			<div
 				class="group relative flex cursor-pointer items-center gap-2 border-b border-primary-800/50 px-3 py-1 transition-colors hover:bg-primary-900"
 				draggable="true"
@@ -584,7 +602,7 @@
 					{formatDuration(item.song.durationSec)}
 				</span>
 				<span class="flex h-6 w-6 shrink-0 items-center justify-center text-xs">
-					{#if preload?.path === item.song.path && preload.status === 'ready'}
+					{#if preloadState === 'ready'}
 						<button
 							title="Preloaded"
 							onclick={showPreloadInfo}
@@ -593,10 +611,19 @@
 						>
 							<FontAwesomeIcon icon={faBolt} />
 						</button>
-					{:else if preload?.path === item.song.path && preload.status === 'preloading'}
+					{:else if preloadState === 'preloading'}
 						<span title="Preloading…" class="text-primary-400">
 							<FontAwesomeIcon icon={faSpinner} spin />
 						</span>
+					{:else}
+						<button
+							title="Preload into memory"
+							onclick={(e) => preloadManually(e, item.song.path)}
+							ondblclick={(e) => e.stopPropagation()}
+							class="flex h-6 w-6 items-center justify-center rounded text-primary-700 opacity-0 transition-colors group-hover:opacity-100 hover:bg-primary-800 hover:text-primary-300"
+						>
+							<FontAwesomeIcon icon={faDownload} />
+						</button>
 					{/if}
 				</span>
 				<button
@@ -637,12 +664,14 @@
 {#if showSettings}
 	<QueueSettingsModal
 		linkedDeckIds={currentSettings.linkedDeckIds}
+		preloadCount={currentSettings.preloadCount}
 		onToggleDeck={(deckId, linked) => {
 			const next = linked
 				? Array.from(new Set([...currentSettings.linkedDeckIds, deckId]))
 				: currentSettings.linkedDeckIds.filter((id) => id !== deckId);
 			updateSettings({ linkedDeckIds: next });
 		}}
+		onPreloadCountChange={(count) => updateSettings({ preloadCount: count })}
 		onClose={() => (showSettings = false)}
 	/>
 {/if}

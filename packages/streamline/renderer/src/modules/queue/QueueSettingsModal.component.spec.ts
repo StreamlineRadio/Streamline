@@ -32,6 +32,8 @@ describe('QueueSettingsModal', () => {
 		const { container } = render(QueueSettingsModal, {
 			linkedDeckIds: [],
 			onToggleDeck: vi.fn(),
+			preloadCount: 1,
+			onPreloadCountChange: vi.fn(),
 			onClose: vi.fn()
 		});
 		const labels = [...container.querySelectorAll('label')].map((l) => l.textContent?.trim());
@@ -45,6 +47,8 @@ describe('QueueSettingsModal', () => {
 		const { getByText } = render(QueueSettingsModal, {
 			linkedDeckIds: [],
 			onToggleDeck: vi.fn(),
+			preloadCount: 1,
+			onPreloadCountChange: vi.fn(),
 			onClose: vi.fn()
 		});
 		expect(getByText('Queue settings')).toBeTruthy();
@@ -57,6 +61,8 @@ describe('QueueSettingsModal', () => {
 		const { getByText } = render(QueueSettingsModal, {
 			linkedDeckIds: [],
 			onToggleDeck: vi.fn(),
+			preloadCount: 1,
+			onPreloadCountChange: vi.fn(),
 			onClose: vi.fn()
 		});
 		expect(getByText('Deck A')).toBeTruthy();
@@ -67,6 +73,8 @@ describe('QueueSettingsModal', () => {
 		const { getByText } = render(QueueSettingsModal, {
 			linkedDeckIds: [],
 			onToggleDeck: vi.fn(),
+			preloadCount: 1,
+			onPreloadCountChange: vi.fn(),
 			onClose: vi.fn()
 		});
 		expect(getByText('No decks in the active layout.')).toBeTruthy();
@@ -77,6 +85,8 @@ describe('QueueSettingsModal', () => {
 		const { getByText } = render(QueueSettingsModal, {
 			linkedDeckIds: [],
 			onToggleDeck: vi.fn(),
+			preloadCount: 1,
+			onPreloadCountChange: vi.fn(),
 			onClose: vi.fn()
 		});
 		expect(getByText('No decks in the active layout.')).toBeTruthy();
@@ -89,6 +99,8 @@ describe('QueueSettingsModal', () => {
 		const { container } = render(QueueSettingsModal, {
 			linkedDeckIds: ['deck-a'],
 			onToggleDeck: vi.fn(),
+			preloadCount: 1,
+			onPreloadCountChange: vi.fn(),
 			onClose: vi.fn()
 		});
 		const checkboxes = container.querySelectorAll(
@@ -106,6 +118,8 @@ describe('QueueSettingsModal', () => {
 		const { container } = render(QueueSettingsModal, {
 			linkedDeckIds: [],
 			onToggleDeck,
+			preloadCount: 1,
+			onPreloadCountChange: vi.fn(),
 			onClose: vi.fn()
 		});
 		const checkbox = container.querySelector('input[type="checkbox"]') as HTMLInputElement;
@@ -119,9 +133,31 @@ describe('QueueSettingsModal', () => {
 		const { getByTitle } = render(QueueSettingsModal, {
 			linkedDeckIds: [],
 			onToggleDeck: vi.fn(),
+			preloadCount: 1,
+			onPreloadCountChange: vi.fn(),
 			onClose
 		});
 		await fireEvent.click(getByTitle('Close'));
 		expect(onClose).toHaveBeenCalledOnce();
+	});
+
+	it('renders the preload count and reports rounded, floored changes', async () => {
+		mockLayoutStore.active = { instances: [] };
+		const onPreloadCountChange = vi.fn();
+		const { container } = render(QueueSettingsModal, {
+			linkedDeckIds: [],
+			onToggleDeck: vi.fn(),
+			preloadCount: 3,
+			onPreloadCountChange,
+			onClose: vi.fn()
+		});
+		const input = container.querySelector('input[type="number"]') as HTMLInputElement;
+		expect(input.value).toBe('3');
+
+		await fireEvent.change(input, { target: { value: '4.6' } });
+		expect(onPreloadCountChange).toHaveBeenCalledWith(5);
+
+		await fireEvent.change(input, { target: { value: '0' } });
+		expect(onPreloadCountChange).toHaveBeenLastCalledWith(1);
 	});
 });

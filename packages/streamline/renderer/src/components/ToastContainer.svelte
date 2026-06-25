@@ -2,12 +2,14 @@
 	export interface ToastItem {
 		id: string;
 		message: string;
-		type: 'error' | 'warning' | 'info';
+		type: 'error' | 'warning' | 'success' | 'info';
+		durationMs: number;
 	}
 </script>
 
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { fly } from 'svelte/transition';
 	import Toast from './Toast.svelte';
 	import { eventBus } from '../modules/event-bus';
 
@@ -15,8 +17,7 @@
 
 	export function addToast(message: string, type: ToastItem['type'] = 'info', durationMs = 8000) {
 		const id = crypto.randomUUID();
-		toasts = [...toasts, { id, message, type }];
-		setTimeout(() => removeToast(id), durationMs);
+		toasts = [...toasts, { id, message, type, durationMs }];
 	}
 
 	function removeToast(id: string) {
@@ -37,6 +38,13 @@
 
 <div class="fixed right-4 bottom-12 z-50 flex flex-col gap-2">
 	{#each toasts as toast (toast.id)}
-		<Toast message={toast.message} type={toast.type} onClose={() => removeToast(toast.id)} />
+		<div in:fly={{ x: 24, duration: 200 }}>
+			<Toast
+				message={toast.message}
+				type={toast.type}
+				durationMs={toast.durationMs}
+				onClose={() => removeToast(toast.id)}
+			/>
+		</div>
 	{/each}
 </div>

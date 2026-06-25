@@ -466,7 +466,7 @@
 		removeSong(id);
 	}
 
-	function showToast(message: string, type: 'error' | 'warning' | 'info' = 'info') {
+	function showToast(message: string, type: 'error' | 'warning' | 'success' | 'info' = 'info') {
 		eventBus.emit('toast:show', { message, type });
 	}
 

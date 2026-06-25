@@ -3,8 +3,8 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "rebuild": "pnpm --filter streamline exec electron-rebuild -f -w better-sqlite3",
-    "dev": "pnpm run rebuild && pnpm --filter streamline dev",
+    "rebuild:native": "pnpm --filter streamline exec electron-rebuild -f -w better-sqlite3",
+    "dev": "pnpm run rebuild:native && pnpm --filter streamline dev",
     "package": "pnpm --filter streamline make",
     "package:deb": "pnpm --filter streamline make --targets @electron-forge/maker-deb",
     "package:rpm": "pnpm --filter streamline make --targets @electron-forge/maker-rpm",

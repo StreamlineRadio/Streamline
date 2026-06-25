@@ -9,8 +9,7 @@
 
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { fly, scale } from 'svelte/transition';
-	import { flip } from 'svelte/animate';
+	import { fly } from 'svelte/transition';
 	import Toast from './Toast.svelte';
 	import { eventBus } from '../modules/event-bus';
 
@@ -39,11 +38,7 @@
 
 <div class="fixed right-4 bottom-12 z-50 flex flex-col gap-2">
 	{#each toasts as toast (toast.id)}
-		<div
-			animate:flip={{ duration: 200 }}
-			in:fly={{ x: 24, duration: 200 }}
-			out:scale={{ start: 0.9, duration: 150 }}
-		>
+		<div in:fly={{ x: 24, duration: 200 }}>
 			<Toast
 				message={toast.message}
 				type={toast.type}

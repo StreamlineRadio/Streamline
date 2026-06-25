@@ -75,14 +75,14 @@
 	onmouseenter={resetTimer}
 >
 	<span class="absolute inset-y-0 left-0 w-1 {style.accent}" aria-hidden="true"></span>
-	<span class="flex-shrink-0 leading-5 {style.glyph}" aria-hidden="true"
+	<span class="shrink-0 leading-5 {style.glyph}" aria-hidden="true"
 		><FontAwesomeIcon icon={style.icon} /></span
 	>
 	<span class="flex-1 leading-5">{message}</span>
 	<button
 		onclick={onClose}
 		aria-label="Dismiss"
-		class="relative flex h-6 w-6 flex-shrink-0 items-center justify-center {style.close}"
+		class="relative flex h-6 w-6 shrink-0 items-center justify-center {style.close}"
 	>
 		{#key cycle}
 			<svg class="absolute inset-0 h-full w-full -rotate-90" viewBox="0 0 24 24" aria-hidden="true">

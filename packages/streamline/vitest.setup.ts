@@ -12,6 +12,21 @@ if (typeof globalThis.ResizeObserver === 'undefined') {
 	};
 }
 
+// jsdom lacks the Web Animations API that Svelte 5 transitions use; a no-op
+// stub keeps `in:`/`out:` transitions from throwing during component tests.
+if (typeof Element !== 'undefined' && !Element.prototype.animate) {
+	Element.prototype.animate = () =>
+		({
+			finished: Promise.resolve(),
+			cancel() {},
+			play() {},
+			pause() {},
+			finish() {},
+			commitStyles() {},
+			onfinish: null
+		}) as unknown as Animation;
+}
+
 if (typeof globalThis.requestIdleCallback === 'undefined') {
 	(
 		globalThis as unknown as { requestIdleCallback: (cb: () => void) => number }

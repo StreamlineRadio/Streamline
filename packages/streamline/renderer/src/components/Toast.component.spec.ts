@@ -33,4 +33,9 @@ describe('Toast', () => {
 		const { container } = render(Toast, { message: 'Info', type: 'info', onClose: vi.fn() });
 		expect(container.querySelector('.bg-info-950')).toBeTruthy();
 	});
+
+	it('applies success surface for success type', () => {
+		const { container } = render(Toast, { message: 'Done', type: 'success', onClose: vi.fn() });
+		expect(container.querySelector('.bg-success-950')).toBeTruthy();
+	});
 });

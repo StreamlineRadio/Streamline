@@ -9,7 +9,7 @@ Thanks for your interest in contributing! Streamline is a pnpm monorepo — read
 **Prerequisites:**
 
 - Node 24 — use [nvm](https://github.com/nvm-sh/nvm) with the `.nvmrc` in the repo root (`nvm use`)
-- pnpm 11 or later — `npm install -g pnpm` (the repo pins `pnpm@11.4.0` via `packageManager`)
+- pnpm 11 or later — `npm install -g pnpm` (the repo pins `pnpm@11.9.0` via `packageManager`)
 
 **Install dependencies:**
 

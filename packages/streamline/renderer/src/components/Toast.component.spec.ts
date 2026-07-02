@@ -19,18 +19,23 @@ describe('Toast', () => {
 		expect(onClose).toHaveBeenCalledOnce();
 	});
 
-	it('applies error class for error type', () => {
+	it('applies danger surface for error type', () => {
 		const { container } = render(Toast, { message: 'Err', type: 'error', onClose: vi.fn() });
-		expect(container.querySelector('.bg-red-900')).toBeTruthy();
+		expect(container.querySelector('.bg-danger-950')).toBeTruthy();
 	});
 
-	it('applies warning class for warning type', () => {
+	it('applies warning surface for warning type', () => {
 		const { container } = render(Toast, { message: 'Warn', type: 'warning', onClose: vi.fn() });
-		expect(container.querySelector('.bg-yellow-900')).toBeTruthy();
+		expect(container.querySelector('.bg-warning-950')).toBeTruthy();
 	});
 
-	it('applies info class for info type', () => {
+	it('applies info surface for info type', () => {
 		const { container } = render(Toast, { message: 'Info', type: 'info', onClose: vi.fn() });
-		expect(container.querySelector('.bg-blue-900')).toBeTruthy();
+		expect(container.querySelector('.bg-info-950')).toBeTruthy();
+	});
+
+	it('applies success surface for success type', () => {
+		const { container } = render(Toast, { message: 'Done', type: 'success', onClose: vi.fn() });
+		expect(container.querySelector('.bg-success-950')).toBeTruthy();
 	});
 });

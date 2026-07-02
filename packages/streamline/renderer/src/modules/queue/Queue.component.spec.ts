@@ -69,8 +69,18 @@ vi.mock('../../assets/favicon.svg?url', () => ({ default: 'favicon.svg' }));
 
 // Stub the shared preloader so its own decode/IPC never runs here; the indicator
 // is driven purely by emitting TRACK_PRELOAD_STATE events on the bus.
+const { mockPreloader } = vi.hoisted(() => ({
+	mockPreloader: {
+		setWindow: vi.fn(),
+		preloadManual: vi.fn(),
+		take: () => null,
+		releaseOwner: vi.fn(),
+		getStatus: () => null,
+		clear: vi.fn()
+	}
+}));
 vi.mock('../../audio/track-preload', () => ({
-	trackPreloader: { preload: vi.fn(), take: () => null, clear: vi.fn() },
+	trackPreloader: mockPreloader,
 	TRACK_PRELOAD_STATE: 'track:preload:state'
 }));
 
@@ -196,6 +206,7 @@ describe('Queue (component)', () => {
 		await tick();
 		const row = container.querySelector('[draggable="true"]') as HTMLElement;
 		expect(row).toBeTruthy();
+		await fireEvent.dragOver(row);
 		await fireEvent.drop(row, { dataTransfer: { files: [] } });
 	});
 
@@ -579,17 +590,17 @@ describe('Queue (component)', () => {
 		expect(container.querySelector('[title="Preloaded"]')).toBeNull();
 	});
 
-	it('preload indicator: a null-path cleared event removes the indicator', async () => {
-		const { container } = render(Queue, { instanceId: 'q-preload-clear-null' });
+	it('preload indicator: a row with no state shows a manual preload button', async () => {
+		mockPreloader.preloadManual.mockClear();
+		const { container } = render(Queue, { instanceId: 'q-preload-manual' });
 		queueAddSong()(makeSong());
 		await tick();
-		eventBus.emit('track:preload:state', { path: '/tmp/song1.mp3', status: 'preloading' });
-		await tick();
-		expect(container.querySelector('[title="Preloading…"]')).toBeTruthy();
 
-		eventBus.emit('track:preload:state', { path: null, status: 'cleared' });
-		await tick();
-		expect(container.querySelector('[title="Preloading…"]')).toBeNull();
+		const button = container.querySelector('[title="Preload into memory"]') as HTMLButtonElement;
+		expect(button).toBeTruthy();
+		await fireEvent.dblClick(button);
+		await fireEvent.click(button);
+		expect(mockPreloader.preloadManual).toHaveBeenCalledWith('/tmp/song1.mp3');
 	});
 
 	it('preload indicator: a non-matching cleared event is ignored', async () => {
@@ -599,7 +610,7 @@ describe('Queue (component)', () => {
 		eventBus.emit('track:preload:state', { path: '/tmp/song1.mp3', status: 'ready' });
 		await tick();
 
-		// cleared for a different path (and the optional-chain path when nothing matches) must not drop it.
+		// cleared for a different path must not drop this row's indicator.
 		eventBus.emit('track:preload:state', { path: '/tmp/other.mp3', status: 'cleared' });
 		await tick();
 		expect(container.querySelector('[title="Preloaded"]')).toBeTruthy();
@@ -637,5 +648,42 @@ describe('Queue (component)', () => {
 				settingsJson: expect.stringContaining('"linkedDeckIds":[]')
 			})
 		);
+	});
+
+	it('settings modal: changing preload count persists the new value', async () => {
+		settingsHolder.current = JSON.stringify({ autoplay: true, linkedDeckIds: [], preloadCount: 1 });
+		layoutInstancesHolder.current = [];
+
+		const { container } = render(Queue, { instanceId: 'q-preload-count' });
+		const gear = container.querySelector('[title="Queue settings"]') as HTMLButtonElement;
+		await fireEvent.click(gear);
+		await tick();
+
+		const input = document.querySelector('input[type="number"]') as HTMLInputElement;
+		expect(input).toBeTruthy();
+		await fireEvent.change(input, { target: { value: '3' } });
+
+		expect(layoutUpdateInstance).toHaveBeenCalledWith(
+			'q-preload-count',
+			expect.objectContaining({ settingsJson: expect.stringContaining('"preloadCount":3') })
+		);
+	});
+
+	it('preload window: clamps an oversized persisted preloadCount to the 20-track max', async () => {
+		mockPreloader.setWindow.mockClear();
+		settingsHolder.current = JSON.stringify({
+			autoplay: true,
+			linkedDeckIds: [],
+			preloadCount: 9999
+		});
+		render(Queue, { instanceId: 'q-preload-clamp' });
+		for (let i = 0; i < 25; i++) {
+			queueAddSong()(makeSong({ id: `s${i}`, path: `/tmp/song${i}.mp3` }));
+		}
+		await tick();
+
+		const lastSetWindowCall = mockPreloader.setWindow.mock.calls.at(-1);
+		expect(lastSetWindowCall?.[0]).toBe('q-preload-clamp');
+		expect(lastSetWindowCall?.[1]).toHaveLength(20);
 	});
 });

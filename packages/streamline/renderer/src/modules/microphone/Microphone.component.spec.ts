@@ -33,7 +33,8 @@ const { fakeAudioCtx } = vi.hoisted(() => {
 vi.mock('../../audio/context', () => ({ getAudioContext: vi.fn().mockReturnValue(fakeAudioCtx) }));
 vi.mock('../../audio/mixer-bridge', () => ({
 	connectToMaster: vi.fn(),
-	connectToBroadcastOnly: vi.fn()
+	connectToBroadcastOnly: vi.fn(),
+	getMonitorBus: vi.fn().mockReturnValue({ connect: vi.fn(), disconnect: vi.fn() })
 }));
 
 import { connectToBroadcastOnly } from '../../audio/mixer-bridge';

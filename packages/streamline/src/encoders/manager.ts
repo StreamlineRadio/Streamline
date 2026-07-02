@@ -39,3 +39,10 @@ export function stopEncoder(id: string): void {
 export function getEncoderStatus(id: string): EncoderStatus {
 	return processes.get(id)?.status ?? { status: 'idle' };
 }
+
+export function isAnyEncoderStreaming(): boolean {
+	for (const encoderProcess of processes.values()) {
+		if (encoderProcess.status.status === 'streaming') return true;
+	}
+	return false;
+}

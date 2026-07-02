@@ -1,6 +1,6 @@
 {
   "name": "streamline",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "rebuild:native": "pnpm --filter streamline exec electron-rebuild -f -w better-sqlite3",

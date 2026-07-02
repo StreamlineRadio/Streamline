@@ -25,6 +25,7 @@ export type EncoderStatus =
 			currentBitrate: number;
 			listeners?: number;
 	  }
+	| { status: 'reconnecting'; attempt: number; delayMs: number }
 	| { status: 'error'; error: string }
 	| { status: 'stopped' };
 

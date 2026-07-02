@@ -131,8 +131,14 @@ describe('encoder manager', () => {
 		expect(isAnyEncoderStreaming()).toBe(true);
 	});
 
-	it('isAnyEncoderStreaming is false when the running encoder is not streaming', () => {
-		mockEncoderStatus.mockReturnValue({ status: 'connecting' });
+	it('isAnyEncoderStreaming is true while a running encoder is reconnecting', () => {
+		mockEncoderStatus.mockReturnValue({ status: 'reconnecting', attempt: 1, delayMs: 1000 });
+		startEncoder(makeConfig(), fakeWindow);
+		expect(isAnyEncoderStreaming()).toBe(true);
+	});
+
+	it('isAnyEncoderStreaming is false when the running encoder has errored', () => {
+		mockEncoderStatus.mockReturnValue({ status: 'error', error: 'boom' });
 		startEncoder(makeConfig(), fakeWindow);
 		expect(isAnyEncoderStreaming()).toBe(false);
 	});

@@ -42,7 +42,8 @@ export function getEncoderStatus(id: string): EncoderStatus {
 
 export function isAnyEncoderStreaming(): boolean {
 	for (const encoderProcess of processes.values()) {
-		if (encoderProcess.status.status === 'streaming') return true;
+		const { status } = encoderProcess.status;
+		if (status === 'streaming' || status === 'connecting' || status === 'reconnecting') return true;
 	}
 	return false;
 }

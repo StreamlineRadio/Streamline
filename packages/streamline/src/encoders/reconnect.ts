@@ -8,6 +8,10 @@ export class ExponentialBackoff {
 		this.maxDelay = maxMs;
 	}
 
+	get attempts(): number {
+		return this.attempt;
+	}
+
 	next(): number {
 		const delay = Math.min(this.base * Math.pow(2, this.attempt), this.maxDelay);
 		this.attempt++;

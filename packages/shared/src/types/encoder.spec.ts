@@ -24,7 +24,7 @@ describe('EncoderConfig', () => {
 	it('EncoderStatus is exhaustive over known status values', () => {
 		type UnhandledStatuses = Exclude<
 			EncoderStatus['status'],
-			'idle' | 'connecting' | 'streaming' | 'error' | 'stopped'
+			'idle' | 'connecting' | 'streaming' | 'reconnecting' | 'error' | 'stopped'
 		>;
 		type AssertNever = [UnhandledStatuses] extends [never] ? true : false;
 		const _check: AssertNever = true;

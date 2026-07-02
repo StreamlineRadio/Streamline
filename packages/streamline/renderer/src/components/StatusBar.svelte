@@ -11,9 +11,10 @@
 
 	let cpuTimer: ReturnType<typeof setInterval>;
 	let clockTimer: ReturnType<typeof setInterval>;
+	let unsubscribeEncoderStatus: (() => void) | undefined;
 
 	onMount(() => {
-		window.streamline.onEncoderStatus((id, status) => {
+		unsubscribeEncoderStatus = window.streamline.onEncoderStatus((id, status) => {
 			encoderStatuses.set(id, status as EncoderStatus);
 		});
 		window.streamline.api.system.getAppVersion().then((v) => {
@@ -30,11 +31,20 @@
 	onDestroy(() => {
 		clearInterval(cpuTimer);
 		clearInterval(clockTimer);
+		unsubscribeEncoderStatus?.();
 	});
+
+	const streamingEncoders = $derived(
+		[...encoderStatuses.values()].filter((s) => s.status === 'streaming').length
+	);
+
+	const reconnectingEncoders = $derived(
+		[...encoderStatuses.values()].filter((s) => s.status === 'reconnecting').length
+	);
 
 	const activeEncoders = $derived(
 		[...encoderStatuses.values()].filter(
-			(s) => s.status === 'streaming' || s.status === 'connecting'
+			(s) => s.status === 'streaming' || s.status === 'connecting' || s.status === 'reconnecting'
 		).length
 	);
 
@@ -43,7 +53,9 @@
 			? 'text-primary-500'
 			: [...encoderStatuses.values()].some((s) => s.status === 'error')
 				? 'text-red-500'
-				: 'text-green-500'
+				: reconnectingEncoders > 0
+					? 'text-amber-500'
+					: 'text-green-500'
 	);
 
 	const encoderCountText = $derived(
@@ -62,7 +74,7 @@
 	class="flex items-center border-t border-primary-800 bg-primary-950 px-4 py-1.5 text-xs text-primary-400 select-none"
 >
 	<div class="flex flex-1 items-center gap-4">
-		<OnAirIndicator active={activeEncoders > 0} />
+		<OnAirIndicator active={streamingEncoders > 0} reconnecting={reconnectingEncoders > 0} />
 		<span class={encoderColor}>{encoderCountText}</span>
 	</div>
 	<div class="flex flex-1 justify-center">

@@ -7,7 +7,7 @@ export interface StreamlineWindowApi {
 	platform: string;
 	api: TypedIpcApi;
 	getPathForFile(file: File): string;
-	onEncoderStatus(cb: (id: string, status: unknown) => void): void;
+	onEncoderStatus(cb: (id: string, status: unknown) => void): () => void;
 	onScanProgress(cb: (progress: unknown) => void): void;
 }
 

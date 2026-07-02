@@ -6,7 +6,13 @@ import {
 	type EncoderStatus
 } from '@streamline/shared';
 import { getFFmpegPath } from './ffmpeg-path';
+import { ExponentialBackoff } from './reconnect';
 import { log } from '../logging';
+
+// ponytail: streaming this long counts as a healthy connection, so backoff restarts from zero
+const STABLE_CONNECTION_MS = 30000;
+// give up reconnecting when the encoder has never streamed once (wrong password, bad mount)
+const MAX_ATTEMPTS_BEFORE_FIRST_CONNECT = 5;
 
 export class EncoderProcess {
 	private ffmpegProcess: ChildProcess | null = null;
@@ -14,6 +20,10 @@ export class EncoderProcess {
 	private bytesEncoded = 0;
 	private secondsEncoded = 0;
 	private onStatusChange?: (status: EncoderStatus) => void;
+	private readonly backoff = new ExponentialBackoff();
+	private reconnectTimer: NodeJS.Timeout | null = null;
+	private streamingSince = 0;
+	private hasEverStreamed = false;
 
 	constructor(
 		private readonly config: EncoderConfig,
@@ -35,36 +45,49 @@ export class EncoderProcess {
 
 	start(): void {
 		if (this.ffmpegProcess) return;
-		this.setStatus({ status: 'connecting' });
+		if (this._status.status !== 'reconnecting') this.setStatus({ status: 'connecting' });
 
 		const args = this.buildArgs();
 		log.info('Starting encoder', { id: this.config.id, format: this.config.format, args });
 
-		this.ffmpegProcess = spawn(getFFmpegPath(), args, { stdio: ['pipe', 'pipe', 'pipe'] });
+		const spawned = spawn(getFFmpegPath(), args, { stdio: ['pipe', 'pipe', 'pipe'] });
+		this.ffmpegProcess = spawned;
 
-		this.ffmpegProcess.stderr?.on('data', (chunk: Buffer) => {
-			log.debug('ffmpeg', chunk.toString());
-		});
-
-		this.ffmpegProcess.on('error', (err) => {
-			log.error('Encoder process error', err);
-			this.setStatus({ status: 'error', error: err.message });
-			this.ffmpegProcess = null;
-		});
-
-		this.ffmpegProcess.on('close', (code) => {
-			log.info('Encoder process closed', { code, id: this.config.id });
-			this.ffmpegProcess = null;
-			if (this._status.status !== 'stopped') {
-				this.setStatus({ status: 'error', error: `Process exited with code ${code}` });
+		spawned.stderr?.on('data', (chunk: Buffer) => {
+			const stderrText = chunk.toString();
+			log.debug('ffmpeg', stderrText);
+			// ponytail: ffmpeg only prints progress stats (`time=...`) once the output is open,
+			// so the first stats line is the cheapest reliable "connection established" signal
+			if (
+				this.ffmpegProcess === spawned &&
+				this._status.status !== 'streaming' &&
+				/\btime=\d/.test(stderrText)
+			) {
+				this.streamingSince = Date.now();
+				this.hasEverStreamed = true;
+				this.setStatus({
+					status: 'streaming',
+					bytesEncoded: this.bytesEncoded,
+					secondsEncoded: this.secondsEncoded,
+					currentBitrate: this.config.bitrateKbps
+				});
 			}
 		});
 
-		this.setStatus({
-			status: 'streaming',
-			bytesEncoded: 0,
-			secondsEncoded: 0,
-			currentBitrate: this.config.bitrateKbps
+		spawned.on('error', (err) => {
+			log.error('Encoder process error', err);
+			if (this.ffmpegProcess !== spawned) return;
+			this.ffmpegProcess = null;
+			this.handleUnexpectedExit(err.message);
+		});
+
+		spawned.on('close', (code) => {
+			log.info('Encoder process closed', { code, id: this.config.id });
+			if (this.ffmpegProcess !== spawned) return;
+			this.ffmpegProcess = null;
+			if (this._status.status !== 'stopped') {
+				this.handleUnexpectedExit(`Process exited with code ${code}`);
+			}
 		});
 	}
 
@@ -74,7 +97,6 @@ export class EncoderProcess {
 		this.ffmpegProcess.stdin.write(buf);
 		this.bytesEncoded += buf.byteLength;
 		this.secondsEncoded += buf.byteLength / (this.config.sampleRate * this.config.channels * 4);
-		/* v8 ignore next -- @preserve: status is always 'streaming' while stdin is writable in unit flows */
 		if (this._status.status === 'streaming') {
 			this.setStatus({
 				status: 'streaming',
@@ -86,10 +108,44 @@ export class EncoderProcess {
 	}
 
 	stop(): void {
+		if (this.reconnectTimer) {
+			clearTimeout(this.reconnectTimer);
+			this.reconnectTimer = null;
+		}
 		this.setStatus({ status: 'stopped' });
 		this.ffmpegProcess?.stdin?.end();
 		this.ffmpegProcess?.kill('SIGTERM');
 		this.ffmpegProcess = null;
+	}
+
+	private handleUnexpectedExit(error: string): void {
+		if (this.reconnectTimer || this._status.status === 'stopped') return;
+		const streamedMs = this.streamingSince > 0 ? Date.now() - this.streamingSince : 0;
+		this.streamingSince = 0;
+		if (this.config.type === 'file') {
+			this.setStatus({ status: 'error', error });
+			return;
+		}
+		if (streamedMs >= STABLE_CONNECTION_MS) this.backoff.reset();
+		if (!this.hasEverStreamed && this.backoff.attempts >= MAX_ATTEMPTS_BEFORE_FIRST_CONNECT) {
+			this.setStatus({
+				status: 'error',
+				error: `Could not connect after ${this.backoff.attempts} attempts: ${error}`
+			});
+			return;
+		}
+		const delayMs = this.backoff.next();
+		this.setStatus({ status: 'reconnecting', attempt: this.backoff.attempts, delayMs });
+		log.warn('Encoder connection lost, reconnecting', {
+			id: this.config.id,
+			attempt: this.backoff.attempts,
+			delayMs,
+			error
+		});
+		this.reconnectTimer = setTimeout(() => {
+			this.reconnectTimer = null;
+			this.start();
+		}, delayMs);
 	}
 
 	private buildArgs(): string[] {

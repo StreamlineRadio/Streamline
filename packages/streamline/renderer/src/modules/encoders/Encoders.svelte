@@ -17,6 +17,7 @@
 	import type { EncoderConfig, EncoderStatus } from '@streamline/shared';
 	import IconButton from '../../components/IconButton.svelte';
 	import EncoderModal from './EncoderModal.svelte';
+	import { eventBus } from '../event-bus';
 
 	interface Props {
 		instanceId: string;
@@ -65,10 +66,30 @@
 		configs = applyStoredOrder(loaded, orderJson);
 	}
 
-	onMount(async () => {
-		await reloadConfigs();
-		window.streamline.onEncoderStatus((id, rawStatus) => {
-			statuses.set(id, rawStatus as EncoderStatus);
+	function encoderName(encoderId: string): string {
+		return configs.find((c) => c.id === encoderId)?.name ?? encoderId;
+	}
+
+	onMount(() => {
+		reloadConfigs();
+		return window.streamline.onEncoderStatus((id, rawStatus) => {
+			const previousStatus = statuses.get(id);
+			const encoderStatus = rawStatus as EncoderStatus;
+			statuses.set(id, encoderStatus);
+			if (encoderStatus.status === 'reconnecting') {
+				eventBus.emit('toast:show', {
+					message: `${encoderName(id)}: connection lost, reconnecting (attempt ${encoderStatus.attempt})`,
+					type: 'warning'
+				});
+			} else if (
+				encoderStatus.status === 'streaming' &&
+				previousStatus?.status === 'reconnecting'
+			) {
+				eventBus.emit('toast:show', {
+					message: `${encoderName(id)}: reconnected`,
+					type: 'success'
+				});
+			}
 		});
 	});
 
@@ -101,7 +122,11 @@
 	async function toggleStreaming(config: EncoderConfig) {
 		const status = statuses.get(config.id);
 		try {
-			if (status?.status === 'streaming' || status?.status === 'connecting') {
+			if (
+				status?.status === 'streaming' ||
+				status?.status === 'connecting' ||
+				status?.status === 'reconnecting'
+			) {
 				await window.streamline.api.encoder.stop(config.id);
 			} else {
 				await window.streamline.api.encoder.start($state.snapshot(config));
@@ -132,7 +157,7 @@
 
 	const activeCount = $derived(
 		Array.from(statuses.values()).filter(
-			(s) => s.status === 'streaming' || s.status === 'connecting'
+			(s) => s.status === 'streaming' || s.status === 'connecting' || s.status === 'reconnecting'
 		).length
 	);
 	const activeLiveText = $derived(`${activeCount} live`);
@@ -238,7 +263,7 @@
 		{#each configs as config, index (config.id)}
 			{@const status = statuses.get(config.id) ?? { status: 'idle' }}
 			{@const isStreaming = status.status === 'streaming'}
-			{@const isConnecting = status.status === 'connecting'}
+			{@const isConnecting = status.status === 'connecting' || status.status === 'reconnecting'}
 			{@const isError = status.status === 'error'}
 			{@const isActive = isStreaming || isConnecting}
 			{@const isDragSource = dragIndex === index}
@@ -349,7 +374,11 @@
 
 					{#if isConnecting}
 						<div class="mt-1 font-mono text-[0.6rem] tracking-[0.22em] text-warning-400 uppercase">
-							<span class="connecting-dots">Connecting</span>
+							<span class="connecting-dots">
+								{status.status === 'reconnecting'
+									? `Reconnecting (attempt ${status.attempt})`
+									: 'Connecting'}
+							</span>
 						</div>
 					{/if}
 

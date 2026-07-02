@@ -69,8 +69,11 @@ const streamline: StreamlineWindowApi = {
 	platform: process.platform,
 	api,
 	getPathForFile: (file: File) => webUtils.getPathForFile(file),
-	onEncoderStatus: (cb: (id: string, status: unknown) => void) =>
-		ipcRenderer.on(IPC.ENCODER_STATUS_PUSH, (_e, id, status) => cb(id, status)),
+	onEncoderStatus: (cb: (id: string, status: unknown) => void) => {
+		const listener = (_e: Electron.IpcRendererEvent, id: string, status: unknown) => cb(id, status);
+		ipcRenderer.on(IPC.ENCODER_STATUS_PUSH, listener);
+		return () => ipcRenderer.removeListener(IPC.ENCODER_STATUS_PUSH, listener);
+	},
 	onScanProgress: (cb: (progress: unknown) => void) =>
 		ipcRenderer.on(IPC.LIBRARY_SCAN_PROGRESS, (_e, progress) => cb(progress))
 };

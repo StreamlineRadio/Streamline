@@ -277,7 +277,9 @@
 					]}
 				>
 					{#if isLive}
-						<span class="absolute inset-0 animate-ping rounded-full bg-danger-500/40"></span>
+						<span
+							class="pointer-events-none absolute inset-0 animate-ping rounded-full bg-danger-500/40"
+						></span>
 					{/if}
 					<div class="relative flex flex-col items-center gap-1.5">
 						<FontAwesomeIcon icon={faMicrophone} class="text-3xl" />
